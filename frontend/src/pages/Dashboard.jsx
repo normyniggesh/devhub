@@ -1,160 +1,449 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '../api/client';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useStore } from '../store';
 
 export default function Dashboard() {
-  const [data, setData] = useState({
-    totalProjects: 0,
-    openTasks: 0,
-    completedTasks: 0,
-    qaPassed: 0,
-    recentActivity: []
-  });
+  const { currentUser } = useStore();
+  const navigate = useNavigate();
+  const [data, setData] = useState(null);
+  const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [categoryFilter, setCategoryFilter] = useState('All');
 
   useEffect(() => {
-    const fetchDashboard = async () => {
+    const fetchData = async () => {
       try {
-        const res = await apiClient('/dashboard');
-        if (res.dashboard) {
-          setData(res.dashboard);
+        const [dashRes, calRes] = await Promise.all([
+          apiClient('/dashboard'),
+          // Fetch events from today onwards
+          apiClient(`/calendar/events?start=${new Date().toISOString()}`)
+        ]);
+        if (dashRes.dashboard) setData(dashRes.dashboard);
+        if (calRes.events) {
+          // Filter to only upcoming events
+          const now = new Date();
+          const upcoming = calRes.events.filter(e => new Date(e.endDateTime || e.startDateTime) >= now);
+          setEvents(upcoming.slice(0, 5)); // show top 5
         }
       } catch (err) {
-        console.error('Failed to fetch dashboard', err);
+        console.error('Failed to fetch dashboard data', err);
       } finally {
         setLoading(false);
       }
     };
-    fetchDashboard();
+    fetchData();
   }, []);
 
   if (loading) {
     return <div className="p-12 text-center text-slate-400">Loading dashboard...</div>;
   }
 
-  const { totalProjects, openTasks, completedTasks, qaPassed, recentActivity } = data;
+  const {
+    totalTasks = 0,
+    dueToday = 0,
+    inProgressTasks = 0,
+    completedTasks = 0,
+    toDoTasks = 0,
+    projectOverview = [],
+    qaStatus = { Passed: 0, Failed: 0, Blocked: 0, Skipped: 0, OpenBugs: 0 },
+    recentActivity = []
+  } = data || {};
+
+  // Extract unique categories
+  const categories = ['All', ...new Set(projectOverview.map(p => p.category).filter(Boolean))];
+  const filteredProjects = categoryFilter === 'All' ? projectOverview : projectOverview.filter(p => p.category === categoryFilter);
+
+  // SVG Ring Chart calculations
+  const totalTasksCount = totalTasks;
+  const donePct = totalTasksCount > 0 ? (completedTasks / totalTasksCount) * 100 : 0;
+  const inProgPct = totalTasksCount > 0 ? (inProgressTasks / totalTasksCount) * 100 : 0;
+  // to do pct is remainder
+
+  const totalQa = qaStatus.Passed + qaStatus.Failed + qaStatus.Blocked + qaStatus.Skipped + qaStatus.OpenBugs;
+  const qaPassedPct = totalQa > 0 ? (qaStatus.Passed / totalQa) * 100 : 0;
+  const qaFailedPct = totalQa > 0 ? (qaStatus.Failed / totalQa) * 100 : 0;
 
   const getActivityIcon = (action) => {
-    if (action.includes('CREATE')) return 'fa-solid fa-plus text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
-    if (action.includes('UPDATE')) return 'fa-solid fa-pen text-blue-400 bg-blue-400/10 border-blue-400/20';
-    if (action.includes('DELETE')) return 'fa-solid fa-trash text-red-400 bg-red-400/10 border-red-400/20';
-    if (action.includes('LOGIN')) return 'fa-solid fa-right-to-bracket text-purple-400 bg-purple-400/10 border-purple-400/20';
-    return 'fa-solid fa-bolt text-amber-400 bg-amber-400/10 border-amber-400/20';
+    if (action.includes('CREATE')) return 'fa-solid fa-plus text-purple-400';
+    if (action.includes('UPDATE') || action.includes('EDIT')) return 'fa-solid fa-pen text-blue-400';
+    if (action.includes('DELETE')) return 'fa-solid fa-trash text-red-400';
+    if (action.includes('RESOLVE') || action.includes('DONE')) return 'fa-solid fa-check text-emerald-400';
+    return 'fa-solid fa-bolt text-slate-400';
+  };
+
+  const getTypeColor = (type) => {
+    if (type?.includes('Project')) return 'bg-purple-500';
+    if (type?.includes('Task')) return 'bg-blue-500';
+    switch (type) {
+      case 'Project': return 'bg-purple-500';
+      case 'Task': return 'bg-blue-500';
+      case 'College': return 'bg-emerald-500';
+      case 'Meeting': return 'bg-amber-500';
+      case 'Personal': return 'bg-slate-400';
+      case 'Milestone': return 'bg-pink-500';
+      default: return 'bg-purple-500';
+    }
   };
 
   return (
-    <>
-      {/*  Top Bar & Search  */}
-      <div className="hero-banner px-4 md:px-8 pt-4 md:pt-6 pb-6 border-b border-[#161b2b] -mx-4 md:-mx-8 -mt-4 md:-mt-8 mb-6">
-        <div className="flex items-end justify-between mt-1">
+    <div className="space-y-6">
+      {/* Hero Section */}
+      <div className="relative bg-gradient-to-r from-[#111624] to-[#0a0d14] rounded-2xl p-8 border border-[#192238] overflow-hidden -mt-4">
+        {/* Subtle background graphic */}
+        <div className="absolute right-0 top-0 bottom-0 opacity-10 pointer-events-none w-1/2" style={{ background: 'radial-gradient(circle at 100% 50%, #5243d4 0%, transparent 60%)' }}></div>
+        <div className="relative z-10">
+          <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight mb-2 flex items-center gap-3">
+            Good afternoon, {currentUser?.name?.split(' ')[0] || 'there'} <span className="animate-wave inline-block origin-bottom-right">👋</span>
+          </h1>
+          <p className="text-slate-400 text-sm md:text-base max-w-xl">
+            Let's make progress today.
+          </p>
+        </div>
+        <div className="absolute top-8 right-8 hidden md:block text-right">
+          <p className="text-sm italic text-slate-400 font-serif leading-relaxed text-opacity-80">
+            "Discipline today,<br/>Big results tomorrow."
+          </p>
+        </div>
+      </div>
+
+      {/* 4 Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1 */}
+        <div className="bg-[#0f1422] border border-[#192238] rounded-xl p-5 flex items-center gap-4 transition hover:border-[#2d3a5a]">
+          <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center text-xl shrink-0">
+            <i className="fa-regular fa-square-check"></i>
+          </div>
           <div>
-            <h1 className="text-3xl font-extrabold text-white flex items-center gap-2">
-              Welcome to DevHub <span>👋</span>
-            </h1>
-            <p className="text-sm text-slate-400 mt-1">Let's make progress today.</p>
+            <p className="text-xs font-semibold text-slate-400 mb-1">Total Tasks</p>
+            <div className="text-2xl font-bold text-white leading-none">{totalTasks}</div>
+          </div>
+        </div>
+        {/* Card 2 */}
+        <div className="bg-[#0f1422] border border-[#192238] rounded-xl p-5 flex items-center gap-4 transition hover:border-[#2d3a5a]">
+          <div className="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center text-xl shrink-0">
+            <i className="fa-regular fa-calendar-xmark"></i>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-slate-400 mb-1">Due Today</p>
+            <div className="text-2xl font-bold text-white leading-none">{dueToday}</div>
+          </div>
+        </div>
+        {/* Card 3 */}
+        <div className="bg-[#0f1422] border border-[#192238] rounded-xl p-5 flex items-center gap-4 transition hover:border-[#2d3a5a]">
+          <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center text-xl shrink-0">
+            <i className="fa-solid fa-spinner"></i>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-slate-400 mb-1">In Progress</p>
+            <div className="text-2xl font-bold text-white leading-none">{inProgressTasks}</div>
+          </div>
+        </div>
+        {/* Card 4 */}
+        <div className="bg-[#0f1422] border border-[#192238] rounded-xl p-5 flex items-center gap-4 transition hover:border-[#2d3a5a]">
+          <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl shrink-0">
+            <i className="fa-regular fa-circle-check"></i>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-slate-400 mb-1">Completed</p>
+            <div className="text-2xl font-bold text-white leading-none">{completedTasks}</div>
           </div>
         </div>
       </div>
 
-      {/*  Dashboard Body  */}
-      <div className="space-y-6">
-        {/*  BEGIN: StatCardsRow  */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-purpose="stat-metrics">
-          <div className="bg-[#121623] border border-[#1b2234] rounded-2xl p-4 flex items-center space-x-4">
-            <div className="w-12 h-12 rounded-xl bg-purple-950/40 border border-purple-500/20 text-purple-400 flex items-center justify-center text-lg">
-              <i className="fa-regular fa-clipboard-check"></i>
-            </div>
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Project Overview (Takes 2 columns on desktop) */}
+        <div className="lg:col-span-2 bg-[#0f1422] border border-[#192238] rounded-2xl p-5 flex flex-col">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div>
-              <p className="text-xs font-semibold text-slate-400">Total Projects</p>
-              <div className="flex items-baseline space-x-2 mt-0.5">
-                <span className="text-2xl font-bold text-white tracking-tight">{totalProjects}</span>
-              </div>
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <i className="fa-regular fa-folder text-slate-400"></i> Project Overview
+              </h2>
+              <p className="text-[11px] text-slate-400 mt-1">Track progress across all your projects.</p>
+            </div>
+            <div className="flex items-center gap-3">
+              {categories.length > 1 && (
+                <div className="flex bg-[#161d2f] rounded-lg p-1">
+                  {categories.map(cat => (
+                    <button 
+                      key={cat}
+                      onClick={() => setCategoryFilter(cat)}
+                      className={`text-[10px] font-semibold px-2.5 py-1 rounded-md transition ${categoryFilter === cat ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <Link to="/projects" className="text-xs font-semibold text-slate-300 hover:text-white flex items-center gap-1 bg-[#1a2333] hover:bg-[#253046] px-3 py-1.5 rounded-lg border border-[#2d3a5a] transition">
+                View All <i className="fa-solid fa-arrow-right text-[10px]"></i>
+              </Link>
             </div>
           </div>
-          <div className="bg-[#121623] border border-[#1b2234] rounded-2xl p-4 flex items-center space-x-4">
-            <div className="w-12 h-12 rounded-xl bg-blue-950/40 border border-blue-500/20 text-blue-400 flex items-center justify-center text-lg">
-              <i className="fa-solid fa-rotate"></i>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-400">Open Tasks</p>
-              <div className="flex items-baseline space-x-2 mt-0.5">
-                <span className="text-2xl font-bold text-white tracking-tight">{openTasks}</span>
-              </div>
-            </div>
-          </div>
-          <div className="bg-[#121623] border border-[#1b2234] rounded-2xl p-4 flex items-center space-x-4">
-            <div className="w-12 h-12 rounded-xl bg-emerald-950/30 border border-emerald-500/20 text-emerald-400 flex items-center justify-center text-lg">
-              <i className="fa-regular fa-circle-check"></i>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-400">Completed Tasks</p>
-              <div className="flex items-baseline space-x-2 mt-0.5">
-                <span className="text-2xl font-bold text-white tracking-tight">{completedTasks}</span>
-              </div>
-            </div>
-          </div>
-          <div className="bg-[#121623] border border-[#1b2234] rounded-2xl p-4 flex items-center space-x-4">
-            <div className="w-12 h-12 rounded-xl bg-amber-950/30 border border-amber-500/20 text-amber-400 flex items-center justify-center text-lg">
-              <i className="fa-solid fa-flask"></i>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-400">QA Pass Rate</p>
-              <div className="flex items-baseline space-x-2 mt-0.5">
-                <span className="text-2xl font-bold text-white tracking-tight">{qaPassed}%</span>
-              </div>
-            </div>
-          </div>
-        </section>
 
-        {/*  BEGIN: MidSection (Recent Activity)  */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <section className="lg:col-span-3 bg-[#121623] border border-[#1b2234] rounded-2xl p-6 flex flex-col justify-between" data-purpose="recent-activity">
-            <div>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#1a2133]">
-                <div>
-                  <div className="flex items-center space-x-2.5">
-                    <i className="fa-solid fa-bolt text-slate-400"></i>
-                    <h3 className="text-white font-bold text-base">Recent Activity</h3>
+          <div className="flex-1 flex flex-col gap-4">
+            {filteredProjects.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full py-8 text-center border border-dashed border-[#1f2a44] rounded-xl bg-[#0c101a]">
+                <p className="text-sm font-semibold text-slate-300 mb-1">No projects yet</p>
+                <p className="text-xs text-slate-500 mb-4">Create your first project to get started.</p>
+                <Link to="/projects" className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-lg transition">Create Project</Link>
+              </div>
+            ) : (
+              filteredProjects.map(p => (
+                <div key={p.id} className="group flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3 -mx-3 rounded-xl hover:bg-[#151c2d] transition border border-transparent hover:border-[#1f2a44]">
+                  <div className="flex items-start sm:items-center gap-3 w-full sm:w-1/3 min-w-0">
+                    <div className="w-10 h-10 rounded-lg bg-[#1a2333] border border-[#2d3a5a] flex items-center justify-center shrink-0">
+                      <i className="fa-regular fa-folder text-purple-400"></i>
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-bold text-white truncate cursor-pointer hover:text-purple-400 transition" onClick={() => navigate(`/projects`)}>{p.name}</h3>
+                      <p className="text-[10px] text-slate-400 mt-0.5 truncate">{p.category || 'General'} &middot; {p.status}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-4 w-full sm:w-1/2">
+                    <div className="flex-1">
+                      <div className="h-1.5 w-full bg-[#161d2f] rounded-full overflow-hidden">
+                        <div className="h-full bg-purple-500 rounded-full transition-all duration-500" style={{ width: `${p.progress}%` }}></div>
+                      </div>
+                    </div>
+                    <span className="text-xs font-bold text-slate-300 w-8 text-right shrink-0">{p.progress}%</span>
+                  </div>
+
+                  <div className="w-full sm:w-1/6 text-left sm:text-right shrink-0">
+                    <span className="text-[10px] font-semibold text-slate-400 bg-[#161d2f] px-2 py-1 rounded">
+                      Due {p.dueDate ? new Date(p.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'None'}
+                    </span>
                   </div>
                 </div>
-              </div>
-              <div className="divide-y divide-[#171d2c] mt-2">
-                {recentActivity.length > 0 ? (
-                  recentActivity.map(log => {
-                    const iconClasses = getActivityIcon(log.action);
-                    return (
-                      <div key={log.id} className="py-4 flex items-center justify-between">
-                        <div className="flex items-center space-x-4 w-full">
-                          <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${iconClasses}`}></div>
-                          <div className="flex-1">
-                            <h4 className="text-sm font-semibold text-white">
-                              {log.action} <span className="text-slate-400 font-normal">on</span> {log.entityType}
-                            </h4>
-                            <p className="text-xs text-slate-500 mt-1 truncate max-w-xl">
-                              {log.metadata ? JSON.stringify(log.metadata) : `Entity ID: ${log.entityId}`}
-                            </p>
-                          </div>
-                          <div className="text-xs font-medium text-slate-500 shrink-0">
-                            {new Date(log.createdAt).toLocaleString()}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-10 px-4">
-                    <div className="w-12 h-12 rounded-xl bg-[#1b2234] flex items-center justify-center mb-3">
-                      <i className="fa-solid fa-bolt-slash text-xl text-slate-500"></i>
-                    </div>
-                    <h4 className="text-white font-semibold text-sm mb-1">No recent activity</h4>
-                    <p className="text-xs text-slate-400 mb-4 text-center">Your actions across the workspace will be logged here.</p>
-                  </div>
-                )}
-              </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Calendar Panel */}
+        <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-5 flex flex-col">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-base font-bold text-white flex items-center gap-2">
+              <i className="fa-regular fa-calendar text-slate-400"></i> Calendar
+            </h2>
+            <Link to="/calendar" className="text-xs font-semibold text-slate-300 hover:text-white flex items-center gap-1 bg-[#1a2333] hover:bg-[#253046] px-3 py-1.5 rounded-lg border border-[#2d3a5a] transition">
+              View All <i className="fa-solid fa-arrow-right text-[10px]"></i>
+            </Link>
+          </div>
+
+          <div className="mb-4">
+            <h3 className="text-sm font-bold text-white">{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h3>
+            {/* Simple week representation (visual only) */}
+            <div className="flex justify-between items-center mt-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wide">
+              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
+                <div key={day} className="text-center">{day}</div>
+              ))}
             </div>
-          </section>
+            <div className="flex justify-between items-center mt-1 pb-4 border-b border-[#1f2a44]">
+               {/* Faking a week view visually just to match the vibe. Not functional. */}
+               {Array.from({length: 7}).map((_, i) => {
+                 const d = new Date();
+                 d.setDate(d.getDate() - d.getDay() + 1 + i);
+                 const isToday = d.getDate() === new Date().getDate();
+                 return (
+                   <div key={i} className={`text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-purple-600 text-white' : 'text-slate-300'}`}>
+                     {d.getDate()}
+                   </div>
+                 );
+               })}
+            </div>
+          </div>
+
+          <div className="flex-1 flex flex-col gap-3 overflow-y-auto pr-1">
+            {events.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full py-6 text-center">
+                <p className="text-xs text-slate-500">No upcoming events</p>
+              </div>
+            ) : (
+              events.map(e => {
+                const date = new Date(e.startDateTime || e.endDateTime);
+                return (
+                  <div key={e.id} className="flex gap-3 p-2 hover:bg-[#151c2d] rounded-xl transition cursor-pointer group" onClick={() => {
+                    if (e.derived) {
+                      if (e.sourceType === 'project') navigate(`/projects`);
+                      else if (e.sourceType === 'task') navigate(`/tasks`);
+                    } else {
+                      navigate(`/calendar`);
+                    }
+                  }}>
+                    <div className="flex flex-col items-center min-w-[40px] shrink-0 mt-0.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">{date.toLocaleDateString('en-US', { weekday: 'short' })}</span>
+                      <span className="text-sm font-bold text-white leading-none">{date.getDate()}</span>
+                    </div>
+                    <div className="flex-1 min-w-0 border-l-2 border-transparent group-hover:border-purple-500 pl-3 transition-colors">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${getTypeColor(e.type)}`}></span>
+                        <h4 className="text-xs font-bold text-white truncate">{e.title}</h4>
+                      </div>
+                      <p className="text-[10px] text-slate-500">
+                        {e.allDay ? 'All Day' : date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
       </div>
-    </>
+
+      {/* Lower Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Task Breakdown */}
+        <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-6">
+            <i className="fa-regular fa-rectangle-list text-slate-400"></i>
+            <h2 className="text-base font-bold text-white">Task Breakdown</h2>
+          </div>
+          {totalTasks === 0 ? (
+             <div className="flex items-center justify-center h-32">
+               <p className="text-xs text-slate-500">No tasks yet</p>
+             </div>
+          ) : (
+             <div className="flex items-center justify-center gap-6">
+               <div className="relative w-32 h-32">
+                 <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90">
+                   {/* Background Circle */}
+                   <path className="text-[#1a2333]" strokeWidth="3.5" stroke="currentColor" fill="none"
+                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                   {/* Done */}
+                   <path className="text-emerald-500" strokeWidth="3.5" strokeDasharray={`${donePct}, 100`} strokeLinecap="round" stroke="currentColor" fill="none"
+                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                   {/* In Progress */}
+                   <path className="text-blue-500" strokeWidth="3.5" strokeDasharray={`${inProgPct}, 100`} strokeDashoffset={`-${donePct}`} strokeLinecap="round" stroke="currentColor" fill="none"
+                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                   {/* To Do */}
+                   <path className="text-purple-500" strokeWidth="3.5" strokeDasharray={`${100 - donePct - inProgPct}, 100`} strokeDashoffset={`-${donePct + inProgPct}`} strokeLinecap="round" stroke="currentColor" fill="none"
+                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                 </svg>
+                 <div className="absolute inset-0 flex flex-col items-center justify-center">
+                   <span className="text-2xl font-bold text-white leading-none">{totalTasks}</span>
+                   <span className="text-[9px] text-slate-400 font-medium tracking-wide uppercase mt-1">Tasks</span>
+                 </div>
+               </div>
+               <div className="flex flex-col gap-3">
+                 <div className="flex items-center gap-2">
+                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+                   <span className="text-xs text-slate-300 w-16">Completed</span>
+                   <span className="text-xs font-bold text-white">{completedTasks}</span>
+                 </div>
+                 <div className="flex items-center gap-2">
+                   <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0"></span>
+                   <span className="text-xs text-slate-300 w-16">In Progress</span>
+                   <span className="text-xs font-bold text-white">{inProgressTasks}</span>
+                 </div>
+                 <div className="flex items-center gap-2">
+                   <span className="w-2.5 h-2.5 rounded-full bg-purple-500 shrink-0"></span>
+                   <span className="text-xs text-slate-300 w-16">To Do</span>
+                   <span className="text-xs font-bold text-white">{toDoTasks}</span>
+                 </div>
+               </div>
+             </div>
+          )}
+        </div>
+
+        {/* QA Status */}
+        <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <i className="fa-solid fa-flask text-slate-400"></i>
+              <h2 className="text-base font-bold text-white">QA Status</h2>
+            </div>
+            <Link to="/qa" className="text-[10px] font-semibold text-slate-400 hover:text-white transition flex items-center gap-1">
+              View All <i className="fa-solid fa-arrow-right"></i>
+            </Link>
+          </div>
+          {totalQa === 0 && qaStatus.OpenBugs === 0 ? (
+             <div className="flex items-center justify-center h-32">
+               <p className="text-xs text-slate-500">No QA data yet</p>
+             </div>
+          ) : (
+             <div className="flex items-center justify-center gap-6">
+               <div className="relative w-32 h-32">
+                 <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90">
+                   <path className="text-[#1a2333]" strokeWidth="3.5" stroke="currentColor" fill="none"
+                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                   <path className="text-emerald-500" strokeWidth="3.5" strokeDasharray={`${qaPassedPct}, 100`} strokeLinecap="round" stroke="currentColor" fill="none"
+                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                   <path className="text-rose-500" strokeWidth="3.5" strokeDasharray={`${qaFailedPct}, 100`} strokeDashoffset={`-${qaPassedPct}`} strokeLinecap="round" stroke="currentColor" fill="none"
+                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                   <path className="text-amber-500" strokeWidth="3.5" strokeDasharray={`${100 - qaPassedPct - qaFailedPct}, 100`} strokeDashoffset={`-${qaPassedPct + qaFailedPct}`} strokeLinecap="round" stroke="currentColor" fill="none"
+                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                 </svg>
+                 <div className="absolute inset-0 flex flex-col items-center justify-center">
+                   <span className="text-2xl font-bold text-white leading-none">{totalQa}</span>
+                   <span className="text-[9px] text-slate-400 font-medium tracking-wide uppercase mt-1">Tests</span>
+                 </div>
+               </div>
+               <div className="flex flex-col gap-2.5">
+                 <div className="flex items-center gap-2">
+                   <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                   <span className="text-[11px] text-slate-300 w-16">Passed</span>
+                   <span className="text-[11px] font-bold text-white">{qaStatus.Passed}</span>
+                 </div>
+                 <div className="flex items-center gap-2">
+                   <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
+                   <span className="text-[11px] text-slate-300 w-16">Failed</span>
+                   <span className="text-[11px] font-bold text-white">{qaStatus.Failed}</span>
+                 </div>
+                 <div className="flex items-center gap-2">
+                   <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+                   <span className="text-[11px] text-slate-300 w-16">Testing</span>
+                   <span className="text-[11px] font-bold text-white">{qaStatus.Blocked + qaStatus.Skipped}</span>
+                 </div>
+                 <div className="flex items-center gap-2">
+                   <span className="w-2 h-2 rounded-full bg-red-600 shrink-0"></span>
+                   <span className="text-[11px] text-slate-300 w-16">Open Bugs</span>
+                   <span className="text-[11px] font-bold text-white">{qaStatus.OpenBugs}</span>
+                 </div>
+               </div>
+             </div>
+          )}
+        </div>
+
+        {/* Recent Activity */}
+        <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-5 flex flex-col">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2">
+              <i className="fa-regular fa-clock text-slate-400"></i>
+              <h2 className="text-base font-bold text-white">Recent Activity</h2>
+            </div>
+          </div>
+          
+          <div className="flex-1 flex flex-col gap-3 overflow-y-auto pr-1">
+            {recentActivity.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full py-6 text-center">
+                <p className="text-xs text-slate-500">No recent activity</p>
+              </div>
+            ) : (
+              recentActivity.map(act => (
+                <div key={act.id} className="flex gap-3 p-2 hover:bg-[#151c2d] rounded-xl transition group">
+                  <div className="w-8 h-8 rounded-full bg-[#1a2333] flex flex-col items-center justify-center shrink-0">
+                     <i className={`${getActivityIcon(act.action)} text-xs`}></i>
+                  </div>
+                  <div className="flex-1 min-w-0 flex flex-col justify-center">
+                    <p className="text-xs text-slate-300 truncate">
+                      <span className="font-semibold text-white">{act.user?.name?.split(' ')[0] || 'Someone'}</span> {act.details.toLowerCase()}
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      {new Date(act.createdAt).toLocaleDateString()} {new Date(act.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+      </div>
+    </div>
   );
 }

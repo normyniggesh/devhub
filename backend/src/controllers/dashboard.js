@@ -11,58 +11,101 @@ exports.getDashboard = async (req, res) => {
       ]
     };
 
-    const [totalProjects, openTasks, completedTasks, qaPassedResults, totalQaResults, recentActivity] = await Promise.all([
-      // Total projects
-      prisma.project.count({ where: projectWhereClause }),
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
-      // Open tasks
+    const [
+      totalTasks,
+      dueToday,
+      inProgressTasks,
+      completedTasks,
+      projects,
+      qaResults,
+      openBugs,
+      recentActivity
+    ] = await Promise.all([
+      // 1. Total tasks
+      prisma.task.count({ where: { project: projectWhereClause } }),
+      // 2. Due today
       prisma.task.count({
         where: {
-          assigneeId: userId,
-          status: { in: ['To Do', 'In Progress'] }
+          project: projectWhereClause,
+          status: { notIn: ['Done', 'Completed'] },
+          dueDate: { gte: startOfToday, lte: endOfToday }
         }
       }),
-
-      // Completed tasks
+      // 3. In Progress
       prisma.task.count({
-        where: {
-          assigneeId: userId,
-          status: { in: ['Done', 'Completed'] }
-        }
+        where: { project: projectWhereClause, status: 'In Progress' }
       }),
-
-      // QA Passed Results (accessible to user)
-      prisma.testResult.count({
-        where: {
-          status: 'Passed',
-          testRun: { project: projectWhereClause }
-        }
+      // 4. Completed
+      prisma.task.count({
+        where: { project: projectWhereClause, status: { in: ['Done', 'Completed'] } }
       }),
-
-      // Total QA Results (accessible to user)
-      prisma.testResult.count({
-        where: {
-          testRun: { project: projectWhereClause }
-        }
+      // 5. Projects with tasks for progress
+      prisma.project.findMany({
+        where: projectWhereClause,
+        select: {
+          id: true,
+          name: true,
+          category: true,
+          status: true,
+          priority: true,
+          dueDate: true,
+          tasks: { select: { status: true } }
+        },
+        orderBy: { dueDate: 'asc' }
       }),
-
-      // Recent Activity
+      // 6. QA Test Results
+      prisma.testResult.findMany({
+        where: { testRun: { project: projectWhereClause } },
+        select: { status: true }
+      }),
+      // 7. QA Open Bugs
+      prisma.bug.count({
+        where: { project: projectWhereClause, status: { notIn: ['Resolved', 'Closed', 'Done'] } }
+      }),
+      // 8. Recent Activity
       prisma.auditLog.findMany({
-        where: { userId },
+        where: { project: projectWhereClause }, // Get activity from accessible projects
         orderBy: { createdAt: 'desc' },
-        take: 10
+        take: 10,
+        include: { user: { select: { name: true, avatarUrl: true } } }
       })
     ]);
 
-    const qaPassedRate = totalQaResults > 0 ? parseFloat(((qaPassedResults / totalQaResults) * 100).toFixed(2)) : 0;
+    // To Do Tasks for Breakdown
+    const toDoTasks = totalTasks - inProgressTasks - completedTasks;
+
+    // Map projects with progress
+    const projectOverview = projects.map(p => {
+      const total = p.tasks.length;
+      const done = p.tasks.filter(t => t.status === 'Done' || t.status === 'Completed').length;
+      const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+      const { tasks, ...rest } = p;
+      return { ...rest, progress };
+    });
+
+    // Aggregate QA Status
+    const qaStatus = { Passed: 0, Failed: 0, Blocked: 0, Skipped: 0, OpenBugs: openBugs };
+    qaResults.forEach(r => {
+      if (qaStatus[r.status] !== undefined) {
+        qaStatus[r.status]++;
+      }
+    });
 
     res.json({
       success: true,
       dashboard: {
-        totalProjects,
-        openTasks,
+        totalProjects: projects.length,
+        totalTasks,
+        dueToday,
+        inProgressTasks,
         completedTasks,
-        qaPassed: qaPassedRate,
+        toDoTasks,
+        projectOverview,
+        qaStatus,
         recentActivity
       }
     });

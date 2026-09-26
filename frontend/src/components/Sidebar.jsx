@@ -1,6 +1,8 @@
 import { NavLink } from 'react-router-dom';
+import { useStore } from '../store';
 
 export default function Sidebar({ isOpen, setIsOpen }) {
+  const { currentUser } = useStore();
   const getPrimaryClass = ({ isActive }) => 
     `flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition font-semibold text-sm ${isActive ? 'bg-[#5243d4] text-white shadow-md shadow-indigo-600/20' : 'text-slate-400 hover:text-white hover:bg-[#161a28]'}`;
 
@@ -102,12 +104,16 @@ export default function Sidebar({ isOpen, setIsOpen }) {
       <div className="p-3 border-t border-[#191e2e]">
         <div className="flex items-center justify-between p-2 rounded-xl hover:bg-[#151a29] transition cursor-pointer">
           <div className="flex items-center space-x-3">
-            <div className="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center font-bold text-white text-xs border border-slate-600">
-              <i className="fa-solid fa-user"></i>
+            <div className="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center font-bold text-white text-xs border border-slate-600 overflow-hidden">
+              {currentUser?.avatarUrl ? (
+                <img src={currentUser.avatarUrl} alt={currentUser.name} className="w-full h-full object-cover" />
+              ) : (
+                <span>{currentUser?.name?.charAt(0).toUpperCase() || 'U'}</span>
+              )}
             </div>
             <div>
-              <h4 className="text-sm font-semibold text-white leading-tight">User Name</h4>
-              <p className="text-[11px] text-slate-500 leading-tight">User Role</p>
+              <h4 className="text-sm font-semibold text-white leading-tight">{currentUser?.name || 'User Name'}</h4>
+              <p className="text-[11px] text-slate-500 leading-tight">{currentUser?.role || 'Team Member'}</p>
             </div>
           </div>
           <i className="fa-solid fa-chevron-down text-slate-500 text-xs"></i>
