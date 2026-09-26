@@ -59,16 +59,23 @@ export default function Dashboard() {
     );
   }
 
-  const {
-    totalTasks = 0,
-    dueToday = 0,
-    inProgressTasks = 0,
-    completedTasks = 0,
-    toDoTasks = 0,
-    projectOverview = [],
-    qaStatus = { Passed: 0, Failed: 0, Blocked: 0, Skipped: 0, OpenBugs: 0 },
-    recentActivity = []
-  } = data || {};
+  const dashboardData = data || {};
+
+  const totalTasks = dashboardData.totalTasks || 0;
+  const dueToday = dashboardData.dueToday || 0;
+  const inProgressTasks = dashboardData.inProgressTasks || 0;
+  const completedTasks = dashboardData.completedTasks || 0;
+  const toDoTasks = dashboardData.toDoTasks || 0;
+  const projectOverview = Array.isArray(dashboardData.projectOverview) ? dashboardData.projectOverview : [];
+  const qaData = dashboardData.qaStatus || {};
+  const qaStatus = {
+    Passed: qaData.Passed || 0,
+    Failed: qaData.Failed || 0,
+    Blocked: qaData.Blocked || 0,
+    Skipped: qaData.Skipped || 0,
+    OpenBugs: qaData.OpenBugs || 0
+  };
+  const recentActivity = Array.isArray(dashboardData.recentActivity) ? dashboardData.recentActivity : [];
 
   // Extract unique categories
   const categories = ['All', ...new Set(projectOverview.map(p => p.category).filter(Boolean))];
@@ -85,10 +92,11 @@ export default function Dashboard() {
   const qaFailedPct = totalQa > 0 ? (qaStatus.Failed / totalQa) * 100 : 0;
 
   const getActivityIcon = (action) => {
-    if (action.includes('CREATE')) return 'fa-solid fa-plus text-purple-400';
-    if (action.includes('UPDATE') || action.includes('EDIT')) return 'fa-solid fa-pen text-blue-400';
-    if (action.includes('DELETE')) return 'fa-solid fa-trash text-red-400';
-    if (action.includes('RESOLVE') || action.includes('DONE')) return 'fa-solid fa-check text-emerald-400';
+    const actStr = String(action || '').toUpperCase();
+    if (actStr.includes('CREATE')) return 'fa-solid fa-plus text-purple-400';
+    if (actStr.includes('UPDATE') || actStr.includes('EDIT')) return 'fa-solid fa-pen text-blue-400';
+    if (actStr.includes('DELETE')) return 'fa-solid fa-trash text-red-400';
+    if (actStr.includes('RESOLVE') || actStr.includes('DONE')) return 'fa-solid fa-check text-emerald-400';
     return 'fa-solid fa-bolt text-slate-400';
   };
 
@@ -451,7 +459,7 @@ export default function Dashboard() {
                   </div>
                   <div className="flex-1 min-w-0 flex flex-col justify-center">
                     <p className="text-xs text-slate-300 truncate">
-                      <span className="font-semibold text-white">{act.user?.name?.split(' ')[0] || 'Someone'}</span> {act.details.toLowerCase()}
+                      <span className="font-semibold text-white">{act.user?.name?.split(' ')[0] || 'Someone'}</span> {act.details ? act.details.toLowerCase() : `${act.action || 'acted on'} ${act.entityType || 'item'}`.toLowerCase()}
                     </p>
                     <p className="text-[10px] text-slate-500 mt-0.5">
                       {new Date(act.createdAt).toLocaleDateString()} {new Date(act.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
