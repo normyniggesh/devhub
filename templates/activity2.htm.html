@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>DEVHUB - College Activities</title>
+<!-- Tailwind CSS CDN with forms & container queries plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration -->
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              bg: '#0c0e14',
+              sidebar: '#0c0e15',
+              card: '#131722',
+              cardBorder: '#1c2234',
+              accent: '#6366f1',
+              purple: '#5e43f3',
+              purpleLight: '#7c5dfa'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+<!-- Google Font Icons / Inter Font -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<!-- Layout & Custom Utilities Style -->
+<style data-purpose="base-styling">
+    body {
+      background-color: #0b0d14;
+      color: #94a3b8;
+      font-family: 'Inter', sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 350, 'GRAD' 0, 'opsz' 20;
+      font-size: 19px;
+    }
+    .material-symbols-outlined.filled {
+      font-variation-settings: 'FILL' 1;
+    }
+    /* Custom scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0d1017;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e2638;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex text-slate-300 antialiased overflow-x-hidden">
+<!-- BEGIN: LeftSidebar -->
+<aside class="w-60 flex-shrink-0 bg-[#0c0e15] border-r border-[#191e2e] flex flex-col justify-between select-none min-h-screen" data-purpose="sidebar">
+<div class="p-4 pt-5">
+<!-- Devhub Brand Logo -->
+<div class="flex items-center gap-2.5 px-2 mb-6 cursor-pointer">
+<div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-purple-500/20">
+<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24">
+<path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+<div>
+<div class="text-white font-bold tracking-wider text-sm flex items-center leading-none">DEVHUB</div>
+<div class="text-[10px] text-slate-500 font-medium tracking-tight mt-0.5">Build · Learn · Manage · Grow</div>
+</div>
+</div>
+<!-- Navigation Menus -->
+<nav class="space-y-5 text-[13px]">
+<!-- Primary Menu -->
+<div class="space-y-0.5">
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#141926] transition" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#141926] transition" href="#">
+<span class="material-symbols-outlined">wb_sunny</span>
+<span>My Day</span>
+</a>
+</div>
+<!-- Section: Workspace -->
+<div>
+<div class="text-[10px] uppercase font-bold text-slate-500 tracking-wider px-3 mb-1">Workspace</div>
+<div class="space-y-0.5">
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#141926] transition" href="#">
+<span class="material-symbols-outlined">description</span>
+<span>Projects</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#141926] transition" href="#">
+<span class="material-symbols-outlined">fact_check</span>
+<span>Tasks</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#141926] transition" href="#">
+<span class="material-symbols-outlined">verified</span>
+<span>QA / Testing</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#141926] transition" href="#">
+<span class="material-symbols-outlined">calendar_today</span>
+<span>Calendar</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#141926] transition" href="#">
+<span class="material-symbols-outlined">groups</span>
+<span>Team</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#141926] transition" href="#">
+<span class="material-symbols-outlined">folder</span>
+<span>Files</span>
+</a>
+</div>
+</div>
+<!-- Section: Development -->
+<div>
+<div class="text-[10px] uppercase font-bold text-slate-500 tracking-wider px-3 mb-1">Development</div>
+<div class="space-y-0.5">
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#141926] transition" href="#">
+<svg class="w-4 h-4 fill-current" viewbox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"></path></svg>
+<span>GitHub</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#141926] transition" href="#">
+<span class="material-symbols-outlined">call_split</span>
+<span>Pull Requests</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#141926] transition" href="#">
+<span class="material-symbols-outlined">rocket_launch</span>
+<span>Deployments</span>
+</a>
+</div>
+</div>
+<!-- Section: College (Active Section) -->
+<div>
+<div class="text-[10px] uppercase font-bold text-slate-500 tracking-wider px-3 mb-1">College</div>
+<div class="space-y-0.5">
+<!-- Active College Activities item with glowing purple pill -->
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-[#533be5] text-white font-medium shadow-sm transition" href="#">
+<span class="material-symbols-outlined">local_activity</span>
+<span>Activities</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#141926] transition" href="#">
+<span class="material-symbols-outlined">assignment</span>
+<span>Assignments</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#141926] transition" href="#">
+<span class="material-symbols-outlined">notes</span>
+<span>Notes</span>
+</a>
+</div>
+</div>
+<!-- Section: Analytics -->
+<div>
+<div class="text-[10px] uppercase font-bold text-slate-500 tracking-wider px-3 mb-1">Analytics</div>
+<div class="space-y-0.5">
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#141926] transition" href="#">
+<span class="material-symbols-outlined">bar_chart</span>
+<span>Reports</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#141926] transition" href="#">
+<span class="material-symbols-outlined">insights</span>
+<span>Insights</span>
+</a>
+</div>
+</div>
+</nav>
+</div>
+<!-- Sidebar Bottom Profile -->
+<div class="p-3 border-t border-[#191e2e]">
+<div class="flex items-center justify-between p-2 rounded-lg hover:bg-[#141926] transition cursor-pointer">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center overflow-hidden border border-slate-600">
+<span class="text-xs font-semibold text-slate-200">PK</span>
+</div>
+<div>
+<div class="text-xs font-semibold text-white leading-tight">Paarth Kadam</div>
+<div class="text-[11px] text-slate-500 leading-tight">Team Member</div>
+</div>
+</div>
+<span class="material-symbols-outlined text-slate-400 text-base">expand_less</span>
+</div>
+</div>
+</aside>
+<!-- END: LeftSidebar -->
+<!-- BEGIN: MainContentArea -->
+<main class="flex-1 flex flex-col min-w-0 bg-[#0a0c13] overflow-y-auto">
+<!-- BEGIN: TopBar -->
+<header class="h-14 border-b border-[#191e2e] flex items-center justify-between px-6 flex-shrink-0 bg-[#0c0e16]/80 backdrop-blur sticky top-0 z-30">
+<!-- Search Input Container -->
+<div class="relative w-80">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-lg">search</span>
+<input class="w-full bg-[#131724] border border-[#212739] text-xs text-slate-300 rounded-lg pl-9 pr-12 py-1.5 focus:outline-none focus:border-indigo-500 placeholder-slate-500" placeholder="Search assignments, activities, notes..." type="text"/>
+<div class="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5 text-[10px] text-slate-400 bg-[#1c2234] px-1.5 py-0.5 rounded border border-[#283147]">
+<span>⌘</span><span>K</span>
+</div>
+</div>
+<!-- Top Right Controls -->
+<div class="flex items-center gap-3">
+<!-- Add Button -->
+<button class="w-8 h-8 rounded-lg bg-[#271d4d] hover:bg-[#342469] text-indigo-300 border border-purple-900/50 flex items-center justify-center transition">
+<span class="material-symbols-outlined text-base">add</span>
+</button>
+<!-- Notification Bell with Red Badge -->
+<button class="relative w-8 h-8 rounded-lg hover:bg-[#141926] text-slate-400 flex items-center justify-center transition">
+<span class="material-symbols-outlined text-lg">notifications</span>
+<span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-[#0c0e16]"></span>
+</button>
+<!-- User Avatar -->
+<div class="w-8 h-8 rounded-full bg-slate-700 overflow-hidden border border-slate-600 cursor-pointer">
+<div class="w-full h-full bg-[#3b4252] flex items-center justify-center text-xs font-semibold text-slate-200">
+            PK
+          </div>
+</div>
+</div>
+</header>
+<!-- END: TopBar -->
+<!-- Page Body Container -->
+<div class="p-6 space-y-6 max-w-[1400px]">
+<!-- BEGIN: HeroHeader -->
+<section class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#121624] via-[#151a2d] to-[#1e1735] border border-[#1e2538] p-7 flex items-center justify-between min-h-[140px]" data-purpose="page-hero-header">
+<!-- Left Title and Breadcrumbs -->
+<div class="space-y-1.5 z-10">
+<div class="flex items-center gap-1.5 text-xs text-slate-400">
+<span>College</span>
+<span class="material-symbols-outlined text-xs">chevron_right</span>
+<span class="text-slate-300 font-medium">Activities</span>
+</div>
+<h1 class="text-2xl font-bold text-white tracking-tight">College Activities</h1>
+<p class="text-xs text-slate-400">Explore. Participate. Grow beyond the classroom.</p>
+</div>
+<!-- Right Side Quote Banner with Campus Silhouette Backdrop -->
+<div class="relative hidden md:flex items-center h-full z-10 pr-4">
+<div class="text-right">
+<p class="text-xs italic font-medium text-slate-300 tracking-wide max-w-xs">
+              "Good experiences build a greater you."
+            </p>
+<div class="w-12 h-1 bg-purple-600 rounded-full ml-auto mt-2"></div>
+</div>
+</div>
+<!-- Subtle decorative glow -->
+<div class="absolute -right-10 -bottom-10 w-64 h-64 bg-purple-600/10 rounded-full blur-3xl pointer-events-none"></div>
+</section>
+<!-- END: HeroHeader -->
+<!-- BEGIN: FilterBar -->
+<section class="flex flex-wrap items-center justify-between gap-4" data-purpose="tabs-and-filters">
+<!-- Navigation Tabs -->
+<div class="flex items-center bg-[#101420] border border-[#1b2234] p-1 rounded-xl">
+<button class="px-4 py-1.5 rounded-lg text-xs font-medium bg-[#533be5] text-white shadow transition">
+            Events
+          </button>
+<button class="px-4 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition">
+            Clubs &amp; Committees
+          </button>
+<button class="px-4 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition">
+            Achievements
+          </button>
+</div>
+<!-- Search and Action Controls -->
+<div class="flex items-center gap-2.5 flex-wrap">
+<!-- Search Events Field -->
+<div class="relative w-56">
+<span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm">search</span>
+<input class="w-full bg-[#101420] border border-[#1b2234] text-xs text-slate-300 rounded-lg pl-8 pr-3 py-1.5 focus:outline-none focus:border-indigo-500 placeholder-slate-500" placeholder="Search events..." type="text"/>
+</div>
+<!-- Status Dropdown -->
+<button class="bg-[#101420] border border-[#1b2234] text-xs text-slate-300 rounded-lg px-3 py-1.5 flex items-center gap-3 hover:border-slate-600 transition">
+<span>All Status</span>
+<span class="material-symbols-outlined text-sm text-slate-400">expand_more</span>
+</button>
+<!-- Types Dropdown -->
+<button class="bg-[#101420] border border-[#1b2234] text-xs text-slate-300 rounded-lg px-3 py-1.5 flex items-center gap-3 hover:border-slate-600 transition">
+<span>All Types</span>
+<span class="material-symbols-outlined text-sm text-slate-400">expand_more</span>
+</button>
+<!-- + Add Event Primary Button -->
+<button class="bg-[#533be5] hover:bg-[#462fd4] text-white text-xs font-medium rounded-lg px-4 py-1.5 flex items-center gap-1.5 shadow transition">
+<span class="material-symbols-outlined text-sm font-semibold">add</span>
+<span>Add Event</span>
+</button>
+</div>
+</section>
+<!-- END: FilterBar -->
+<!-- BEGIN: StatCards -->
+<section class="grid grid-cols-2 md:grid-cols-5 gap-3.5" data-purpose="stat-summary-row">
+<!-- 1. Total Events -->
+<div class="bg-[#111420] border border-[#1a2031] rounded-xl p-3.5 flex items-center gap-3.5">
+<div class="w-10 h-10 rounded-lg bg-[#192135] text-slate-400 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-lg">calendar_month</span>
+</div>
+<div>
+<div class="text-[11px] text-slate-400 font-medium">Total Events</div>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="text-lg font-bold text-white">12</span>
+<span class="text-[10px] text-emerald-400 font-medium flex items-center">↑ 20%</span>
+</div>
+</div>
+</div>
+<!-- 2. Upcoming -->
+<div class="bg-[#111420] border border-[#1a2031] rounded-xl p-3.5 flex items-center gap-3.5">
+<div class="w-10 h-10 rounded-lg bg-[#241740] text-purple-400 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-lg">diversity_3</span>
+</div>
+<div>
+<div class="text-[11px] text-slate-400 font-medium">Upcoming</div>
+<div class="text-lg font-bold text-white mt-0.5">4</div>
+</div>
+</div>
+<!-- 3. Completed -->
+<div class="bg-[#111420] border border-[#1a2031] rounded-xl p-3.5 flex items-center gap-3.5">
+<div class="w-10 h-10 rounded-lg bg-[#12282c] text-emerald-400 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-lg">check_circle</span>
+</div>
+<div>
+<div class="text-[11px] text-slate-400 font-medium">Completed</div>
+<div class="text-lg font-bold text-white mt-0.5">6</div>
+</div>
+</div>
+<!-- 4. Ongoing -->
+<div class="bg-[#111420] border border-[#1a2031] rounded-xl p-3.5 flex items-center gap-3.5">
+<div class="w-10 h-10 rounded-lg bg-[#301a24] text-rose-400 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-lg">donut_large</span>
+</div>
+<div>
+<div class="text-[11px] text-slate-400 font-medium">Ongoing</div>
+<div class="text-lg font-bold text-white mt-0.5">1</div>
+</div>
+</div>
+<!-- 5. Your Participation -->
+<div class="bg-[#111420] border border-[#1a2031] rounded-xl p-3.5 flex items-center gap-3.5">
+<div class="w-10 h-10 rounded-lg bg-[#2e2417] text-amber-400 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-lg">star</span>
+</div>
+<div>
+<div class="text-[11px] text-slate-400 font-medium">Your Participation</div>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="text-lg font-bold text-white">8</span>
+<span class="text-[10px] text-emerald-400 font-medium flex items-center">↑ 33%</span>
+</div>
+</div>
+</div>
+</section>
+<!-- END: StatCards -->
+<!-- BEGIN: MainTablesAndWidgetsGrid -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+<!-- Left Column: Tables (8 Columns) -->
+<div class="lg:col-span-8 space-y-5">
+<!-- BEGIN: UpcomingEventsTable -->
+<div class="bg-[#111420] border border-[#1a2031] rounded-xl p-5" data-purpose="upcoming-events-card">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-2 text-white font-semibold text-sm">
+<span class="material-symbols-outlined text-slate-400 text-base">calendar_month</span>
+<span>Upcoming Events</span>
+</div>
+<a class="text-xs text-slate-400 hover:text-white flex items-center gap-1 font-medium transition" href="#">
+<span>View All</span>
+<span class="material-symbols-outlined text-xs">arrow_forward</span>
+</a>
+</div>
+<!-- Table Container -->
+<div class="overflow-x-auto">
+<table class="w-full text-left text-xs">
+<thead>
+<tr class="text-slate-400 border-b border-[#1b2234] text-[11px] font-medium">
+<th class="pb-2.5 font-normal">Date</th>
+<th class="pb-2.5 font-normal">Event Name</th>
+<th class="pb-2.5 font-normal">Type</th>
+<th class="pb-2.5 font-normal">Location</th>
+<th class="pb-2.5 font-normal">Status</th>
+<th class="pb-2.5 font-normal text-right">Action</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-[#181e2e]/60 text-slate-300">
+<!-- Row 1 -->
+<tr>
+<td class="py-3 text-slate-400 whitespace-nowrap">22 Sep 2026</td>
+<td class="py-3 font-medium text-slate-200">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+<span>Tech Talk: Future of AI</span>
+</div>
+</td>
+<td class="py-3">
+<span class="px-2.5 py-0.5 rounded text-[10px] font-medium bg-[#2b1f47] text-purple-300 border border-purple-800/40">Seminar</span>
+</td>
+<td class="py-3 text-slate-400">Main Auditorium</td>
+<td class="py-3">
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-[#142340] text-sky-400 border border-sky-800/40">Upcoming</span>
+</td>
+<td class="py-3 text-right text-slate-400">
+<button class="hover:text-white"><span class="material-symbols-outlined text-base">more_horiz</span></button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr>
+<td class="py-3 text-slate-400 whitespace-nowrap">25 Sep 2026</td>
+<td class="py-3 font-medium text-slate-200">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+<span>College Fest 2026 - Inauguration</span>
+</div>
+</td>
+<td class="py-3">
+<span class="px-2.5 py-0.5 rounded text-[10px] font-medium bg-[#371929] text-rose-300 border border-rose-800/40">Cultural</span>
+</td>
+<td class="py-3 text-slate-400">Open Ground</td>
+<td class="py-3">
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-[#142340] text-sky-400 border border-sky-800/40">Upcoming</span>
+</td>
+<td class="py-3 text-right text-slate-400">
+<button class="hover:text-white"><span class="material-symbols-outlined text-base">more_horiz</span></button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr>
+<td class="py-3 text-slate-400 whitespace-nowrap">28 Sep 2026</td>
+<td class="py-3 font-medium text-slate-200">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+<span>Hackathon 2.0</span>
+</div>
+</td>
+<td class="py-3">
+<span class="px-2.5 py-0.5 rounded text-[10px] font-medium bg-[#142e3b] text-cyan-300 border border-cyan-800/40">Technical</span>
+</td>
+<td class="py-3 text-slate-400">Computer Lab</td>
+<td class="py-3">
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-[#122c26] text-emerald-400 border border-emerald-800/40">Ongoing</span>
+</td>
+<td class="py-3 text-right text-slate-400">
+<button class="hover:text-white"><span class="material-symbols-outlined text-base">more_horiz</span></button>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr>
+<td class="py-3 text-slate-400 whitespace-nowrap">03 Oct 2026</td>
+<td class="py-3 font-medium text-slate-200">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+<span>Blood Donation Camp</span>
+</div>
+</td>
+<td class="py-3">
+<span class="px-2.5 py-0.5 rounded text-[10px] font-medium bg-[#132c25] text-emerald-300 border border-emerald-800/40">Social</span>
+</td>
+<td class="py-3 text-slate-400">NSS Hall</td>
+<td class="py-3">
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-[#142340] text-sky-400 border border-sky-800/40">Upcoming</span>
+</td>
+<td class="py-3 text-right text-slate-400">
+<button class="hover:text-white"><span class="material-symbols-outlined text-base">more_horiz</span></button>
+</td>
+</tr>
+<!-- Row 5 -->
+<tr>
+<td class="py-3 text-slate-400 whitespace-nowrap">10 Oct 2026</td>
+<td class="py-3 font-medium text-slate-200">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+<span>Sports Week</span>
+</div>
+</td>
+<td class="py-3">
+<span class="px-2.5 py-0.5 rounded text-[10px] font-medium bg-[#3b2b1a] text-amber-300 border border-amber-800/40">Sports</span>
+</td>
+<td class="py-3 text-slate-400">Sports Complex</td>
+<td class="py-3">
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-[#142340] text-sky-400 border border-sky-800/40">Upcoming</span>
+</td>
+<td class="py-3 text-right text-slate-400">
+<button class="hover:text-white"><span class="material-symbols-outlined text-base">more_horiz</span></button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- END: UpcomingEventsTable -->
+<!-- BEGIN: PastEventsTable -->
+<div class="bg-[#111420] border border-[#1a2031] rounded-xl p-5" data-purpose="past-events-card">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-2 text-white font-semibold text-sm">
+<span class="material-symbols-outlined text-slate-400 text-base">receipt_long</span>
+<span>Past Events</span>
+</div>
+<a class="text-xs text-slate-400 hover:text-white flex items-center gap-1 font-medium transition" href="#">
+<span>View All</span>
+<span class="material-symbols-outlined text-xs">arrow_forward</span>
+</a>
+</div>
+<!-- Table Container -->
+<div class="overflow-x-auto">
+<table class="w-full text-left text-xs">
+<thead>
+<tr class="text-slate-400 border-b border-[#1b2234] text-[11px] font-medium">
+<th class="pb-2.5 font-normal">Date</th>
+<th class="pb-2.5 font-normal">Event Name</th>
+<th class="pb-2.5 font-normal">Type</th>
+<th class="pb-2.5 font-normal">Participation</th>
+<th class="pb-2.5 font-normal text-right">Status</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-[#181e2e]/60 text-slate-300">
+<!-- Row 1 -->
+<tr>
+<td class="py-3 text-slate-400 whitespace-nowrap">12 Aug 2026</td>
+<td class="py-3 font-medium text-slate-200">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+<span>Orientation Program</span>
+</div>
+</td>
+<td class="py-3">
+<span class="px-2.5 py-0.5 rounded text-[10px] font-medium bg-[#172033] text-blue-300 border border-blue-800/30">Official</span>
+</td>
+<td class="py-3">
+<span class="flex items-center gap-1.5 text-slate-300">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+<span>Attended</span>
+</span>
+</td>
+<td class="py-3 text-right">
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-[#122824] text-emerald-400 border border-emerald-800/40">Completed</span>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr>
+<td class="py-3 text-slate-400 whitespace-nowrap">15 Aug 2026</td>
+<td class="py-3 font-medium text-slate-200">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+<span>Independence Day Celebration</span>
+</div>
+</td>
+<td class="py-3">
+<span class="px-2.5 py-0.5 rounded text-[10px] font-medium bg-[#371929] text-rose-300 border border-rose-800/40">Cultural</span>
+</td>
+<td class="py-3">
+<span class="flex items-center gap-1.5 text-slate-300">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+<span>Attended</span>
+</span>
+</td>
+<td class="py-3 text-right">
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-[#122824] text-emerald-400 border border-emerald-800/40">Completed</span>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr>
+<td class="py-3 text-slate-400 whitespace-nowrap">28 Aug 2026</td>
+<td class="py-3 font-medium text-slate-200">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+<span>Guest Lecture: Startups</span>
+</div>
+</td>
+<td class="py-3">
+<span class="px-2.5 py-0.5 rounded text-[10px] font-medium bg-[#2b1f47] text-purple-300 border border-purple-800/40">Seminar</span>
+</td>
+<td class="py-3">
+<span class="flex items-center gap-1.5 text-slate-300">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+<span>Attended</span>
+</span>
+</td>
+<td class="py-3 text-right">
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-[#122824] text-emerald-400 border border-emerald-800/40">Completed</span>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr>
+<td class="py-3 text-slate-400 whitespace-nowrap">05 Sep 2026</td>
+<td class="py-3 font-medium text-slate-200">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+<span>Teachers' Day</span>
+</div>
+</td>
+<td class="py-3">
+<span class="px-2.5 py-0.5 rounded text-[10px] font-medium bg-[#371929] text-rose-300 border border-rose-800/40">Cultural</span>
+</td>
+<td class="py-3">
+<span class="flex items-center gap-1.5 text-slate-300">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+<span>Attended</span>
+</span>
+</td>
+<td class="py-3 text-right">
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-[#122824] text-emerald-400 border border-emerald-800/40">Completed</span>
+</td>
+</tr>
+<!-- Row 5 -->
+<tr>
+<td class="py-3 text-slate-400 whitespace-nowrap">12 Sep 2026</td>
+<td class="py-3 font-medium text-slate-200">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+<span>Coding Competition</span>
+</div>
+</td>
+<td class="py-3">
+<span class="px-2.5 py-0.5 rounded text-[10px] font-medium bg-[#142e3b] text-cyan-300 border border-cyan-800/40">Technical</span>
+</td>
+<td class="py-3">
+<span class="flex items-center gap-1.5 text-slate-300">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+<span>Participated</span>
+</span>
+</td>
+<td class="py-3 text-right">
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-[#122824] text-emerald-400 border border-emerald-800/40">Completed</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- END: PastEventsTable -->
+</div>
+<!-- Right Column: Highlights & Involvement (4 Columns) -->
+<div class="lg:col-span-4 space-y-5">
+<!-- BEGIN: CampusHighlightsCard -->
+<div class="bg-[#111420] border border-[#1a2031] rounded-xl p-4 space-y-3" data-purpose="campus-highlights-card">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2 text-white font-semibold text-sm">
+<span class="material-symbols-outlined text-slate-400 text-base">photo_library</span>
+<span>Campus Highlights</span>
+</div>
+<a class="text-xs text-slate-400 hover:text-white flex items-center gap-1 font-medium transition" href="#">
+<span>View All</span>
+<span class="material-symbols-outlined text-xs">arrow_forward</span>
+</a>
+</div>
+<!-- Banner Media Card -->
+<div class="relative rounded-xl overflow-hidden bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 border border-indigo-500/20 aspect-video flex flex-col justify-end p-4">
+<!-- Dark concert crowd graphic / overlay -->
+<div class="absolute inset-0 bg-gradient-to-t from-black via-purple-950/60 to-transparent"></div>
+<!-- Subtle decorative silhouettes / concert banner -->
+<div class="absolute inset-0 flex items-center justify-center opacity-25">
+<span class="material-symbols-outlined text-8xl text-indigo-400">festival</span>
+</div>
+<!-- Banner Text Content -->
+<div class="relative z-10 text-center space-y-0.5">
+<div class="text-[13px] font-extrabold tracking-wider text-white uppercase drop-shadow">COLLEGE FEST 2026</div>
+<p class="text-[10px] text-purple-200 tracking-tight">Bigger Ideas, Brighter Tomorrows</p>
+</div>
+</div>
+<!-- Event Details -->
+<div class="space-y-1.5 pt-1">
+<div class="flex items-center gap-2">
+<h3 class="text-sm font-semibold text-white">College Fest 2026</h3>
+<span class="px-2 py-0.5 rounded text-[9px] font-medium bg-[#362518] text-amber-400 border border-amber-800/40">Featured</span>
+</div>
+<!-- Time & Location metadata -->
+<div class="flex items-center gap-3 text-[11px] text-slate-400">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[13px]">calendar_today</span>
+<span>25 Sep – 30 Sep 2026</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[13px]">location_on</span>
+<span>Open Ground</span>
+</div>
+</div>
+<p class="text-xs text-slate-400 leading-relaxed pt-0.5">
+                A week full of culture, tech, sports and endless energy. Be part of the biggest event of the year!
+              </p>
+</div>
+<!-- Carousel Pagination & Nav -->
+<div class="flex items-center justify-between pt-1">
+<button class="w-6 h-6 rounded bg-[#161b2a] hover:bg-[#20273c] text-slate-400 flex items-center justify-center transition">
+<span class="material-symbols-outlined text-xs">chevron_left</span>
+</button>
+<!-- Indicator Dots -->
+<div class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-indigo-500 ring-2 ring-indigo-500/20"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-slate-700"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-slate-700"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-slate-700"></span>
+</div>
+<button class="w-6 h-6 rounded bg-[#161b2a] hover:bg-[#20273c] text-slate-400 flex items-center justify-center transition">
+<span class="material-symbols-outlined text-xs">chevron_right</span>
+</button>
+</div>
+</div>
+<!-- END: CampusHighlightsCard -->
+<!-- BEGIN: MyInvolvementCard -->
+<div class="bg-[#111420] border border-[#1a2031] rounded-xl p-4 space-y-4" data-purpose="my-involvement-chart-card">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2 text-white font-semibold text-sm">
+<span class="material-symbols-outlined text-slate-400 text-base">how_to_reg</span>
+<span>My Involvement</span>
+</div>
+<a class="text-xs text-slate-400 hover:text-white flex items-center gap-1 font-medium transition" href="#">
+<span>View All</span>
+<span class="material-symbols-outlined text-xs">arrow_forward</span>
+</a>
+</div>
+<!-- Chart & Legend Flex Layout -->
+<div class="flex items-center justify-around py-1">
+<!-- SVG Donut Chart -->
+<div class="relative w-28 h-28 flex items-center justify-center">
+<svg class="w-full h-full -rotate-90" viewbox="0 0 36 36">
+<!-- Background Track -->
+<circle cx="18" cy="18" fill="none" r="15.5" stroke="#1a2033" stroke-width="3"></circle>
+<!-- Attended: 5/8 (~62.5%) -> Emerald Segment -->
+<circle cx="18" cy="18" fill="none" r="15.5" stroke="#10b981" stroke-dasharray="62.5 100" stroke-dashoffset="0" stroke-linecap="round" stroke-width="3"></circle>
+<!-- Organized: 2/8 (~25%) -> Blue Segment -->
+<circle cx="18" cy="18" fill="none" r="15.5" stroke="#3b82f6" stroke-dasharray="25 100" stroke-dashoffset="-62.5" stroke-linecap="round" stroke-width="3"></circle>
+<!-- Volunteer: 1/8 (~12.5%) -> Purple Segment -->
+<circle cx="18" cy="18" fill="none" r="15.5" stroke="#a855f7" stroke-dasharray="12.5 100" stroke-dashoffset="-87.5" stroke-linecap="round" stroke-width="3"></circle>
+</svg>
+<!-- Inner Center Label -->
+<div class="absolute flex flex-col items-center justify-center text-center">
+<span class="text-lg font-bold text-white leading-tight">8</span>
+<span class="text-[9px] text-slate-400 leading-tight">Events</span>
+</div>
+</div>
+<!-- Legend Breakdown -->
+<div class="space-y-2 text-xs">
+<!-- Attended -->
+<div class="flex items-center justify-between gap-5">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+<span class="text-slate-300">Attended</span>
+</div>
+<span class="text-white font-semibold">5</span>
+</div>
+<!-- Organized -->
+<div class="flex items-center justify-between gap-5">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-blue-500"></span>
+<span class="text-slate-300">Organized</span>
+</div>
+<span class="text-white font-semibold">2</span>
+</div>
+<!-- Volunteer -->
+<div class="flex items-center justify-between gap-5">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-purple-500"></span>
+<span class="text-slate-300">Volunteer</span>
+</div>
+<span class="text-white font-semibold">1</span>
+</div>
+</div>
+</div>
+</div>
+<!-- END: MyInvolvementCard -->
+<!-- BEGIN: BottomInspirationalQuoteCard -->
+<div class="relative rounded-xl overflow-hidden bg-gradient-to-r from-[#17152b] via-[#141829] to-[#0f1422] border border-[#1f253a] p-4 flex items-center justify-between" data-purpose="inspirational-quote-card">
+<div class="space-y-1.5 max-w-[210px] z-10">
+<p class="text-[11px] italic font-medium text-slate-300 leading-relaxed">
+                "College is not just a place to study, but a place to become."
+              </p>
+<div class="w-8 h-0.5 bg-purple-500 rounded"></div>
+</div>
+<!-- Campus Building Illustration / Motif -->
+<div class="opacity-20 text-indigo-400 pr-1">
+<span class="material-symbols-outlined text-5xl">apartment</span>
+</div>
+</div>
+<!-- END: BottomInspirationalQuoteCard -->
+</div>
+</div>
+<!-- END: MainTablesAndWidgetsGrid -->
+</div>
+</main>
+<!-- END: MainContentArea -->
+</body></html>

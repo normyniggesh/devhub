@@ -1,0 +1,53 @@
+const express = require('express');
+const cors = require('cors');
+const cookieParser = require('cookie-parser');
+const authRoutes = require('./routes/auth');
+const projectsRoutes = require('./routes/projects');
+const tasksRoutes = require('./routes/tasks');
+const testCasesRoutes = require('./routes/testCases');
+const testRunsRoutes = require('./routes/testRuns');
+const testResultsRoutes = require('./routes/testResults');
+const bugsRoutes = require('./routes/bugs');
+const qaRoutes = require('./routes/qa');
+const calendarRoutes = require('./routes/calendar');
+const foldersRoutes = require('./routes/folders');
+const filesRoutes = require('./routes/files');
+const dashboardRoutes = require('./routes/dashboard');
+const repositoriesRoutes = require('./routes/repositories');
+const pullRequestsRoutes = require('./routes/pullRequests');
+const deploymentsRoutes = require('./routes/deployments');
+const notificationsRoutes = require('./routes/notifications');
+const activityRoutes = require('./routes/activity');
+
+const app = express();
+
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true
+}));
+app.use(express.json());
+app.use(cookieParser());
+
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
+app.use('/api/auth', authRoutes);
+app.use('/api/projects', projectsRoutes);
+app.use('/api/tasks', tasksRoutes);
+app.use('/api/test-cases', testCasesRoutes);
+app.use('/api/test-runs', testRunsRoutes);
+app.use('/api/test-results', testResultsRoutes);
+app.use('/api/bugs', bugsRoutes);
+app.use('/api/qa', qaRoutes);
+app.use('/api/calendar', calendarRoutes);
+app.use('/api/folders', foldersRoutes);
+app.use('/api/files', filesRoutes);
+app.use('/api', dashboardRoutes);
+app.use('/api/repositories', repositoriesRoutes);
+app.use('/api/pull-requests', pullRequestsRoutes);
+app.use('/api/deployments', deploymentsRoutes);
+app.use('/api/notifications', notificationsRoutes);
+app.use('/api/activity', activityRoutes);
+
+module.exports = app;

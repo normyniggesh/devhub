@@ -1,0 +1,368 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  avatarUrl    String?
+  role         String   @default("User")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  projectsOwned        Project[]             @relation("ProjectOwner")
+  projectMemberships   ProjectMember[]
+  tasksAssigned        Task[]                @relation("TaskAssignee")
+  tasksCreated         Task[]                @relation("TaskCreator")
+  testCasesCreated     TestCase[]
+  testRunsExecuted     TestRun[]
+  testResultsExecuted  TestResult[]
+  bugsAssigned         Bug[]                 @relation("BugAssignee")
+  bugsCreated          Bug[]                 @relation("BugCreator")
+  calendarEvents       CalendarEvent[]
+  foldersCreated       Folder[]
+  filesUploaded        File[]
+  notifications        Notification[]
+  auditLogs            AuditLog[]
+  activityInvolvements ActivityInvolvement[]
+  milestonesCreated    Milestone[]
+}
+
+model Project {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  status      String    @default("Active")
+  priority    String?
+  category    String?
+  startDate   DateTime?
+  dueDate     DateTime?
+  ownerId     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  owner          User            @relation("ProjectOwner", fields: [ownerId], references: [id])
+  members        ProjectMember[]
+  tasks          Task[]
+  testCases      TestCase[]
+  testRuns       TestRun[]
+  bugs           Bug[]
+  calendarEvents CalendarEvent[]
+  folders        Folder[]
+  files          File[]
+  repositories   Repository[]
+  milestones     Milestone[]
+}
+
+model ProjectMember {
+  id        String   @id @default(uuid())
+  projectId String
+  userId    String
+  role      String   @default("Viewer")
+  joinedAt  DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([projectId, userId])
+}
+
+model Task {
+  id          String    @id @default(uuid())
+  projectId   String
+  title       String
+  description String?
+  status      String    @default("To Do")
+  priority    String    @default("Medium")
+  assigneeId  String?
+  creatorId   String
+  dueDate     DateTime?
+  startDate   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  project        Project         @relation(fields: [projectId], references: [id])
+  assignee       User?           @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  creator        User            @relation("TaskCreator", fields: [creatorId], references: [id])
+  bugs           Bug[]
+  calendarEvents CalendarEvent[]
+
+  @@index([projectId])
+  @@index([assigneeId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+model TestCase {
+  id             String   @id @default(uuid())
+  projectId      String
+  title          String
+  description    String?
+  module         String?
+  status         String   @default("Draft")
+  priority       String?
+  expectedResult String?
+  creatorId      String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  project Project      @relation(fields: [projectId], references: [id])
+  creator User         @relation(fields: [creatorId], references: [id])
+  results TestResult[]
+  bugs    Bug[]
+
+  @@index([projectId])
+}
+
+model TestRun {
+  id          String    @id @default(uuid())
+  projectId   String
+  name        String
+  status      String    @default("Pending")
+  startedAt   DateTime?
+  completedAt DateTime?
+  executorId  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  project  Project      @relation(fields: [projectId], references: [id])
+  executor User?        @relation(fields: [executorId], references: [id])
+  results  TestResult[]
+
+  @@index([projectId])
+}
+
+model TestResult {
+  id           String   @id @default(uuid())
+  testRunId    String
+  testCaseId   String
+  status       String
+  actualResult String?
+  executedAt   DateTime @default(now())
+  executorId   String?
+
+  testRun  TestRun  @relation(fields: [testRunId], references: [id])
+  testCase TestCase @relation(fields: [testCaseId], references: [id])
+  executor User?    @relation(fields: [executorId], references: [id])
+
+  @@index([testRunId])
+  @@index([testCaseId])
+}
+
+model Bug {
+  id          String    @id @default(uuid())
+  projectId   String
+  taskId      String?
+  testCaseId  String?
+  title       String
+  description String?
+  type        String?
+  severity    String    @default("Medium")
+  status      String    @default("Open")
+  assigneeId  String?
+  creatorId   String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  resolvedAt  DateTime?
+
+  project  Project   @relation(fields: [projectId], references: [id])
+  task     Task?     @relation(fields: [taskId], references: [id])
+  testCase TestCase? @relation(fields: [testCaseId], references: [id])
+  assignee User?     @relation("BugAssignee", fields: [assigneeId], references: [id])
+  creator  User      @relation("BugCreator", fields: [creatorId], references: [id])
+
+  @@index([projectId])
+  @@index([assigneeId])
+  @@index([status])
+}
+
+model CalendarEvent {
+  id            String   @id @default(uuid())
+  title         String
+  description   String?
+  type          String   @default("Meeting")
+  startDateTime DateTime
+  endDateTime   DateTime
+  allDay        Boolean  @default(false)
+  projectId     String?
+  taskId        String?
+  location      String?
+  creatorId     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  project Project? @relation(fields: [projectId], references: [id])
+  task    Task?    @relation(fields: [taskId], references: [id])
+  creator User     @relation(fields: [creatorId], references: [id])
+
+  @@index([startDateTime])
+  @@index([projectId])
+}
+
+model CollegeActivity {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  category    String?
+  date        DateTime
+  location    String?
+  status      String   @default("Scheduled")
+  organizer   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  involvements ActivityInvolvement[]
+}
+
+model ActivityInvolvement {
+  id         String   @id @default(uuid())
+  userId     String
+  activityId String
+  role       String   @default("Attended")
+  joinedAt   DateTime @default(now())
+
+  user     User            @relation(fields: [userId], references: [id])
+  activity CollegeActivity @relation(fields: [activityId], references: [id])
+}
+
+model Folder {
+  id        String   @id @default(uuid())
+  name      String
+  projectId String
+  parentId  String?
+  creatorId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project  Project  @relation(fields: [projectId], references: [id])
+  parent   Folder?  @relation("FolderToFolder", fields: [parentId], references: [id])
+  children Folder[] @relation("FolderToFolder")
+  creator  User     @relation(fields: [creatorId], references: [id])
+  files    File[]
+}
+
+model File {
+  id          String   @id @default(uuid())
+  name        String
+  type        String
+  size        Int
+  storagePath String
+  projectId   String
+  folderId    String?
+  uploaderId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project  Project @relation(fields: [projectId], references: [id])
+  folder   Folder? @relation(fields: [folderId], references: [id])
+  uploader User    @relation(fields: [uploaderId], references: [id])
+
+  @@index([projectId])
+  @@index([folderId])
+}
+
+model Repository {
+  id            String  @id @default(uuid())
+  name          String
+  owner         String
+  url           String
+  projectId     String
+  defaultBranch String?
+
+  project      Project       @relation(fields: [projectId], references: [id])
+  pullRequests PullRequest[]
+  deployments  Deployment[]
+
+  @@index([projectId])
+}
+
+model PullRequest {
+  id                   String   @id @default(uuid())
+  repositoryId         String
+  projectId            String
+  title                String
+  number               Int
+  status               String   @default("Open")
+  authorGithubUsername String?
+  authorId             String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  repository Repository @relation(fields: [repositoryId], references: [id])
+
+  @@index([repositoryId])
+}
+
+model Deployment {
+  id                     String    @id @default(uuid())
+  repositoryId           String
+  projectId              String
+  environment            String
+  status                 String    @default("Pending")
+  deployerGithubUsername String?
+  deployerId             String?
+  deployedAt             DateTime?
+  url                    String?
+
+  repository Repository @relation(fields: [repositoryId], references: [id])
+
+  @@index([repositoryId])
+}
+
+model Notification {
+  id                String   @id @default(uuid())
+  userId            String
+  type              String
+  title             String
+  message           String
+  read              Boolean  @default(false)
+  relatedEntityType String?
+  relatedEntityId   String?
+  createdAt         DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([read])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Milestone {
+  id          String    @id @default(uuid())
+  projectId   String
+  title       String
+  description String?
+  dueDate     DateTime
+  status      String    @default("Upcoming")
+  creatorId   String
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id])
+  creator User    @relation(fields: [creatorId], references: [id])
+
+  @@index([projectId])
+  @@index([dueDate])
+}

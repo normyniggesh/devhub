@@ -1,0 +1,998 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>DEVHUB - Tasks</title>
+<!-- Tailwind CSS CDN with Forms & Container Queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Inter -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<!-- Tailwind Custom Configuration -->
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Plus Jakarta Sans', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              primary: '#6366F1',
+              accent: '#8B5CF6',
+              darkBg: '#090B10',
+              sidebarBg: '#0D0F17',
+              cardBg: '#12141F',
+              cardHover: '#181B2A',
+              borderDark: '#1E2235',
+              subtext: '#8E95A9',
+            }
+          }
+        }
+      }
+    }
+  </script>
+<style data-purpose="custom-scrollbars">
+    /* Custom refined scrollbars */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0d0f17;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e2235;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #2b314c;
+    }
+  </style>
+</head>
+<body class="bg-[#090B10] text-[#E2E8F0] font-sans antialiased text-[13px] min-h-screen flex selection:bg-purple-600 selection:text-white">
+<!-- BEGIN: LeftSidebar -->
+<aside class="w-[240px] shrink-0 bg-[#0B0D14] border-r border-[#161926] flex flex-col justify-between h-screen sticky top-0 overflow-y-auto select-none" data-purpose="sidebar-navigation">
+<div class="p-5 pb-2">
+<!-- Logo DEVHUB -->
+<div class="flex items-center space-x-2.5 mb-7">
+<div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-purple-600 via-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-purple-500/20">
+<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+<path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+<div>
+<span class="text-base font-bold tracking-wider text-white block leading-tight">DEVHUB</span>
+<span class="text-[10px] tracking-tight text-gray-500 font-medium">Build · Learn · Manage · Grow</span>
+</div>
+</div>
+<!-- Main Navigation -->
+<div class="space-y-1 mb-6">
+<a class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-[#131622] transition-colors font-medium" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-[#131622] transition-colors font-medium" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>My Day</span>
+</a>
+</div>
+<!-- WORKSPACE Section -->
+<div class="mb-6">
+<p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 px-3 mb-2">Workspace</p>
+<div class="space-y-1">
+<a class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-[#131622] transition-colors font-medium" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Projects</span>
+</a>
+<!-- Active Tasks Navigation Item -->
+<a class="flex items-center space-x-3 px-3 py-2 rounded-lg bg-gradient-to-r from-purple-600/90 to-indigo-600/90 text-white font-medium shadow-md shadow-purple-600/20" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Tasks</span>
+</a>
+<a class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-[#131622] transition-colors font-medium" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>QA / Testing</span>
+</a>
+<a class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-[#131622] transition-colors font-medium" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Calendar</span>
+</a>
+<a class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-[#131622] transition-colors font-medium" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Team</span>
+</a>
+<a class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-[#131622] transition-colors font-medium" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Files</span>
+</a>
+</div>
+</div>
+<!-- DEVELOPMENT Section -->
+<div class="mb-6">
+<p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 px-3 mb-2">Development</p>
+<div class="space-y-1">
+<a class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-[#131622] transition-colors font-medium" href="#">
+<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" fill-rule="evenodd"></path></svg>
+<span>GitHub</span>
+</a>
+<a class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-[#131622] transition-colors font-medium" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Pull Requests</span>
+</a>
+<a class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-[#131622] transition-colors font-medium" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Deployments</span>
+</a>
+</div>
+</div>
+<!-- COLLEGE Section -->
+<div class="mb-6">
+<p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 px-3 mb-2">College</p>
+<div class="space-y-1">
+<a class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-[#131622] transition-colors font-medium" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Activities</span>
+</a>
+<a class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-[#131622] transition-colors font-medium" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Assignments</span>
+</a>
+<a class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-[#131622] transition-colors font-medium" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Notes</span>
+</a>
+</div>
+</div>
+<!-- ANALYTICS Section -->
+<div class="mb-4">
+<p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 px-3 mb-2">Analytics</p>
+<div class="space-y-1">
+<a class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-[#131622] transition-colors font-medium" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Reports</span>
+</a>
+<a class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-[#131622] transition-colors font-medium" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Insights</span>
+</a>
+</div>
+</div>
+</div>
+<!-- Bottom User Profile Tile -->
+<div class="p-3 border-t border-[#161926] bg-[#0A0C13]">
+<div class="flex items-center justify-between p-2 rounded-lg hover:bg-[#131624] transition-colors cursor-pointer">
+<div class="flex items-center space-x-3">
+<div class="w-9 h-9 rounded-full bg-slate-700 overflow-hidden ring-1 ring-purple-500/40">
+<img alt="Paarth Kadam" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDyuH9w7T1X3D56Jz48MUuISuhEWUrmqL357U5qkfr2AGliuLGZbyq_5PG6LmIXLzOjlA8vP2qT2nE92FtraTRcw7vyePZspczhFN4iEnuBSQ96su1oglZK5gXfXbRN4XGa7S0s__mwlF0diBmSE9ovORzb_tQ5PJszf6MQmIhMJLpJv2cM-PfQ-FZspG5Y-KDyLEs8gHRKZ8UXJzwBU76NhZ87wZ1OGRiC_IlZVt6Avbvj-vHCkCXhGg">
+</div>
+<div>
+<h4 class="text-xs font-semibold text-white leading-tight">Paarth Kadam</h4>
+<p class="text-[11px] text-gray-500 leading-tight">Team Member</p>
+</div>
+</div>
+<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 15l7-7 7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+</div>
+</aside>
+<!-- END: LeftSidebar -->
+<!-- BEGIN: MainContentArea -->
+<main class="flex-1 flex flex-col min-w-0 bg-[#07090E] overflow-y-auto">
+<!-- BEGIN: TopBar -->
+<header class="h-16 border-b border-[#141824] px-8 flex items-center justify-between shrink-0 bg-[#090B10]/80 backdrop-blur-md sticky top-0 z-20">
+<!-- Search Input -->
+<div class="relative w-80">
+<span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</span>
+<input class="w-full bg-[#111420] text-xs text-gray-200 placeholder-gray-500 pl-10 pr-10 py-2 rounded-lg border border-[#1C2033] focus:outline-none focus:border-purple-500 transition-all" placeholder="Search tasks, projects, people..." type="text">
+<span class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+<kbd class="text-[10px] bg-[#1A1E30] text-gray-400 px-1.5 py-0.5 rounded border border-[#272D45]">⌘ K</kbd>
+</span>
+</div>
+<!-- Right Top Actions & Profile -->
+<div class="flex items-center space-x-4">
+<!-- Add Quick Button -->
+<button class="w-9 h-9 rounded-lg bg-[#141724] border border-[#212638] flex items-center justify-center text-gray-300 hover:text-white hover:bg-[#1A1F30] transition">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</button>
+<!-- Notification Bell with Red Badge -->
+<button class="w-9 h-9 rounded-lg bg-[#141724] border border-[#212638] flex items-center justify-center text-gray-300 hover:text-white hover:bg-[#1A1F30] relative transition">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span class="w-2 h-2 rounded-full bg-red-500 absolute top-2 right-2 ring-2 ring-[#090B10]"></span>
+</button>
+<!-- User Avatar -->
+<div class="w-9 h-9 rounded-full ring-2 ring-purple-500/40 overflow-hidden cursor-pointer">
+<img alt="Avatar" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAk7skwc7FgRag5k0Xem8imNiHi0J2lXEHvOov1bul-3b1hqzVSJ7-FghiMUeOxl_Ll378Co1t7VPsuhjNJGKQ44bMsB2r618EzS74HZ2AjtSxUOmUhpmz69zCqiM0IJwOxX0yCy5UYG1kANs2F0IutSzc_HCRTYXGQwM8i9fvZiCBojRXE96QfUdzizR73Km6D3LjQpMgWy5ZBZtUo221-CwCGjpeA_raSNpkExx5UXrr27qRbkPawbg">
+</div>
+</div>
+</header>
+<!-- END: TopBar -->
+<!-- Content Wrapper -->
+<div class="p-8 space-y-6">
+<!-- BEGIN: HeaderAndBreadcrumbs -->
+<section class="flex flex-col md:flex-row md:items-center justify-between gap-4" data-purpose="page-title">
+<div>
+<!-- Breadcrumb -->
+<div class="flex items-center space-x-2 text-xs text-gray-500 mb-1 font-medium">
+<span class="hover:text-gray-400 cursor-pointer">Tasks</span>
+<svg class="w-3.5 h-3.5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span class="text-gray-300">All Tasks</span>
+</div>
+<!-- Title & Tagline -->
+<h1 class="text-2xl font-bold tracking-tight text-white">Tasks</h1>
+<p class="text-xs text-gray-400 mt-0.5">Turn plans into progress.</p>
+</div>
+<!-- Motivational Quote -->
+<div class="text-right hidden lg:block">
+<p class="text-[13px] italic font-serif text-gray-400">“Small steps every day<br>build massive results.”</p>
+</div>
+</section>
+<!-- END: HeaderAndBreadcrumbs -->
+<!-- BEGIN: ViewSwitcherAndFilters -->
+<section class="flex flex-wrap items-center justify-between gap-3" data-purpose="toolbar-filters">
+<!-- Switcher Tabs (Kanban, List, Calendar, Timeline) -->
+<div class="flex items-center bg-[#111422] p-1 rounded-xl border border-[#1A1F30]">
+<button class="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium shadow text-xs">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 6a2 2 0 012-2h2a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v7a2 2 0 01-2 2h-2a2 2 0 01-2-2V6z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Kanban</span>
+</button>
+<button class="flex items-center space-x-2 px-3 py-1.5 rounded-lg text-gray-400 hover:text-gray-200 transition text-xs font-medium">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 6h16M4 10h16M4 14h16M4 18h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>List</span>
+</button>
+<button class="flex items-center space-x-2 px-3 py-1.5 rounded-lg text-gray-400 hover:text-gray-200 transition text-xs font-medium">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Calendar</span>
+</button>
+<button class="flex items-center space-x-2 px-3 py-1.5 rounded-lg text-gray-400 hover:text-gray-200 transition text-xs font-medium">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Timeline</span>
+</button>
+</div>
+<!-- Filter Dropdowns & New Task Action -->
+<div class="flex items-center space-x-2.5">
+<!-- All Projects Filter -->
+<button class="flex items-center space-x-2 bg-[#111422] border border-[#1E2336] text-gray-300 text-xs px-3 py-1.5 rounded-lg hover:border-gray-600 transition">
+<span>All Projects</span>
+<svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+<!-- All Assignees Filter -->
+<button class="flex items-center space-x-2 bg-[#111422] border border-[#1E2336] text-gray-300 text-xs px-3 py-1.5 rounded-lg hover:border-gray-600 transition">
+<span>All Assignees</span>
+<svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+<!-- All Priority Filter -->
+<button class="flex items-center space-x-2 bg-[#111422] border border-[#1E2336] text-gray-300 text-xs px-3 py-1.5 rounded-lg hover:border-gray-600 transition">
+<span>All Priority</span>
+<svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+<!-- All Status Filter -->
+<button class="flex items-center space-x-2 bg-[#111422] border border-[#1E2336] text-gray-300 text-xs px-3 py-1.5 rounded-lg hover:border-gray-600 transition">
+<span>All Status</span>
+<svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+<!-- Extra Options -->
+<button class="p-1.5 bg-[#111422] border border-[#1E2336] text-gray-400 hover:text-white rounded-lg">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 12h.01M12 12h.01M19 12h.01" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+<!-- New Task CTA Button -->
+<button class="flex items-center space-x-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-medium text-xs px-3.5 py-1.5 rounded-lg shadow-md shadow-purple-600/20 transition">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>New Task</span>
+</button>
+</div>
+</section>
+<!-- END: ViewSwitcherAndFilters -->
+<!-- Main Board + Right Side Panels Container -->
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+<!-- BEGIN: KanbanBoardColumns (8 of 12 cols) -->
+<div class="xl:col-span-9 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" data-purpose="kanban-board">
+<!-- COLUMN 1: To Do (6) -->
+<div class="flex flex-col space-y-3" data-purpose="column-todo">
+<!-- Column Header -->
+<div class="flex items-center justify-between pb-1">
+<div class="flex items-center space-x-2">
+<span class="w-2 h-2 rounded-full bg-slate-400"></span>
+<h3 class="text-xs font-semibold text-gray-200">To Do</h3>
+<span class="text-[11px] bg-[#161A28] border border-[#242A40] text-gray-400 font-medium px-2 py-0.2 rounded-full">6</span>
+</div>
+<div class="flex items-center space-x-1 text-gray-500">
+<button class="hover:text-gray-300"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></button>
+<button class="hover:text-gray-300"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 12h.01M12 12h.01M19 12h.01" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></button>
+</div>
+</div>
+<!-- Card 1 -->
+<div class="bg-[#111420] border border-[#191E2F] hover:border-purple-500/50 rounded-xl p-3.5 space-y-2.5 transition group cursor-pointer shadow-sm">
+<h4 class="text-xs font-medium text-gray-200 group-hover:text-white">Design homepage UI</h4>
+<div class="flex items-center space-x-1.5">
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-950/70 text-blue-400 border border-blue-900/60">AG Solar Solutions</span>
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-purple-950/70 text-purple-400 border border-purple-900/60">UI/UX</span>
+</div>
+<div class="flex items-center justify-between text-[11px] text-gray-400 pt-1">
+<div class="flex items-center space-x-3">
+<span class="flex items-center space-x-1"><svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>25 Sep</span></span>
+<span class="flex items-center space-x-1 text-red-400 font-medium"><span>♦</span><span>High</span></span>
+</div>
+<div class="flex items-center space-x-1 text-gray-400 text-[11px]">
+<svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>3</span>
+</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-[#111420] border border-[#191E2F] hover:border-purple-500/50 rounded-xl p-3.5 space-y-2.5 transition group cursor-pointer shadow-sm">
+<h4 class="text-xs font-medium text-gray-200 group-hover:text-white">Write project documentation</h4>
+<div class="flex items-center space-x-1.5">
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-cyan-950/70 text-cyan-400 border border-cyan-900/60">WaterTech Brochure</span>
+</div>
+<div class="flex items-center justify-between text-[11px] text-gray-400 pt-1">
+<div class="flex items-center space-x-3">
+<span class="flex items-center space-x-1"><svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>26 Sep</span></span>
+<span class="flex items-center space-x-1 text-amber-400 font-medium"><span>♦</span><span>Medium</span></span>
+</div>
+<div class="flex items-center space-x-2">
+<div class="flex -space-x-1.5">
+<img alt="" class="w-4 h-4 rounded-full ring-1 ring-black object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBmKOZab3jFGhYdIei6uZP5Ri4GL_jzW2IXaYpRThwVw4o7Z4p13Juo6PFjlQXgg56X2Z9CYwwZv8eQ80zWW1cJafrb0Y6tv9z_idsEQ70t0QsLhCSxOt5i6-2_j-m5RKDWsyzutrG3NeDiMBiEcAp3k-iM5DrqOi-YqCITNWCePRKL4pN-fYAvVO8F9rQZx3b8cboYNvVI47exTYVLH2g5d51mS1XgHoOomROUaq7K3ivo6Qdc0vqsdQ">
+<img alt="" class="w-4 h-4 rounded-full ring-1 ring-black object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCQQuhQGRnNXLuAyjw08jqXG88t6SzbzNr9imdkFloA4L_LFLG7Ma3FjedVxMDTsLGAX18b5g4hcUJ8HYbKex0bfv6-K7649-BV29zKEeE1-n1Jw5fLhhusWXCHTG1i5oTjSxFdXqCU8sRak3-LVSINDAs421MhU0dMBkKH68uw6F2_ZOS1Ja3lcw-ufsHjbQibp05xDsurJYf7xkWNyxF1inbLhsYaSQCoVfPFZf-pX533CsNp8Bxglw">
+</div>
+<span class="flex items-center space-x-0.5 text-gray-400 text-[11px]"><svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>1</span></span>
+</div>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-[#111420] border border-[#191E2F] hover:border-purple-500/50 rounded-xl p-3.5 space-y-2.5 transition group cursor-pointer shadow-sm">
+<h4 class="text-xs font-medium text-gray-200 group-hover:text-white">Research quantum dot sensors</h4>
+<div class="flex items-center space-x-1.5">
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-indigo-950/70 text-indigo-400 border border-indigo-900/60">College Project</span>
+</div>
+<div class="flex items-center justify-between text-[11px] text-gray-400 pt-1">
+<div class="flex items-center space-x-3">
+<span class="flex items-center space-x-1"><svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>28 Sep</span></span>
+<span class="flex items-center space-x-1 text-emerald-400 font-medium"><span>♦</span><span>Low</span></span>
+</div>
+<div class="flex items-center space-x-2">
+<img alt="" class="w-4 h-4 rounded-full ring-1 ring-black object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBA8fqfT3d9h3E7D0V_Oi29A7aKJGQ8tP2bOPulHKCO8FSCvxAN7rLJzwzwjc52gRSnLnBoGuhgtQ_Y7Bm99sPC7hTxc3_gh6O7Bn-biFj_FfzXV-R4Ntg4SP-ty8nMrh_HRGcPmZk3JqyQHGT5gV1gOoTEQLL6KBKlv_FMh8rrO219fga7ZVsmaYNyiuStNTWHuPiwk9O3pVlsT9ke1_L8XkllU11W-3MkHWa-QQ-ZSLhmT43XC4gdDQ">
+<span class="flex items-center space-x-0.5 text-gray-400 text-[11px]"><svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>0</span></span>
+</div>
+</div>
+</div>
+<!-- Card 4 -->
+<div class="bg-[#111420] border border-[#191E2F] hover:border-purple-500/50 rounded-xl p-3.5 space-y-2.5 transition group cursor-pointer shadow-sm">
+<h4 class="text-xs font-medium text-gray-200 group-hover:text-white">Prepare college fest proposal</h4>
+<div class="flex items-center space-x-1.5">
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-purple-950/70 text-purple-300 border border-purple-900/60">College Fest 2026</span>
+</div>
+<div class="flex items-center justify-between text-[11px] text-gray-400 pt-1">
+<div class="flex items-center space-x-3">
+<span class="flex items-center space-x-1"><svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>30 Sep</span></span>
+<span class="flex items-center space-x-1 text-amber-400 font-medium"><span>♦</span><span>Medium</span></span>
+</div>
+<div class="flex items-center space-x-2">
+<div class="flex -space-x-1.5">
+<img alt="" class="w-4 h-4 rounded-full ring-1 ring-black object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD8hP4kCgPtmf9GZNoztGndWNQXVe3XoSbYuMUuGPXJOXynNlM_vJaDyFUrlbGJhQ6l4KaT0WmMpHypacnI3jSAmpwM15YpLVy-CmxMo71dUL8td2xfqPc0UJqTfW5bwUoYXFk5V0e9jexK8JlKxc_E3KeuH4vXzf9HpyruvGVY5ywun0IdeHO5XsUfUjVCh92golZm1JK_doG8yg2-aomTy_D73SmzVy1QKEmXlpFHQJaLP0esVwVUjg">
+<img alt="" class="w-4 h-4 rounded-full ring-1 ring-black object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAPkaLiBCDATjuqZuzWlbYv8pTaiCFDu7fuozI9eK3wKZmFyMIjqqULN4SfQpBdjEsxQWWUVmXE5vMXND0ouGnVHIgBQKawTGbXyF5Spe-ZrH3TERFAHvS2IAqVa0Pet4n8uIaVGY7cP4OjlvqvN93PGud3HWOM6TtU39lmsp6gDWWtlHpj1Cp8W7BBg8eoVwfCcV8bh69fJmeoulgmoNz5Knpu8dst-KisXdDjX5FsFW4pPK8lcL1iow">
+</div>
+<span class="flex items-center space-x-0.5 text-gray-400 text-[11px]"><svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>2</span></span>
+</div>
+</div>
+</div>
+<!-- Add Task Link Bottom of Column -->
+<button class="w-full py-2 border border-dashed border-[#1E2336] rounded-xl text-gray-500 hover:text-gray-300 hover:border-gray-600 text-xs font-medium flex items-center justify-center space-x-1.5 transition">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Add Task</span>
+</button>
+</div>
+<!-- COLUMN 2: In Progress (5) -->
+<div class="flex flex-col space-y-3" data-purpose="column-inprogress">
+<!-- Column Header -->
+<div class="flex items-center justify-between pb-1">
+<div class="flex items-center space-x-2">
+<span class="w-2 h-2 rounded-full bg-blue-500"></span>
+<h3 class="text-xs font-semibold text-gray-200">In Progress</h3>
+<span class="text-[11px] bg-[#161A28] border border-[#242A40] text-gray-400 font-medium px-2 py-0.2 rounded-full">5</span>
+</div>
+<div class="flex items-center space-x-1 text-gray-500">
+<button class="hover:text-gray-300"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></button>
+<button class="hover:text-gray-300"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 12h.01M12 12h.01M19 12h.01" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></button>
+</div>
+</div>
+<!-- Card 1 -->
+<div class="bg-[#111420] border border-[#191E2F] hover:border-purple-500/50 rounded-xl p-3.5 space-y-2.5 transition group cursor-pointer shadow-sm">
+<h4 class="text-xs font-medium text-gray-200 group-hover:text-white">Develop backend API</h4>
+<div class="flex items-center space-x-1.5">
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-950/70 text-blue-400 border border-blue-900/60">AG Solar Solutions</span>
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-cyan-950/70 text-cyan-400 border border-cyan-900/60">Development</span>
+</div>
+<div class="flex items-center justify-between text-[11px] text-gray-400 pt-1">
+<div class="flex items-center space-x-3">
+<span class="flex items-center space-x-1"><svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>24 Sep</span></span>
+<span class="flex items-center space-x-1 text-red-400 font-medium"><span>♦</span><span>High</span></span>
+</div>
+<div class="flex items-center space-x-1 text-gray-400 text-[11px]">
+<svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>4</span>
+</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-[#111420] border border-[#191E2F] hover:border-purple-500/50 rounded-xl p-3.5 space-y-2.5 transition group cursor-pointer shadow-sm">
+<h4 class="text-xs font-medium text-gray-200 group-hover:text-white">Integrate payment gateway</h4>
+<div class="flex items-center space-x-1.5">
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-950/70 text-emerald-400 border border-emerald-900/60">Client Website</span>
+</div>
+<div class="flex items-center justify-between text-[11px] text-gray-400 pt-1">
+<div class="flex items-center space-x-3">
+<span class="flex items-center space-x-1"><svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>27 Sep</span></span>
+<span class="flex items-center space-x-1 text-red-400 font-medium"><span>♦</span><span>High</span></span>
+</div>
+<div class="flex items-center space-x-2">
+<img alt="" class="w-4 h-4 rounded-full ring-1 ring-black object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDri7FhKN8RW_Pcn_Az78NWkoX4RARaGad4fbd1SWNNdwaad--hMKzTj-AidMCAQTi8sXqA5jv7R6YfvVk5SCBokESzr9S1eWT5YSU5UR1gsFNmEvFQQYHt6GJaz_a_VRFCilk6Tny_ivIc0REt1Bf3UqPcFPE43LSw1rwGvBLkz85j6p8B-ILvWsDhdG37eClWCPlGPOzpc4T8Up-49adK0mSTunIHbZYFmlMSOedXFIwPeyJwzxx-cQ">
+<span class="flex items-center space-x-0.5 text-gray-400 text-[11px]"><svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>2</span></span>
+</div>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-[#111420] border border-[#191E2F] hover:border-purple-500/50 rounded-xl p-3.5 space-y-2.5 transition group cursor-pointer shadow-sm">
+<h4 class="text-xs font-medium text-gray-200 group-hover:text-white">Design QA test cases</h4>
+<div class="flex items-center space-x-1.5">
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-cyan-950/70 text-cyan-400 border border-cyan-900/60">WaterTech Brochure</span>
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-purple-950/70 text-purple-400 border border-purple-900/60">QA</span>
+</div>
+<div class="flex items-center justify-between text-[11px] text-gray-400 pt-1">
+<div class="flex items-center space-x-3">
+<span class="flex items-center space-x-1"><svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>25 Sep</span></span>
+<span class="flex items-center space-x-1 text-amber-400 font-medium"><span>♦</span><span>Medium</span></span>
+</div>
+<div class="flex items-center space-x-2">
+<div class="flex -space-x-1.5">
+<img alt="" class="w-4 h-4 rounded-full ring-1 ring-black object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD-Nx-KlwE_aNiGbe66_FHHvuP-04KGimg91Bb_MqtiHbTKaJGkVnzylueUOVYsXoGgnEkQZHDxMY5-93gE5iheHFEqnXO_fLD0kZPfolrmhnTZL-z_LMfol4ch5cZXOctp9Yk0ATIinPrfoA9cVv8nEGuUsSNoor5JHfh7pGBXGIqANSGeURQTLtl9BoQ0qZ6Mwy0N9V1eygjxm6QW9P_AAH98IN9UNey3ANeEOGQyj1nuNbJl1B4OQw">
+<img alt="" class="w-4 h-4 rounded-full ring-1 ring-black object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAEMH_Ci1-imK4EvZJd9QDAgX5GjsJ2Roxu_HCM8qgPiywsTGslje551imeB5AKdxEhmefyaY-ri4-Br6y1NnchQ1O69B_w_vk0R-yTna3wcE1vsWYLUJr7BH1tuMH7vGHrcq6YMvFy41jbjbtZhsfUXLkTnC0qnzUWI3_K2J3GhtBbPFdw0SiKWywdZKoOZ7MSq-Jn7asaiifpKFbIhggUUX-MAO7GaAO1Fge2Ox9FMwEGoLoqodgciw">
+</div>
+<span class="flex items-center space-x-0.5 text-gray-400 text-[11px]"><svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>3</span></span>
+</div>
+</div>
+</div>
+<!-- Card 4 -->
+<div class="bg-[#111420] border border-[#191E2F] hover:border-purple-500/50 rounded-xl p-3.5 space-y-2.5 transition group cursor-pointer shadow-sm">
+<h4 class="text-xs font-medium text-gray-200 group-hover:text-white">Create presentation slides</h4>
+<div class="flex items-center space-x-1.5">
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-purple-950/70 text-purple-300 border border-purple-900/60">College Fest 2026</span>
+</div>
+<div class="flex items-center justify-between text-[11px] text-gray-400 pt-1">
+<div class="flex items-center space-x-3">
+<span class="flex items-center space-x-1"><svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>26 Sep</span></span>
+<span class="flex items-center space-x-1 text-amber-400 font-medium"><span>♦</span><span>Medium</span></span>
+</div>
+<div class="flex items-center space-x-2">
+<div class="flex -space-x-1.5">
+<img alt="" class="w-4 h-4 rounded-full ring-1 ring-black object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDES_yNwQRG-Ga8YEYjRzvt9i-5nSq-OYLx5VhPauzgLNzGoIIXbrVlq_9wHbhytam4tUZcje1daOBAWx_Kram3XM8c-WcefCryMxISfRybA0GUH3Flvu6-S3nncnfFROtE384dwlOQtPqNBdwWBtha8xaYnTqzWErJ5Q8ASnGsFYNih_-6IBm7YcqX06_tSFA6xn62ayl5mUBH-FfmSpHbrxH8Ie4Y91OQB-iEUNL5VwFwZzIlsu0DwA">
+<img alt="" class="w-4 h-4 rounded-full ring-1 ring-black object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDBGcPFUPRin-hVZ_HJWtdyPKsU21SOUAJKnNZ01zdzsgYoFQMwJuN3GOd9qbpplwhu6YdPU_EqxdAn2j6xrlg4_5We5biR7X0V6IvMIyj0IAr9Utxqsj3FYTfUj9Ox24Qhhpe0EQi2tt56KmdKNpHx6G-QgPFkB16PWwNefFWXNUCw9bS6dJCnXhm2af7gNOTiYGPs-GHDDGi1B74u1e9SOQm_Yp41-UVaMIE2tzFQovHFNrK_PixIYA">
+</div>
+<span class="flex items-center space-x-0.5 text-gray-400 text-[11px]"><svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>1</span></span>
+</div>
+</div>
+</div>
+<!-- Add Task Button -->
+<button class="w-full py-2 border border-dashed border-[#1E2336] rounded-xl text-gray-500 hover:text-gray-300 hover:border-gray-600 text-xs font-medium flex items-center justify-center space-x-1.5 transition">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Add Task</span>
+</button>
+</div>
+<!-- COLUMN 3: In Review (3) -->
+<div class="flex flex-col space-y-3" data-purpose="column-inreview">
+<!-- Column Header -->
+<div class="flex items-center justify-between pb-1">
+<div class="flex items-center space-x-2">
+<span class="w-2 h-2 rounded-full bg-purple-500"></span>
+<h3 class="text-xs font-semibold text-gray-200">In Review</h3>
+<span class="text-[11px] bg-[#161A28] border border-[#242A40] text-gray-400 font-medium px-2 py-0.2 rounded-full">3</span>
+</div>
+<div class="flex items-center space-x-1 text-gray-500">
+<button class="hover:text-gray-300"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></button>
+<button class="hover:text-gray-300"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 12h.01M12 12h.01M19 12h.01" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></button>
+</div>
+</div>
+<!-- Card 1 -->
+<div class="bg-[#111420] border border-[#191E2F] hover:border-purple-500/50 rounded-xl p-3.5 space-y-2.5 transition group cursor-pointer shadow-sm">
+<h4 class="text-xs font-medium text-gray-200 group-hover:text-white">Landing page responsiveness</h4>
+<div class="flex items-center space-x-1.5">
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-950/70 text-blue-400 border border-blue-900/60">AG Solar Solutions</span>
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-indigo-950/70 text-indigo-400 border border-indigo-900/60">Frontend</span>
+</div>
+<div class="flex items-center justify-between text-[11px] text-gray-400 pt-1">
+<div class="flex items-center space-x-3">
+<span class="flex items-center space-x-1"><svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>23 Sep</span></span>
+<span class="flex items-center space-x-1 text-red-400 font-medium"><span>♦</span><span>High</span></span>
+</div>
+<div class="flex items-center space-x-2">
+<div class="flex -space-x-1.5">
+<img alt="" class="w-4 h-4 rounded-full ring-1 ring-black object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAQj-weHiQtWALlNKN7-BpRerVRHEMyt04xrWfTvQuEIxQk2-BwGKgfPRJ7NPYE61Okg_HLONwgiMdho_s1h4wIvSO_jPG2xLb8xePIMeafPm_qomfnDCh8Uxj9p3seIEJ2VD9MwRUxWlJX5BOxFrGZvaT7_rP4EzvbvWx4x1-33hpnurRzf07YvwBMITymM64Dy4O2yyBszN_PFTWNG66zu5ojK-I3hNboA5hPn3FtM6WVv40q0xkpZA">
+<img alt="" class="w-4 h-4 rounded-full ring-1 ring-black object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBbSu7mPdGaaqGeLoYfr4KaV3IG7DaGCo1E-ja3Z3ALb1B8X2k6amIu3RHP_J3IZGqUBKrsoT7WdasKd16QQlfwzheCz-LxDzJ75FMrrSoHooOD9urlNkdgddvXrNfq2Y2l5dsqcFslMPmkpSJCCQAs071z8FNz0olzaQ83bTK1WcW5LmSno8qqHAEaiL0nshL3M7uzJB70Esud7UZU3s8il4faVatXBX18px6leUNoTf-TveqaFflq8Q">
+</div>
+<span class="flex items-center space-x-0.5 text-gray-400 text-[11px]"><svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>2</span></span>
+</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-[#111420] border border-[#191E2F] hover:border-purple-500/50 rounded-xl p-3.5 space-y-2.5 transition group cursor-pointer shadow-sm">
+<h4 class="text-xs font-medium text-gray-200 group-hover:text-white">Brochure content finalization</h4>
+<div class="flex items-center space-x-1.5">
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-cyan-950/70 text-cyan-400 border border-cyan-900/60">WaterTech Brochure</span>
+</div>
+<div class="flex items-center justify-between text-[11px] text-gray-400 pt-1">
+<div class="flex items-center space-x-3">
+<span class="flex items-center space-x-1"><svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>24 Sep</span></span>
+<span class="flex items-center space-x-1 text-amber-400 font-medium"><span>♦</span><span>Medium</span></span>
+</div>
+<div class="flex items-center space-x-2">
+<div class="flex -space-x-1.5">
+<img alt="" class="w-4 h-4 rounded-full ring-1 ring-black object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuARLYXGFv8vuXFzF2IiMPRL6Gd4fDVMBHyPsgKc7NEW5VuEZ_hgomgTQahCs4xxfzZzqynp5obipEwyy2gfwBB0Hg3_RJIzFcbIORD5EceUS1LdijzuVnSQGMCpdKUH2zx2I62S_MjM36QM0L74jyfmy4oafYBkpJ0V0sANiAF5TnGIbTm4GgeAuUOeca8f9vlisjcUx6AL6LFgI2tzVN8spRbpS-XNkLzVQfZTVvykl2AKtduxTwAJ_A">
+<img alt="" class="w-4 h-4 rounded-full ring-1 ring-black object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDOfxYNXtgkZIm9-ebnZTkYdnpK5xzEj0ySGGPE3qc478jU9ijDLh3na0TRyW4lp8ZohAwhpLnhHrzcLgnZniJTd9HMdwa2yGCdI7iIeSNEPAnB-T4pe7Ro8pSEpscJAYsfg1LUZB2geGxCe-uszUbSbOwLe1ZEWpJo-4jBSm9usBqAzoZw9tnn0N8KTRqdfwCaDZcEf9eIwCeM6Wvwx-LY6RdyvxSN14SnjhvpPY0OUceYhMbEzN5GmA">
+</div>
+<span class="flex items-center space-x-0.5 text-gray-400 text-[11px]"><svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>1</span></span>
+</div>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-[#111420] border border-[#191E2F] hover:border-purple-500/50 rounded-xl p-3.5 space-y-2.5 transition group cursor-pointer shadow-sm">
+<h4 class="text-xs font-medium text-gray-200 group-hover:text-white">Assignment 3 submission</h4>
+<div class="flex items-center space-x-1.5">
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-950/70 text-blue-300 border border-blue-900/60">Data Structures</span>
+</div>
+<div class="flex items-center justify-between text-[11px] text-gray-400 pt-1">
+<div class="flex items-center space-x-3">
+<span class="flex items-center space-x-1"><svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>25 Sep</span></span>
+<span class="flex items-center space-x-1 text-emerald-400 font-medium"><span>♦</span><span>Low</span></span>
+</div>
+<div class="flex items-center space-x-2">
+<img alt="" class="w-4 h-4 rounded-full ring-1 ring-black object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDmkCI7FzdXPYD1a4kRKKcLazCctGmkXxHjUxmaWYhiTYe6nyiAGq0H6xr5T-ulReQfXfUftKgAmszdzHIPUxBJSD4ecVpz5rRrmWVWVOY_pC6OfpaRFnYZDu_9_sl1L_4qXZPOZ4mhI4tuFSemL2sjPIhkFOCQJeHe1zUnvvrBb7h7n2_9YqO-56rYDX0So5voYPbrtyPPuyaYHSl8HU5ybHBzrFKhH64WGana5W7r52W8uks9dqdcFg">
+<span class="flex items-center space-x-0.5 text-gray-400 text-[11px]"><svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>1</span></span>
+</div>
+</div>
+</div>
+<!-- Add Task Button -->
+<button class="w-full py-2 border border-dashed border-[#1E2336] rounded-xl text-gray-500 hover:text-gray-300 hover:border-gray-600 text-xs font-medium flex items-center justify-center space-x-1.5 transition">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Add Task</span>
+</button>
+</div>
+<!-- COLUMN 4: Done (8) -->
+<div class="flex flex-col space-y-3" data-purpose="column-done">
+<!-- Column Header -->
+<div class="flex items-center justify-between pb-1">
+<div class="flex items-center space-x-2">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+<h3 class="text-xs font-semibold text-gray-200">Done</h3>
+<span class="text-[11px] bg-[#161A28] border border-[#242A40] text-gray-400 font-medium px-2 py-0.2 rounded-full">8</span>
+</div>
+<div class="flex items-center space-x-1 text-gray-500">
+<button class="hover:text-gray-300"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></button>
+<button class="hover:text-gray-300"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 12h.01M12 12h.01M19 12h.01" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></button>
+</div>
+</div>
+<!-- Card 1 -->
+<div class="bg-[#111420] border border-[#191E2F] hover:border-purple-500/50 rounded-xl p-3.5 space-y-2.5 transition group cursor-pointer shadow-sm">
+<div class="flex items-center justify-between">
+<h4 class="text-xs font-medium text-gray-200 group-hover:text-white">Set up project repository</h4>
+<div class="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+<svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</div>
+</div>
+<div class="flex items-center space-x-1.5">
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-950/70 text-emerald-400 border border-emerald-900/60">Personal Portfolio</span>
+</div>
+<div class="flex items-center justify-between text-[11px] text-gray-400 pt-1">
+<div class="flex items-center space-x-3">
+<span class="flex items-center space-x-1"><svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>20 Sep</span></span>
+<span class="flex items-center space-x-1 text-amber-400 font-medium"><span>♦</span><span>Medium</span></span>
+</div>
+<div class="flex items-center space-x-2">
+<img alt="" class="w-4 h-4 rounded-full ring-1 ring-black object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBhmCrNSfAzdHecGMK-tURsZMaEsZxmw4F5nCHb-ckAMWVdohEfT3RNcS4K539eaZrXOdNrWKE1Lm6UthTgG8O-K-P5xwcBPegxNgoiGlaEPl7dIX1LB40GwuQUluolGf9_djfDSzlTu7hNn8IVUd_Cpme8OiQ1UMAwS1kx1pP_7RBIct7e1AkXo_f-8yhPzuF9FMIVPLvfLzzbnH4N8n48YD_SoBzUX_tKbmD35QgHS3C5kE1g1_6asw">
+<span class="flex items-center space-x-0.5 text-gray-400 text-[11px]"><svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>4</span></span>
+</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-[#111420] border border-[#191E2F] hover:border-purple-500/50 rounded-xl p-3.5 space-y-2.5 transition group cursor-pointer shadow-sm">
+<div class="flex items-center justify-between">
+<h4 class="text-xs font-medium text-gray-200 group-hover:text-white">Complete logo design</h4>
+<div class="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+<svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</div>
+</div>
+<div class="flex items-center space-x-1.5">
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-950/70 text-emerald-400 border border-emerald-900/60">Client Website</span>
+</div>
+<div class="flex items-center justify-between text-[11px] text-gray-400 pt-1">
+<div class="flex items-center space-x-3">
+<span class="flex items-center space-x-1"><svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>21 Sep</span></span>
+<span class="flex items-center space-x-1 text-red-400 font-medium"><span>♦</span><span>High</span></span>
+</div>
+<div class="flex items-center space-x-2">
+<img alt="" class="w-4 h-4 rounded-full ring-1 ring-black object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCTw34L8DAGLbCcxYnyIEnmZuAWZaE8CMLNE1WvTUXC4W_ytR48GKnGDZnuR7rAHxjc4ZpUxVg0BzB4jUJ39Kc46kIApu1Gk20QncUk0WF9WLcjuumr4eWQTWUTjWS-qmaG01f2XNhEZ3_HkcFEbWkPkQj05yNnRqd4abia40GLByP6LyG5J6eXmnQ2rij21SLBNlmAfrDKFX5x4wIP7m_jfcfJYdc1Yl4QoA0krEV7dzz_RFBuq60RUQ">
+<span class="flex items-center space-x-0.5 text-gray-400 text-[11px]"><svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>2</span></span>
+</div>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-[#111420] border border-[#191E2F] hover:border-purple-500/50 rounded-xl p-3.5 space-y-2.5 transition group cursor-pointer shadow-sm">
+<div class="flex items-center justify-between">
+<h4 class="text-xs font-medium text-gray-200 group-hover:text-white">Market research report</h4>
+<div class="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+<svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</div>
+</div>
+<div class="flex items-center space-x-1.5">
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-indigo-950/70 text-indigo-400 border border-indigo-900/60">College Project</span>
+</div>
+<div class="flex items-center justify-between text-[11px] text-gray-400 pt-1">
+<div class="flex items-center space-x-3">
+<span class="flex items-center space-x-1"><svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>22 Sep</span></span>
+<span class="flex items-center space-x-1 text-amber-400 font-medium"><span>♦</span><span>Medium</span></span>
+</div>
+<div class="flex items-center space-x-1 text-gray-400 text-[11px]">
+<svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>1</span>
+</div>
+</div>
+</div>
+<!-- Card 4 -->
+<div class="bg-[#111420] border border-[#191E2F] hover:border-purple-500/50 rounded-xl p-3.5 space-y-2.5 transition group cursor-pointer shadow-sm">
+<div class="flex items-center justify-between">
+<h4 class="text-xs font-medium text-gray-200 group-hover:text-white">Fix navigation bug</h4>
+<div class="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+<svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</div>
+</div>
+<div class="flex items-center space-x-1.5">
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-cyan-950/70 text-cyan-400 border border-cyan-900/60">WaterTech Brochure</span>
+<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-pink-950/70 text-pink-400 border border-pink-900/60">Bug Fix</span>
+</div>
+<div class="flex items-center justify-between text-[11px] text-gray-400 pt-1">
+<div class="flex items-center space-x-3">
+<span class="flex items-center space-x-1"><svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>23 Sep</span></span>
+<span class="flex items-center space-x-1 text-red-400 font-medium"><span>♦</span><span>High</span></span>
+</div>
+<div class="flex items-center space-x-2">
+<div class="flex -space-x-1.5">
+<img alt="" class="w-4 h-4 rounded-full ring-1 ring-black object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAWezjMpqXo_9C-oo7xl7JouuShxyIZ9G3inWsz1E98y5_H4zqvIvFX5M1EF5mSVTtrZsoaqbaW7KpTBygRJnwqL-Y52tUGRZ4W97Jg2RTtnc4HVM1qSaCReEO-7Z4t6YuSr_gaUxgDNTtyc0QDpEn7WdBsfvkq2jG5JQdH3mZMxFf4TsvOOcUbh2mgK3di32KffEFtkf0ZUDd2Frv8JP1uzsYrFQ5DP3m0frcNRNpvnfLLNsdwSMUT8w">
+<img alt="" class="w-4 h-4 rounded-full ring-1 ring-black object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBSIwAOXDMq1JFbb0OWGehegEmH96_782P0hbOb_QO3WYb06fyQ_p72RBOr0iMSarZp403ljTbzfIIE_BiekUU8AaFSgDUuZtW9NfjijPyGOROxTkT9mZvk4cERDesrTAjh8mzQCK5vTbrDabPyXIO39FX2WxP8KW7qUtmyuBxNcnRXv_hchzEWX-ol1W-rYoyCzjDLR0weBoTLCzZMCO1gJYV4eCyBawnPRqcZnE9fOZqMUC2Rlf8Khg">
+</div>
+<span class="flex items-center space-x-0.5 text-gray-400 text-[11px]"><svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>3</span></span>
+</div>
+</div>
+</div>
+<!-- Add Task Button -->
+<button class="w-full py-2 border border-dashed border-[#1E2336] rounded-xl text-gray-500 hover:text-gray-300 hover:border-gray-600 text-xs font-medium flex items-center justify-center space-x-1.5 transition">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Add Task</span>
+</button>
+</div>
+</div>
+<!-- END: KanbanBoardColumns -->
+<!-- BEGIN: RightSidebarWidgets (3 of 12 cols) -->
+<div class="xl:col-span-3 space-y-4" data-purpose="right-widgets">
+<!-- WIDGET 1: Task Overview -->
+<div class="bg-[#10131E] border border-[#191E2F] rounded-2xl p-4 shadow-sm" data-purpose="widget-task-overview">
+<div class="flex items-center space-x-2 text-white font-semibold text-xs mb-4">
+<svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Task Overview</span>
+</div>
+<div class="flex items-center justify-between">
+<!-- Circular Donut Chart Representation -->
+<div class="relative w-28 h-28 flex items-center justify-center">
+<svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+<!-- Background circle -->
+<path class="text-[#1A1F32]" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3.5"></path>
+<!-- Green (Done: 8/22 = 36%) -->
+<path class="text-emerald-500" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="36, 100" stroke-linecap="round" stroke-width="3.5"></path>
+<!-- Blue/Purple segments -->
+<path class="text-indigo-500" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="23, 100" stroke-dashoffset="-37" stroke-width="3.5"></path>
+<path class="text-purple-500" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="14, 100" stroke-dashoffset="-61" stroke-width="3.5"></path>
+<path class="text-rose-500" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="27, 100" stroke-dashoffset="-76" stroke-width="3.5"></path>
+</svg>
+<div class="absolute flex flex-col items-center">
+<span class="text-xl font-bold text-white leading-none">22</span>
+<span class="text-[10px] text-gray-400">Tasks</span>
+</div>
+</div>
+<!-- Legend -->
+<div class="space-y-1.5 text-xs text-gray-300">
+<div class="flex items-center space-x-2">
+<span class="w-2 h-2 rounded-full bg-rose-500"></span>
+<span class="text-gray-400">To Do</span>
+<span class="ml-auto font-semibold text-white pl-2">6</span>
+</div>
+<div class="flex items-center space-x-2">
+<span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+<span class="text-gray-400">In Progress</span>
+<span class="ml-auto font-semibold text-white pl-2">5</span>
+</div>
+<div class="flex items-center space-x-2">
+<span class="w-2 h-2 rounded-full bg-purple-500"></span>
+<span class="text-gray-400">In Review</span>
+<span class="ml-auto font-semibold text-white pl-2">3</span>
+</div>
+<div class="flex items-center space-x-2">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+<span class="text-gray-400">Done</span>
+<span class="ml-auto font-semibold text-white pl-2">8</span>
+</div>
+</div>
+</div>
+</div>
+<!-- WIDGET 2: Upcoming Deadlines -->
+<div class="bg-[#10131E] border border-[#191E2F] rounded-2xl p-4 shadow-sm" data-purpose="widget-upcoming-deadlines">
+<div class="flex items-center justify-between text-xs font-semibold mb-3">
+<div class="flex items-center space-x-2 text-white">
+<svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Upcoming Deadlines</span>
+</div>
+<button class="text-[11px] text-gray-400 hover:text-white flex items-center space-x-1 font-normal">
+<span>View All</span>
+<span>→</span>
+</button>
+</div>
+<!-- List Items -->
+<div class="space-y-3">
+<!-- Item 1 -->
+<div class="flex items-center justify-between">
+<div class="flex items-center space-x-2.5">
+<div class="w-5 h-5 rounded-full bg-rose-500/10 border border-rose-500/40 flex items-center justify-center shrink-0">
+<span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+</div>
+<div>
+<h5 class="text-xs font-medium text-gray-200 leading-tight">Design homepage UI</h5>
+<p class="text-[10px] text-gray-500">AG Solar Solutions</p>
+</div>
+</div>
+<span class="text-[11px] font-medium text-rose-400">25 Sep</span>
+</div>
+<!-- Item 2 -->
+<div class="flex items-center justify-between">
+<div class="flex items-center space-x-2.5">
+<div class="w-5 h-5 rounded-full bg-rose-500/10 border border-rose-500/40 flex items-center justify-center shrink-0">
+<span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+</div>
+<div>
+<h5 class="text-xs font-medium text-gray-200 leading-tight">Backend API development</h5>
+<p class="text-[10px] text-gray-500">AG Solar Solutions</p>
+</div>
+</div>
+<span class="text-[11px] font-medium text-rose-400">24 Sep</span>
+</div>
+<!-- Item 3 -->
+<div class="flex items-center justify-between">
+<div class="flex items-center space-x-2.5">
+<div class="w-5 h-5 rounded-full bg-blue-500/10 border border-blue-500/40 flex items-center justify-center shrink-0">
+<span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+</div>
+<div>
+<h5 class="text-xs font-medium text-gray-200 leading-tight">Brochure finalization</h5>
+<p class="text-[10px] text-gray-500">WaterTech Brochure</p>
+</div>
+</div>
+<span class="text-[11px] font-medium text-rose-400">24 Sep</span>
+</div>
+<!-- Item 4 -->
+<div class="flex items-center justify-between">
+<div class="flex items-center space-x-2.5">
+<div class="w-5 h-5 rounded-full bg-amber-500/10 border border-amber-500/40 flex items-center justify-center shrink-0">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+</div>
+<div>
+<h5 class="text-xs font-medium text-gray-200 leading-tight">Assignment 3 submission</h5>
+<p class="text-[10px] text-gray-500">Data Structures</p>
+</div>
+</div>
+<span class="text-[11px] font-medium text-rose-400">25 Sep</span>
+</div>
+<!-- Item 5 -->
+<div class="flex items-center justify-between">
+<div class="flex items-center space-x-2.5">
+<div class="w-5 h-5 rounded-full bg-purple-500/10 border border-purple-500/40 flex items-center justify-center shrink-0">
+<span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+</div>
+<div>
+<h5 class="text-xs font-medium text-gray-200 leading-tight">College fest proposal</h5>
+<p class="text-[10px] text-gray-500">College Fest 2026</p>
+</div>
+</div>
+<span class="text-[11px] font-medium text-gray-400">30 Sep</span>
+</div>
+</div>
+</div>
+<!-- WIDGET 3: Activity Feed -->
+<div class="bg-[#10131E] border border-[#191E2F] rounded-2xl p-4 shadow-sm" data-purpose="widget-activity-feed">
+<div class="flex items-center justify-between text-xs font-semibold mb-3">
+<div class="flex items-center space-x-2 text-white">
+<svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Activity Feed</span>
+</div>
+<button class="text-[11px] text-gray-400 hover:text-white flex items-center space-x-1 font-normal">
+<span>View All</span>
+<span>→</span>
+</button>
+</div>
+<div class="space-y-3">
+<!-- Activity 1 -->
+<div class="flex items-start space-x-3">
+<img alt="Rahul" class="w-6 h-6 rounded-full object-cover shrink-0 mt-0.5" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDISoSWk4ThEHH84TvOBsnGAW5DAVrkET2tEEGawkOVjSxLhQXch05rSUn6FTxtoeMqqQrxpsKFGpzXpw_M8gn9DOImEoKhXJoPTkSNVP_J8xZR27eZJRnetuJ1CFBuYLzGhCUyGekKBAfL7fMWyATFY6igUpkfTPiwm4VG4cjM8LUx971vkTsd_pX87LuUkGfQgfLTitKinNQ5v64eZFegsEbO_pBlenVuijneZPbyUXfznwOVGbqT6w">
+<div class="min-w-0 flex-1">
+<p class="text-xs text-gray-300 leading-tight"><span class="font-medium text-white">Rahul</span> moved a task to In Review</p>
+<span class="text-[10px] text-gray-500">2 mins ago</span>
+</div>
+</div>
+<!-- Activity 2 -->
+<div class="flex items-start space-x-3">
+<div class="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center shrink-0 mt-0.5">
+<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<div class="min-w-0 flex-1">
+<p class="text-xs text-gray-300 leading-tight"><span class="font-medium text-white">Aditya</span> commented on “Backend API”</p>
+<span class="text-[10px] text-gray-500">15 mins ago</span>
+</div>
+</div>
+<!-- Activity 3 -->
+<div class="flex items-start space-x-3">
+<div class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0 mt-0.5">
+<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<div class="min-w-0 flex-1">
+<p class="text-xs text-gray-300 leading-tight"><span class="font-medium text-white">Om</span> completed a task “Logo Design”</p>
+<span class="text-[10px] text-gray-500">1 hour ago</span>
+</div>
+</div>
+<!-- Activity 4 -->
+<div class="flex items-start space-x-3">
+<div class="w-6 h-6 rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/30 flex items-center justify-center shrink-0 mt-0.5">
+<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<div class="min-w-0 flex-1">
+<p class="text-xs text-gray-300 leading-tight">You created a new task “QA Test Cases”</p>
+<span class="text-[10px] text-gray-500">2 hours ago</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- END: RightSidebarWidgets -->
+</div>
+<!-- BEGIN: BottomSectionMyTasksTable -->
+<section class="bg-[#10131E] border border-[#191E2F] rounded-2xl p-5 shadow-sm" data-purpose="my-tasks-table">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+<div class="flex items-center space-x-4">
+<div class="flex items-center space-x-2 text-white font-semibold text-xs">
+<svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>My Tasks</span>
+</div>
+<!-- Sub Filter Pills -->
+<div class="flex items-center bg-[#151928] p-0.5 rounded-lg border border-[#21273D] text-[11px]">
+<button class="px-2.5 py-1 rounded-md bg-purple-600/90 text-white font-medium">Assigned to Me</button>
+<button class="px-2.5 py-1 text-gray-400 hover:text-gray-200">Created by Me</button>
+<button class="px-2.5 py-1 text-gray-400 hover:text-gray-200">Mentioned</button>
+</div>
+</div>
+<button class="text-xs text-gray-400 hover:text-white flex items-center space-x-1 font-medium self-end md:self-auto">
+<span>View All</span>
+<span>→</span>
+</button>
+</div>
+<!-- Table View -->
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse text-xs">
+<thead>
+<tr class="border-b border-[#1A1F30] text-gray-400 font-medium">
+<th class="py-2.5 px-3 w-8">
+<input class="rounded bg-[#161A28] border-[#29304A] text-purple-600 focus:ring-0 w-3.5 h-3.5" type="checkbox">
+</th>
+<th class="py-2.5 px-3 font-normal">Task</th>
+<th class="py-2.5 px-3 font-normal">Project</th>
+<th class="py-2.5 px-3 font-normal">Due Date</th>
+<th class="py-2.5 px-3 font-normal">Priority</th>
+<th class="py-2.5 px-3 font-normal">Status</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-[#171B2B] text-gray-300">
+<!-- Row 1 -->
+<tr class="hover:bg-[#141826] transition">
+<td class="py-3 px-3">
+<input class="rounded bg-[#161A28] border-[#29304A] text-purple-600 focus:ring-0 w-3.5 h-3.5" type="checkbox">
+</td>
+<td class="py-3 px-3 font-medium text-white">Develop backend API</td>
+<td class="py-3 px-3">
+<span class="flex items-center space-x-1.5 text-gray-300">
+<span class="w-2.5 h-2.5 rounded-full bg-blue-500/40 border border-blue-400"></span>
+<span>AG Solar Solutions</span>
+</span>
+</td>
+<td class="py-3 px-3 text-gray-400">24 Sep</td>
+<td class="py-3 px-3">
+<span class="flex items-center space-x-1.5 text-red-400">
+<span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+<span>High</span>
+</span>
+</td>
+<td class="py-3 px-3">
+<span class="px-2.5 py-1 rounded-full text-[11px] font-medium bg-blue-950/80 text-blue-400 border border-blue-900/60">In Progress</span>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-[#141826] transition">
+<td class="py-3 px-3">
+<input class="rounded bg-[#161A28] border-[#29304A] text-purple-600 focus:ring-0 w-3.5 h-3.5" type="checkbox">
+</td>
+<td class="py-3 px-3 font-medium text-white">Design QA test cases</td>
+<td class="py-3 px-3">
+<span class="flex items-center space-x-1.5 text-gray-300">
+<span class="w-2.5 h-2.5 rounded-full bg-cyan-500/40 border border-cyan-400"></span>
+<span>WaterTech Brochure</span>
+</span>
+</td>
+<td class="py-3 px-3 text-gray-400">25 Sep</td>
+<td class="py-3 px-3">
+<span class="flex items-center space-x-1.5 text-amber-400">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+<span>Medium</span>
+</span>
+</td>
+<td class="py-3 px-3">
+<span class="px-2.5 py-1 rounded-full text-[11px] font-medium bg-blue-950/80 text-blue-400 border border-blue-900/60">In Progress</span>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-[#141826] transition">
+<td class="py-3 px-3">
+<input class="rounded bg-[#161A28] border-[#29304A] text-purple-600 focus:ring-0 w-3.5 h-3.5" type="checkbox">
+</td>
+<td class="py-3 px-3 font-medium text-white">Assignment 3 submission</td>
+<td class="py-3 px-3">
+<span class="flex items-center space-x-1.5 text-gray-300">
+<span class="w-2.5 h-2.5 rounded-full bg-indigo-500/40 border border-indigo-400"></span>
+<span>Data Structures</span>
+</span>
+</td>
+<td class="py-3 px-3 text-gray-400">25 Sep</td>
+<td class="py-3 px-3">
+<span class="flex items-center space-x-1.5 text-emerald-400">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+<span>Low</span>
+</span>
+</td>
+<td class="py-3 px-3">
+<span class="px-2.5 py-1 rounded-full text-[11px] font-medium bg-purple-950/80 text-purple-400 border border-purple-900/60">In Review</span>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-[#141826] transition">
+<td class="py-3 px-3">
+<input class="rounded bg-[#161A28] border-[#29304A] text-purple-600 focus:ring-0 w-3.5 h-3.5" type="checkbox">
+</td>
+<td class="py-3 px-3 font-medium text-white">Create presentation slides</td>
+<td class="py-3 px-3">
+<span class="flex items-center space-x-1.5 text-gray-300">
+<span class="w-2.5 h-2.5 rounded-full bg-purple-500/40 border border-purple-400"></span>
+<span>College Fest 2026</span>
+</span>
+</td>
+<td class="py-3 px-3 text-gray-400">26 Sep</td>
+<td class="py-3 px-3">
+<span class="flex items-center space-x-1.5 text-amber-400">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+<span>Medium</span>
+</span>
+</td>
+<td class="py-3 px-3">
+<span class="px-2.5 py-1 rounded-full text-[11px] font-medium bg-blue-950/80 text-blue-400 border border-blue-900/60">In Progress</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- END: BottomSectionMyTasksTable -->
+</div>
+</main>
+<!-- END: MainContentArea -->
+</body></html>

@@ -1,0 +1,876 @@
+<!DOCTYPE html><html class="h-full bg-[#0a0d14]" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>DEVHUB - Calendar</title>
+<!-- Tailwind CSS v3 with Plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Inter -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+<!-- Tailwind Configuration -->
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              purple: '#6d28d9',
+              accent: '#7c3aed',
+            },
+            dark: {
+              bg: '#080a10',
+              sidebar: '#0d111a',
+              card: '#111622',
+              cardBorder: '#1c2333',
+              cellHover: '#161c2b',
+            }
+          }
+        }
+      }
+    }
+  </script>
+<!-- Custom Styles for Scrollbars & Minor Details -->
+<style data-purpose="custom-layout">
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0d111a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1f293d;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+  </style>
+</head>
+<body class="h-full text-slate-300 font-sans antialiased overflow-hidden flex bg-[#090b11]">
+<!-- BEGIN: Left Navigation Sidebar -->
+<aside class="w-64 bg-[#090c14] border-r border-[#161c28] flex flex-col justify-between shrink-0 select-none z-20" data-purpose="main-navigation">
+<div class="p-5 flex flex-col h-full overflow-y-auto">
+<!-- DevHub Logo Header -->
+<div class="flex items-center gap-3 px-2 mb-6">
+<div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-purple-600 via-indigo-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
+<svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+<path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+</svg>
+</div>
+<div>
+<span class="text-white font-bold tracking-wider text-base">DEVHUB</span>
+<p class="text-[10px] text-slate-500 font-medium tracking-tight">Build • Learn • Manage • Grow</p>
+</div>
+</div>
+<!-- Navigation Links -->
+<div class="space-y-6 text-sm">
+<!-- Top Main Links -->
+<div class="space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131926] transition-colors" href="#">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+            Dashboard
+          </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131926] transition-colors" href="#">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+            My Day
+          </a>
+</div>
+<!-- Section: Workspace -->
+<div>
+<h3 class="px-3 text-[11px] font-semibold tracking-wider text-slate-500 uppercase mb-2">Workspace</h3>
+<div class="space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131926] transition-colors" href="#">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              Projects
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131926] transition-colors" href="#">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              Tasks
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131926] transition-colors" href="#">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              QA / Testing
+            </a>
+<!-- Active Calendar Tab -->
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-gradient-to-r from-purple-900/60 to-purple-800/40 text-purple-200 font-medium border border-purple-600/40 shadow-sm shadow-purple-900/50" href="#">
+<svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              Calendar
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131926] transition-colors" href="#">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              Team
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131926] transition-colors" href="#">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              Files
+            </a>
+</div>
+</div>
+<!-- Section: Development -->
+<div>
+<h3 class="px-3 text-[11px] font-semibold tracking-wider text-slate-500 uppercase mb-2">Development</h3>
+<div class="space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131926] transition-colors" href="#">
+<svg class="w-4 h-4 text-slate-400" fill="currentColor" viewBox="0 0 24 24"><path clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" fill-rule="evenodd"></path></svg>
+              GitHub
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131926] transition-colors" href="#">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              Pull Requests
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131926] transition-colors" href="#">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              Deployments
+            </a>
+</div>
+</div>
+<!-- Section: College -->
+<div>
+<h3 class="px-3 text-[11px] font-semibold tracking-wider text-slate-500 uppercase mb-2">College</h3>
+<div class="space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131926] transition-colors" href="#">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              Activities
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131926] transition-colors" href="#">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              Assignments
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131926] transition-colors" href="#">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              Notes
+            </a>
+</div>
+</div>
+<!-- Section: Analytics -->
+<div>
+<h3 class="px-3 text-[11px] font-semibold tracking-wider text-slate-500 uppercase mb-2">Analytics</h3>
+<div class="space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131926] transition-colors" href="#">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              Reports
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131926] transition-colors" href="#">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              Insights
+            </a>
+</div>
+</div>
+</div>
+</div>
+<!-- User Profile Bar -->
+<div class="p-3 border-t border-[#161c28] bg-[#0b0e17]">
+<div class="flex items-center justify-between p-2 rounded-lg hover:bg-[#141b29] transition-colors cursor-pointer">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-full bg-slate-700 overflow-hidden ring-1 ring-purple-500/30 flex items-center justify-center font-bold text-xs text-white">
+            PK
+          </div>
+<div>
+<h4 class="text-sm font-medium text-white leading-tight">Paarth Kadam</h4>
+<p class="text-xs text-slate-500">Team Member</p>
+</div>
+</div>
+<svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M5 15l7-7 7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+</div>
+</aside>
+<!-- END: Left Navigation Sidebar -->
+<!-- BEGIN: Main Central Application Content -->
+<main class="flex-1 flex flex-col min-w-0 bg-[#07090e] overflow-y-auto">
+<!-- Top Global Header / Search Bar -->
+<header class="h-16 border-b border-[#141a27] px-8 flex items-center justify-between shrink-0 bg-[#07090e]">
+<!-- Global Search -->
+<div class="relative w-80">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<svg class="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<input class="w-full bg-[#0d121c] border border-[#1b2333] rounded-lg pl-9 pr-12 py-1.5 text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-purple-500" placeholder="Search events, tasks, projects..." type="text">
+<span class="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none">
+<span class="text-[10px] text-slate-500 border border-[#222c42] rounded px-1.5 py-0.5 font-mono">⌘ K</span>
+</span>
+</div>
+<!-- Header Action Icons -->
+<div class="flex items-center gap-3">
+<button class="w-8 h-8 rounded-lg bg-[#111724] border border-[#1d2639] flex items-center justify-center text-slate-300 hover:text-white transition">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+<button class="relative w-8 h-8 rounded-lg bg-[#111724] border border-[#1d2639] flex items-center justify-center text-slate-300 hover:text-white transition">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500"></span>
+</button>
+<div class="w-8 h-8 rounded-full ring-2 ring-purple-600/40 overflow-hidden bg-slate-800 flex items-center justify-center text-xs font-semibold text-white">
+          PK
+        </div>
+</div>
+</header>
+<!-- Page Body Area -->
+<div class="p-8 space-y-6">
+<!-- Breadcrumbs & Dynamic Page Header with Inspiration Quote -->
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+<div>
+<div class="flex items-center gap-2 text-xs font-medium text-slate-500 mb-1">
+<span>Calendar</span>
+<svg class="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span class="text-slate-400">September 2026</span>
+</div>
+<h1 class="text-3xl font-bold text-white tracking-tight">September 2026</h1>
+<p class="text-xs text-slate-400 mt-1">Plan better. Do more.</p>
+</div>
+<!-- Inspiring Quote Banner right aligned -->
+<div class="text-right hidden sm:block">
+<p class="text-sm italic text-slate-400 font-serif leading-snug">"A well-planned day<br>leads to a well-built future."</p>
+<div class="h-0.5 w-12 bg-purple-600 ml-auto mt-2 rounded-full"></div>
+</div>
+</div>
+<!-- Action Toolbar (Controls & Filter Selectors) -->
+<div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+<!-- Date Navigator Controls -->
+<div class="flex items-center gap-2">
+<div class="flex items-center bg-[#0e131d] border border-[#1b2333] rounded-lg p-0.5">
+<button class="p-1.5 hover:bg-[#182030] text-slate-400 hover:text-white rounded transition">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+<button class="p-1.5 hover:bg-[#182030] text-slate-400 hover:text-white rounded transition">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+<button class="px-3 py-1.5 bg-[#0e131d] hover:bg-[#182030] text-slate-300 font-medium text-xs border border-[#1b2333] rounded-lg transition">
+            Today
+          </button>
+</div>
+<!-- View Segmented Switcher -->
+<div class="flex items-center bg-[#0d121c] border border-[#1b2333] rounded-lg p-0.5 text-xs font-medium">
+<button class="px-3.5 py-1.5 rounded bg-purple-600 text-white font-semibold shadow">Month</button>
+<button class="px-3.5 py-1.5 text-slate-400 hover:text-slate-200 transition">Week</button>
+<button class="px-3.5 py-1.5 text-slate-400 hover:text-slate-200 transition">Day</button>
+<button class="px-3.5 py-1.5 text-slate-400 hover:text-slate-200 transition">Agenda</button>
+</div>
+<!-- Filter Selects and Add Button -->
+<div class="flex items-center gap-2.5">
+<!-- All Projects dropdown -->
+<button class="flex items-center justify-between gap-3 px-3 py-1.5 bg-[#0e131d] border border-[#1b2333] rounded-lg text-xs text-slate-300 hover:bg-[#161d2a] transition">
+<span>All Projects</span>
+<svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+<!-- All Event Types dropdown -->
+<button class="flex items-center justify-between gap-3 px-3 py-1.5 bg-[#0e131d] border border-[#1b2333] rounded-lg text-xs text-slate-300 hover:bg-[#161d2a] transition">
+<span>All Event Types</span>
+<svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+<!-- Add Event Action -->
+<button class="flex items-center gap-1.5 px-3.5 py-1.5 bg-brand-purple hover:bg-purple-700 text-white text-xs font-semibold rounded-lg shadow-md shadow-purple-900/40 transition">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+            Add Event
+          </button>
+</div>
+</div>
+<!-- BEGIN: Monthly Grid Container -->
+<div class="bg-[#0b0e16] border border-[#171f2d] rounded-xl overflow-hidden shadow-2xl" data-purpose="calendar-grid-view">
+<!-- Weekday Headers -->
+<div class="grid grid-cols-7 border-b border-[#171f2d] bg-[#0c101a] text-center text-xs font-semibold text-slate-400 py-3">
+<div>Sun</div>
+<div>Mon</div>
+<div>Tue</div>
+<div>Wed</div>
+<div>Thu</div>
+<div>Fri</div>
+<div>Sat</div>
+</div>
+<!-- Calendar Days Grid (5 Rows x 7 Columns) -->
+<div class="grid grid-cols-7 divide-x divide-y divide-[#171f2d] bg-[#080b12]">
+<!-- ROW 1 -->
+<!-- Aug 30 -->
+<div class="min-h-[108px] p-2 text-slate-600 bg-[#080a11]/60">
+<span class="text-xs font-medium">30</span>
+</div>
+<!-- Aug 31 -->
+<div class="min-h-[108px] p-2 text-slate-600 bg-[#080a11]/60">
+<span class="text-xs font-medium">31</span>
+</div>
+<!-- Sep 1 -->
+<div class="min-h-[108px] p-2 group hover:bg-[#0d121c] transition">
+<span class="text-xs font-medium text-slate-300">1</span>
+<div class="mt-1">
+<div class="bg-purple-950/80 border-l-2 border-purple-500 p-1.5 rounded text-[11px] leading-tight text-purple-200">
+<div class="font-medium truncate">College Fest Meeting</div>
+<div class="text-[9px] text-purple-400">10:00 AM</div>
+</div>
+</div>
+</div>
+<!-- Sep 2 -->
+<div class="min-h-[108px] p-2 group hover:bg-[#0d121c] transition">
+<span class="text-xs font-medium text-slate-300">2</span>
+</div>
+<!-- Sep 3 -->
+<div class="min-h-[108px] p-2 group hover:bg-[#0d121c] transition">
+<span class="text-xs font-medium text-slate-300">3</span>
+<div class="mt-1">
+<div class="bg-emerald-950/80 border-l-2 border-emerald-500 p-1.5 rounded text-[11px] leading-tight text-emerald-200">
+<div class="font-medium truncate">AG Solar - UI Review</div>
+<div class="text-[9px] text-emerald-400">11:00 AM</div>
+</div>
+</div>
+</div>
+<!-- Sep 4 -->
+<div class="min-h-[108px] p-2 group hover:bg-[#0d121c] transition">
+<span class="text-xs font-medium text-slate-300">4</span>
+</div>
+<!-- Sep 5 -->
+<div class="min-h-[108px] p-2 group hover:bg-[#0d121c] transition">
+<span class="text-xs font-medium text-slate-300">5</span>
+<div class="mt-1">
+<div class="bg-blue-950/80 border-l-2 border-blue-500 p-1.5 rounded text-[11px] leading-tight text-blue-200">
+<div class="font-medium truncate">Data Structures Assignment</div>
+<div class="text-[9px] text-blue-400">11:59 PM</div>
+</div>
+</div>
+</div>
+<!-- ROW 2 -->
+<!-- Sep 6 -->
+<div class="min-h-[108px] p-2 group hover:bg-[#0d121c] transition">
+<span class="text-xs font-medium text-slate-300">6</span>
+</div>
+<!-- Sep 7 -->
+<div class="min-h-[108px] p-2 group hover:bg-[#0d121c] transition">
+<span class="text-xs font-medium text-slate-300">7</span>
+<div class="mt-1">
+<div class="bg-blue-950/80 border-l-2 border-blue-500 p-1.5 rounded text-[11px] leading-tight text-blue-200">
+<div class="font-medium truncate">Team Standup</div>
+<div class="text-[9px] text-blue-400">10:00 AM</div>
+</div>
+</div>
+</div>
+<!-- Sep 8 -->
+<div class="min-h-[108px] p-2 group hover:bg-[#0d121c] transition">
+<span class="text-xs font-medium text-slate-300">8</span>
+</div>
+<!-- Sep 9 -->
+<div class="min-h-[108px] p-2 group hover:bg-[#0d121c] transition">
+<span class="text-xs font-medium text-slate-300">9</span>
+<div class="mt-1">
+<div class="bg-rose-950/80 border-l-2 border-rose-500 p-1.5 rounded text-[11px] leading-tight text-rose-200">
+<div class="font-medium truncate">QA Test Run</div>
+<div class="text-[9px] text-rose-400">2:00 PM</div>
+</div>
+</div>
+</div>
+<!-- Sep 10 -->
+<div class="min-h-[108px] p-2 group hover:bg-[#0d121c] transition">
+<span class="text-xs font-medium text-slate-300">10</span>
+</div>
+<!-- Sep 11 -->
+<div class="min-h-[108px] p-2 group hover:bg-[#0d121c] transition">
+<span class="text-xs font-medium text-slate-300">11</span>
+<div class="mt-1">
+<div class="bg-amber-950/80 border-l-2 border-amber-500 p-1.5 rounded text-[11px] leading-tight text-amber-200">
+<div class="font-medium truncate">Client Call - WaterTech</div>
+<div class="text-[9px] text-amber-400">4:00 PM</div>
+</div>
+</div>
+</div>
+<!-- Sep 12 -->
+<div class="min-h-[108px] p-2 group hover:bg-[#0d121c] transition">
+<span class="text-xs font-medium text-slate-300">12</span>
+<div class="mt-1">
+<div class="bg-emerald-950/80 border-l-2 border-emerald-500 p-1.5 rounded text-[11px] leading-tight text-emerald-200">
+<div class="font-medium truncate">Submit Assignment</div>
+<div class="text-[9px] text-emerald-400">11:59 PM</div>
+</div>
+</div>
+</div>
+<!-- ROW 3 -->
+<!-- Sep 13 -->
+<div class="min-h-[108px] p-2 group hover:bg-[#0d121c] transition">
+<span class="text-xs font-medium text-slate-300">13</span>
+</div>
+<!-- Sep 14 -->
+<div class="min-h-[108px] p-2 group hover:bg-[#0d121c] transition">
+<span class="text-xs font-medium text-slate-300">14</span>
+<div class="mt-1">
+<div class="bg-emerald-950/80 border-l-2 border-emerald-500 p-1.5 rounded text-[11px] leading-tight text-emerald-200">
+<div class="font-medium truncate">Project Milestone (Portfolio v1)</div>
+<div class="text-[9px] text-emerald-400">12:00 PM</div>
+</div>
+</div>
+</div>
+<!-- Sep 15 -->
+<div class="min-h-[108px] p-2 group hover:bg-[#0d121c] transition">
+<span class="text-xs font-medium text-slate-300">15</span>
+</div>
+<!-- Sep 16 -->
+<div class="min-h-[108px] p-2 group hover:bg-[#0d121c] transition">
+<span class="text-xs font-medium text-slate-300">16</span>
+<div class="mt-1">
+<div class="bg-purple-950/80 border-l-2 border-purple-500 p-1.5 rounded text-[11px] leading-tight text-purple-200">
+<div class="font-medium truncate">College Event Planning</div>
+<div class="text-[9px] text-purple-400">3:00 PM</div>
+</div>
+</div>
+</div>
+<!-- Sep 17 -->
+<div class="min-h-[108px] p-2 group hover:bg-[#0d121c] transition">
+<span class="text-xs font-medium text-slate-300">17</span>
+</div>
+<!-- Sep 18 -->
+<div class="min-h-[108px] p-2 group hover:bg-[#0d121c] transition">
+<span class="text-xs font-medium text-slate-300">18</span>
+<div class="mt-1">
+<div class="bg-blue-950/80 border-l-2 border-blue-500 p-1.5 rounded text-[11px] leading-tight text-blue-200">
+<div class="font-medium truncate">Deployment - v1.2</div>
+<div class="text-[9px] text-blue-400">6:00 PM</div>
+</div>
+</div>
+</div>
+<!-- Sep 19 -->
+<div class="min-h-[108px] p-2 group hover:bg-[#0d121c] transition">
+<span class="text-xs font-medium text-slate-300">19</span>
+</div>
+<!-- ROW 4 -->
+<!-- Sep 20 -->
+<div class="min-h-[108px] p-2 group hover:bg-[#0d121c] transition">
+<span class="text-xs font-medium text-slate-300">20</span>
+<div class="mt-1">
+<div class="bg-amber-950/80 border-l-2 border-amber-500 p-1.5 rounded text-[11px] leading-tight text-amber-200">
+<div class="font-medium truncate">Research Discussion</div>
+<div class="text-[9px] text-amber-400">11:00 AM</div>
+</div>
+</div>
+</div>
+<!-- Sep 21 -->
+<div class="min-h-[108px] p-2 group hover:bg-[#0d121c] transition">
+<span class="text-xs font-medium text-slate-300">21</span>
+</div>
+<!-- Sep 22: Active Date Cell -->
+<div class="min-h-[108px] p-2 bg-[#121624] relative ring-1 ring-purple-600/50">
+<div class="flex items-center">
+<span class="w-5 h-5 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs font-bold shadow-md shadow-purple-900/60">22</span>
+</div>
+<div class="mt-1 space-y-1">
+<div class="bg-purple-950/90 border-l-2 border-purple-500 p-1 rounded text-[10px] leading-tight text-purple-200">
+<div class="font-semibold truncate">Design Review</div>
+<div class="text-[9px] text-purple-400">12:00 PM</div>
+</div>
+<div class="bg-slate-800/80 border-l-2 border-slate-400 p-1 rounded text-[10px] leading-tight text-slate-200">
+<div class="font-semibold truncate">Gym / Football</div>
+<div class="text-[9px] text-slate-400">7:00 PM</div>
+</div>
+</div>
+</div>
+<!-- Sep 23 -->
+<div class="min-h-[108px] p-2 group hover:bg-[#0d121c] transition">
+<span class="text-xs font-medium text-slate-300">23</span>
+</div>
+<!-- Sep 24 -->
+<div class="min-h-[108px] p-2 group hover:bg-[#0d121c] transition">
+<span class="text-xs font-medium text-slate-300">24</span>
+<div class="mt-1">
+<div class="bg-rose-950/80 border-l-2 border-rose-500 p-1.5 rounded text-[11px] leading-tight text-rose-200">
+<div class="font-medium truncate">Backend API Demo</div>
+<div class="text-[9px] text-rose-400">2:00 PM</div>
+</div>
+</div>
+</div>
+<!-- Sep 25 -->
+<div class="min-h-[108px] p-2 group hover:bg-[#0d121c] transition">
+<span class="text-xs font-medium text-slate-300">25</span>
+</div>
+<!-- Sep 26 -->
+<div class="min-h-[108px] p-2 group hover:bg-[#0d121c] transition">
+<span class="text-xs font-medium text-slate-300">26</span>
+<div class="mt-1">
+<div class="bg-emerald-950/80 border-l-2 border-emerald-500 p-1.5 rounded text-[11px] leading-tight text-emerald-200">
+<div class="font-medium truncate">Family Function</div>
+<div class="text-[9px] text-emerald-400">(All Day)</div>
+</div>
+</div>
+</div>
+<!-- ROW 5 -->
+<!-- Sep 27 -->
+<div class="min-h-[108px] p-2 group hover:bg-[#0d121c] transition">
+<span class="text-xs font-medium text-slate-300">27</span>
+</div>
+<!-- Sep 28 -->
+<div class="min-h-[108px] p-2 group hover:bg-[#0d121c] transition">
+<span class="text-xs font-medium text-slate-300">28</span>
+<div class="mt-1">
+<div class="bg-blue-950/80 border-l-2 border-blue-500 p-1.5 rounded text-[11px] leading-tight text-blue-200">
+<div class="font-medium truncate">QA Retest</div>
+<div class="text-[9px] text-blue-400">11:00 AM</div>
+</div>
+</div>
+</div>
+<!-- Sep 29 -->
+<div class="min-h-[108px] p-2 group hover:bg-[#0d121c] transition">
+<span class="text-xs font-medium text-slate-300">29</span>
+</div>
+<!-- Sep 30 -->
+<div class="min-h-[108px] p-2 group hover:bg-[#0d121c] transition">
+<span class="text-xs font-medium text-slate-300">30</span>
+<div class="mt-1">
+<div class="bg-purple-950/80 border-l-2 border-purple-500 p-1.5 rounded text-[11px] leading-tight text-purple-200">
+<div class="font-medium truncate">Monthly Review</div>
+<div class="text-[9px] text-purple-400">5:00 PM</div>
+</div>
+</div>
+</div>
+<!-- Oct 1 -->
+<div class="min-h-[108px] p-2 text-slate-600 bg-[#080a11]/60">
+<span class="text-xs font-medium">1</span>
+</div>
+<!-- Oct 2 -->
+<div class="min-h-[108px] p-2 text-slate-600 bg-[#080a11]/60">
+<span class="text-xs font-medium">2</span>
+</div>
+<!-- Oct 3 -->
+<div class="min-h-[108px] p-2 text-slate-600 bg-[#080a11]/60">
+<span class="text-xs font-medium">3</span>
+</div>
+</div>
+</div>
+<!-- END: Monthly Grid Container -->
+<!-- Legend of Event Types -->
+<div class="flex flex-wrap items-center gap-6 text-xs text-slate-400 pt-1 px-1">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
+<span>Project</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+<span>Task</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+<span>QA / Testing</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+<span>College</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+<span>Meeting</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
+<span>Personal</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-pink-500"></span>
+<span>Milestone</span>
+</div>
+</div>
+<!-- BEGIN: Bottom Detailed Schedule & Mini Calendar Widgets -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-2 pb-6">
+<!-- Today's Schedule Detailed Card (Span 2 cols) -->
+<div class="lg:col-span-2 bg-[#0c101a] border border-[#171f2d] rounded-xl p-5 space-y-4">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<h3 class="text-sm font-semibold text-white">Today • Tue, 22 Sep 2026</h3>
+</div>
+<button class="text-slate-500 hover:text-slate-300">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 15l7-7 7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+<!-- Schedule Row 1: Design Review -->
+<div class="flex items-center justify-between p-3.5 rounded-lg bg-[#111724] border border-[#1b2333]">
+<div class="flex items-center gap-4">
+<div class="border-l-2 border-purple-500 pl-3">
+<span class="text-xs font-bold text-white block">12:00 PM</span>
+<span class="text-[10px] text-slate-500">1h</span>
+</div>
+<div>
+<h4 class="text-xs font-semibold text-white">Design Review</h4>
+<p class="text-[11px] text-slate-400">AG Solar Solutions</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<!-- Attendees Avatars -->
+<div class="flex -space-x-2">
+<div class="w-6 h-6 rounded-full bg-purple-700 ring-2 ring-[#111724] flex items-center justify-center text-[9px] font-bold text-white">AK</div>
+<div class="w-6 h-6 rounded-full bg-blue-600 ring-2 ring-[#111724] flex items-center justify-center text-[9px] font-bold text-white">SL</div>
+<div class="w-6 h-6 rounded-full bg-emerald-600 ring-2 ring-[#111724] flex items-center justify-center text-[9px] font-bold text-white">PK</div>
+</div>
+<!-- Action Button: Join -->
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium shadow-sm transition">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+                Join
+              </button>
+</div>
+</div>
+<!-- Schedule Row 2: Gym / Football -->
+<div class="flex items-center justify-between p-3.5 rounded-lg bg-[#111724] border border-[#1b2333]">
+<div class="flex items-center gap-4">
+<div class="border-l-2 border-slate-500 pl-3">
+<span class="text-xs font-bold text-white block">7:00 PM</span>
+<span class="text-[10px] text-slate-500">1.5h</span>
+</div>
+<div>
+<h4 class="text-xs font-semibold text-white">Gym / Football</h4>
+<p class="text-[11px] text-slate-400">Personal</p>
+</div>
+</div>
+<!-- Action Button: Mark Done -->
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#242f45] bg-[#141b29] hover:bg-[#1a2336] text-slate-300 text-xs font-medium transition">
+<svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              Mark Done
+            </button>
+</div>
+</div>
+<!-- Mini Calendar Card -->
+<div class="bg-[#0c101a] border border-[#171f2d] rounded-xl p-5 flex flex-col justify-between">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-2">
+<svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span class="text-xs font-bold text-white">Mini Calendar</span>
+</div>
+</div>
+<div class="flex items-center justify-between text-xs text-slate-300 mb-2 px-1">
+<span class="font-semibold">September 2026</span>
+<div class="flex items-center gap-1">
+<button class="p-1 text-slate-500 hover:text-white"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></button>
+<button class="p-1 text-slate-500 hover:text-white"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></button>
+</div>
+</div>
+<!-- Mini Calendar Grid -->
+<div class="grid grid-cols-7 gap-y-1.5 text-center text-[10px]">
+<!-- Day labels -->
+<span class="text-slate-600 font-medium">Su</span>
+<span class="text-slate-600 font-medium">Mo</span>
+<span class="text-slate-600 font-medium">Tu</span>
+<span class="text-slate-600 font-medium">We</span>
+<span class="text-slate-600 font-medium">Th</span>
+<span class="text-slate-600 font-medium">Fr</span>
+<span class="text-slate-600 font-medium">Sa</span>
+<!-- Row 1 -->
+<span class="text-slate-700">30</span>
+<span class="text-slate-700">31</span>
+<span class="text-slate-400">1</span>
+<span class="text-slate-400">2</span>
+<span class="text-slate-400">3</span>
+<span class="text-slate-400">4</span>
+<span class="text-slate-400">5</span>
+<!-- Row 2 -->
+<span class="text-slate-400">6</span>
+<span class="text-slate-400">7</span>
+<span class="text-slate-400">8</span>
+<span class="text-slate-400">9</span>
+<span class="text-slate-400">10</span>
+<span class="text-slate-400">11</span>
+<span class="text-slate-400">12</span>
+<!-- Row 3 -->
+<span class="text-slate-400">13</span>
+<span class="text-slate-400">14</span>
+<span class="text-slate-400">15</span>
+<span class="text-slate-400">16</span>
+<span class="text-slate-400">17</span>
+<span class="text-slate-400">18</span>
+<span class="text-slate-400">19</span>
+<!-- Row 4 -->
+<span class="text-slate-400">20</span>
+<span class="text-slate-400">21</span>
+<!-- Day 22 Active Circle -->
+<span class="w-5 h-5 mx-auto flex items-center justify-center rounded-full bg-purple-600 text-white font-bold">22</span>
+<span class="text-slate-400">23</span>
+<span class="text-slate-400">24</span>
+<span class="text-slate-400">25</span>
+<span class="text-slate-400">26</span>
+<!-- Row 5 -->
+<span class="text-slate-400">27</span>
+<span class="text-slate-400">28</span>
+<span class="text-slate-400">29</span>
+<span class="text-slate-400">30</span>
+<span class="text-slate-700">1</span>
+<span class="text-slate-700">2</span>
+<span class="text-slate-700">3</span>
+</div>
+</div>
+</div>
+<!-- END: Bottom Detailed Schedule & Mini Calendar Widgets -->
+</div>
+</main>
+<!-- END: Main Central Application Content -->
+<!-- BEGIN: Right Sidebar Widgets -->
+<aside class="w-80 bg-[#090c14] border-l border-[#161c28] flex flex-col justify-between shrink-0 p-5 space-y-6 overflow-y-auto" data-purpose="right-sidebar">
+<!-- Upcoming Events Widget -->
+<div class="space-y-4">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<h3 class="text-xs font-bold text-white uppercase tracking-wider">Upcoming Events</h3>
+</div>
+<button class="flex items-center gap-1 text-[11px] text-slate-400 hover:text-white transition">
+          View All
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+<!-- Events List -->
+<div class="space-y-3.5">
+<!-- Event 1 -->
+<div class="flex items-start gap-3">
+<div class="text-center w-8 shrink-0">
+<span class="text-[9px] uppercase font-bold text-slate-500 block">SEP</span>
+<span class="text-sm font-bold text-white">22</span>
+</div>
+<div class="flex-1">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-purple-500"></span>
+<h4 class="text-xs font-semibold text-slate-200">Design Review</h4>
+</div>
+<p class="text-[10px] text-slate-500 mt-0.5">12:00 PM – 1:00 PM</p>
+<p class="text-[10px] text-slate-400">AG Solar Solutions</p>
+</div>
+</div>
+<!-- Event 2 -->
+<div class="flex items-start gap-3">
+<div class="text-center w-8 shrink-0">
+<span class="text-[9px] uppercase font-bold text-slate-500 block">SEP</span>
+<span class="text-sm font-bold text-white">23</span>
+</div>
+<div class="flex-1">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-slate-400"></span>
+<h4 class="text-xs font-semibold text-slate-200">Gym / Football</h4>
+</div>
+<p class="text-[10px] text-slate-500 mt-0.5">7:00 PM – 8:30 PM</p>
+<p class="text-[10px] text-slate-400">Personal</p>
+</div>
+</div>
+<!-- Event 3 -->
+<div class="flex items-start gap-3">
+<div class="text-center w-8 shrink-0">
+<span class="text-[9px] uppercase font-bold text-slate-500 block">SEP</span>
+<span class="text-sm font-bold text-white">24</span>
+</div>
+<div class="flex-1">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-rose-500"></span>
+<h4 class="text-xs font-semibold text-slate-200">Backend API Demo</h4>
+</div>
+<p class="text-[10px] text-slate-500 mt-0.5">2:00 PM – 3:00 PM</p>
+<p class="text-[10px] text-slate-400">WaterTech Brochure</p>
+</div>
+</div>
+<!-- Event 4 -->
+<div class="flex items-start gap-3">
+<div class="text-center w-8 shrink-0">
+<span class="text-[9px] uppercase font-bold text-slate-500 block">SEP</span>
+<span class="text-sm font-bold text-white">25</span>
+</div>
+<div class="flex-1">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-blue-500"></span>
+<h4 class="text-xs font-semibold text-slate-200">Submit Assignment</h4>
+</div>
+<p class="text-[10px] text-slate-500 mt-0.5">11:59 PM</p>
+<p class="text-[10px] text-slate-400">Data Structures</p>
+</div>
+</div>
+<!-- Event 5 -->
+<div class="flex items-start gap-3">
+<div class="text-center w-8 shrink-0">
+<span class="text-[9px] uppercase font-bold text-slate-500 block">SEP</span>
+<span class="text-sm font-bold text-white">28</span>
+</div>
+<div class="flex-1">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-rose-500"></span>
+<h4 class="text-xs font-semibold text-slate-200">QA Retest</h4>
+</div>
+<p class="text-[10px] text-slate-500 mt-0.5">11:00 AM – 1:00 PM</p>
+<p class="text-[10px] text-slate-400">Client Website</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Event Types Count Summary -->
+<div class="space-y-3 pt-3 border-t border-[#161c28]">
+<div class="flex items-center gap-2">
+<svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<h3 class="text-xs font-bold text-white">Event Types</h3>
+</div>
+<div class="space-y-2 text-xs">
+<div class="flex items-center justify-between text-slate-300">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-purple-500"></span>
+<span>Project Events</span>
+</div>
+<span class="font-mono text-slate-400 text-[11px]">8</span>
+</div>
+<div class="flex items-center justify-between text-slate-300">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-blue-500"></span>
+<span>Tasks / Deadlines</span>
+</div>
+<span class="font-mono text-slate-400 text-[11px]">6</span>
+</div>
+<div class="flex items-center justify-between text-slate-300">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-rose-500"></span>
+<span>QA / Testing</span>
+</div>
+<span class="font-mono text-slate-400 text-[11px]">5</span>
+</div>
+<div class="flex items-center justify-between text-slate-300">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+<span>College Activities</span>
+</div>
+<span class="font-mono text-slate-400 text-[11px]">7</span>
+</div>
+<div class="flex items-center justify-between text-slate-300">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-amber-500"></span>
+<span>Meetings</span>
+</div>
+<span class="font-mono text-slate-400 text-[11px]">4</span>
+</div>
+<div class="flex items-center justify-between text-slate-300">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-slate-400"></span>
+<span>Personal</span>
+</div>
+<span class="font-mono text-slate-400 text-[11px]">3</span>
+</div>
+<div class="flex items-center justify-between text-slate-300">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-pink-500"></span>
+<span>Milestones</span>
+</div>
+<span class="font-mono text-slate-400 text-[11px]">5</span>
+</div>
+</div>
+</div>
+<!-- Motivational Footer Card (Mountain Silhouette Graphic) -->
+<div class="relative overflow-hidden rounded-xl border border-purple-900/40 bg-gradient-to-b from-[#1b1433] to-[#0d0d1c] p-4 text-left">
+<!-- Mountain SVG Graphic Background -->
+<div class="absolute inset-0 pointer-events-none opacity-40">
+<svg class="w-full h-full object-cover" fill="none" preserveAspectRatio="none" viewBox="0 0 400 200">
+<path d="M0 200L80 140L140 170L220 110L280 160L360 90L400 130V200H0Z" fill="#3b1b68"></path>
+<path d="M0 200L60 160L120 180L180 140L250 175L320 130L400 170V200H0Z" fill="#1e1038" opacity="0.8"></path>
+</svg>
+</div>
+<div class="relative z-10 space-y-1">
+<p class="text-xs text-purple-200 font-medium leading-relaxed">
+          Discipline in your schedule today, freedom in your future.
+        </p>
+</div>
+</div>
+</aside>
+<!-- END: Right Sidebar Widgets -->
+</body></html>

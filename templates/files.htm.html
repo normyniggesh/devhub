@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>DEVHUB - Files Management</title>
+<!-- Tailwind CSS v3 with Plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Inter -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            hubDark: {
+              950: '#090b10',
+              900: '#0d1017',
+              850: '#111522',
+              800: '#161b2c',
+              700: '#1f263d',
+              border: '#1b2234',
+              hover: '#242d45',
+            },
+            accent: {
+              purple: '#6d28d9',
+              lightPurple: '#8b5cf6',
+              brightPurple: '#7c3aed',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+<!-- BEGIN: Style Configurations -->
+<style data-purpose="custom-scrollbars">
+    /* Custom scrollbar for deep dark sleek UI */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0d1017;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #242d45;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #3b4668;
+    }
+  </style>
+<style data-purpose="component-effects">
+    .glow-badge {
+      background: linear-gradient(135deg, rgba(124, 58, 237, 0.15) 0%, rgba(37, 99, 235, 0.15) 100%);
+      border: 1px solid rgba(139, 92, 246, 0.25);
+    }
+    .custom-gradient-banner {
+      background: linear-gradient(90deg, #101424 0%, #151b30 50%, #1d1838 100%);
+    }
+  </style>
+<!-- END: Style Configurations -->
+</head>
+<body class="bg-[#0a0d14] text-slate-300 font-sans antialiased min-h-screen flex flex-col overflow-x-hidden selection:bg-purple-600 selection:text-white">
+<!-- BEGIN: TopHeader -->
+<header class="h-14 border-b border-hubDark-border bg-[#0d1017] px-5 flex items-center justify-between z-30 sticky top-0">
+<!-- Left: Brand Logo & Title in topbar alignment -->
+<div class="flex items-center gap-6 w-56 shrink-0">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-purple-900/30">
+<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 24 24">
+<polyline points="16 18 22 12 16 6"></polyline>
+<polyline points="8 6 2 12 8 18"></polyline>
+</svg>
+</div>
+<div>
+<span class="text-white font-bold tracking-tight text-sm uppercase">DEVHUB</span>
+<p class="text-[9px] text-slate-400 font-medium tracking-tighter leading-none">Build · Learn · Manage · Grow</p>
+</div>
+</div>
+</div>
+<!-- Center: Global Search Bar -->
+<div class="flex-1 max-w-xl mx-4">
+<div class="relative flex items-center">
+<div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<input class="w-full bg-[#131722] border border-[#1e2538] focus:border-purple-500 focus:ring-1 focus:ring-purple-500 rounded-lg pl-10 pr-12 py-1.5 text-xs text-slate-200 placeholder-slate-500 transition-all outline-none" placeholder="Search files, folders, projects, or keywords..." type="text"/>
+<div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+<span class="text-[10px] bg-[#1d2335] text-slate-400 border border-[#2b334d] px-1.5 py-0.5 rounded font-mono">⌘ K</span>
+</div>
+</div>
+</div>
+<!-- Right: Quick Actions, Notifications, & Profile -->
+<div class="flex items-center gap-3">
+<!-- Create Plus Button -->
+<button class="w-8 h-8 rounded-lg bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center transition shadow-md shadow-purple-900/40">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
+</svg>
+</button>
+<!-- Notification Bell with Alert Dot -->
+<button class="w-8 h-8 rounded-lg bg-[#141824] hover:bg-[#1a2133] border border-[#20273c] text-slate-300 flex items-center justify-center relative transition">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500"></span>
+</button>
+<!-- User Avatar -->
+<div class="relative cursor-pointer pl-1">
+<img alt="Paarth Kadam" class="w-8 h-8 rounded-full border border-purple-500 object-cover ring-2 ring-purple-600/30" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD3EHRrJymoCFPziNZdUaDOmtYwHy8EM5aGApz0iCICtPLhmA_hY6haYSyAZ8oiCXcZsLL2ZDvfR2EdgWO-Re_lAXX2Fid2b1wigm6wb5yqObiJYeg5-uVrFpa6kLiW5IQWT5duNgrBcRDSIPgEvehl-Zh5gONX8vC9kZkf-5ZyQfa_vtoBt0brBJUU8B9ZMggNbXngt09GnDI5jVyBSiYKuflm286cfrmjJrT7Of3WzwNJa3WFAEaf6Q"/>
+</div>
+</div>
+</header>
+<!-- END: TopHeader -->
+<!-- BEGIN: MainContentWrapper -->
+<div class="flex flex-1 overflow-hidden">
+<!-- BEGIN: LeftSidebar -->
+<aside class="w-56 shrink-0 bg-[#0d1017] border-r border-hubDark-border flex flex-col justify-between select-none">
+<div class="py-3 px-3 space-y-5 overflow-y-auto">
+<!-- Top General Section -->
+<nav class="space-y-0.5" data-purpose="general-navigation">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-[#151926] transition" href="#">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-[#151926] transition" href="#">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><circle cx="12" cy="12" r="5"></circle><line x1="12" x2="12" y1="1" y2="3"></line><line x1="12" x2="12" y1="21" y2="23"></line><line x1="4.22" x2="5.64" y1="4.22" y2="5.64"></line><line x1="18.36" x2="19.78" y1="18.36" y2="19.78"></line><line x1="1" x2="3" y1="12" y2="12"></line><line x1="21" x2="23" y1="12" y2="12"></line><line x1="4.22" x2="5.64" y1="19.78" y2="18.36"></line><line x1="18.36" x2="19.78" y1="5.64" y2="4.22"></line></svg>
+<span>My Day</span>
+</a>
+</nav>
+<!-- Workspace Section -->
+<div>
+<span class="text-[10px] font-semibold tracking-wider text-slate-500 uppercase px-3 block mb-1.5">Workspace</span>
+<nav class="space-y-0.5" data-purpose="workspace-navigation">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-[#151926] transition" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Projects</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-[#151926] transition" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Tasks</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-[#151926] transition" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>QA / Testing</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-[#151926] transition" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Calendar</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-[#151926] transition" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Team</span>
+</a>
+<!-- Active Link: Files -->
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-white bg-purple-600 shadow-md shadow-purple-800/30 transition" href="#">
+<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Files</span>
+</a>
+</nav>
+</div>
+<!-- Development Section -->
+<div>
+<span class="text-[10px] font-semibold tracking-wider text-slate-500 uppercase px-3 block mb-1.5">Development</span>
+<nav class="space-y-0.5" data-purpose="development-navigation">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-[#151926] transition" href="#">
+<svg class="w-4 h-4" fill="currentColor" viewbox="0 0 24 24"><path clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" fill-rule="evenodd"></path></svg>
+<span>GitHub</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-[#151926] transition" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Pull Requests</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-[#151926] transition" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Deployments</span>
+</a>
+</nav>
+</div>
+<!-- College Section -->
+<div>
+<span class="text-[10px] font-semibold tracking-wider text-slate-500 uppercase px-3 block mb-1.5">College</span>
+<nav class="space-y-0.5" data-purpose="college-navigation">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-[#151926] transition" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Activities</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-[#151926] transition" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Assignments</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-[#151926] transition" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Notes</span>
+</a>
+</nav>
+</div>
+<!-- Analytics Section -->
+<div>
+<span class="text-[10px] font-semibold tracking-wider text-slate-500 uppercase px-3 block mb-1.5">Analytics</span>
+<nav class="space-y-0.5" data-purpose="analytics-navigation">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-[#151926] transition" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Reports</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-[#151926] transition" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Insights</span>
+</a>
+</nav>
+</div>
+</div>
+<!-- Left Sidebar Footer Profile -->
+<div class="p-3 border-t border-hubDark-border">
+<div class="flex items-center justify-between p-2 rounded-lg hover:bg-[#151a27] transition cursor-pointer">
+<div class="flex items-center gap-2.5">
+<img alt="Paarth Kadam" class="w-7 h-7 rounded-full object-cover border border-purple-500/50" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCsZn3UeI1OC7MChw2wFM7hopQq5zPtMQBs1c_9e-OVI0Ia4C2_yuongnXNj8q_e7XlGWOOcw_u5dtSXJMCowHnCsIYG0xOT0iaZ7T8k3ebHjlCj_Thyjh5BmvHO_d35dGJNzVE8i4cP108jRIe_9TfSLXdPGAfg9JzYfzMQPWONWVIitbsL2epFCQiTsGRXf591rtrM5Zx-j6o4GTxFu-aT7INyM_r1Q7lcs7knlmXkA7n2Cqydvp0gA"/>
+<div class="leading-tight">
+<span class="text-xs font-semibold text-white block">Paarth Kadam</span>
+<span class="text-[10px] text-slate-400">Team Member</span>
+</div>
+</div>
+<svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M5 15l7-7 7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+</div>
+</aside>
+<!-- END: LeftSidebar -->
+<!-- BEGIN: CentralContentArea -->
+<main class="flex-1 overflow-y-auto p-5 flex flex-col gap-5">
+<!-- BEGIN: HeroBreadcrumbAndBanner -->
+<section class="relative rounded-2xl p-6 custom-gradient-banner border border-[#1f263e] overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-4" data-purpose="hero-header">
+<!-- Background Ambient Glow & Graphic Accent -->
+<div class="absolute right-0 top-0 bottom-0 w-2/5 opacity-25 pointer-events-none bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-500 via-purple-900 to-transparent"></div>
+<div>
+<!-- Breadcrumb -->
+<div class="flex items-center gap-2 text-xs font-medium text-slate-400 mb-1">
+<span>Files</span>
+<svg class="w-3 h-3 text-slate-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span class="text-slate-300">All Files</span>
+</div>
+<!-- Title & Subtitle -->
+<h1 class="text-3xl font-extrabold text-white tracking-tight">Files</h1>
+<p class="text-xs text-slate-400 mt-1 font-normal">Store. Share. Collaborate. Keep everything in one place.</p>
+</div>
+<!-- Banner Right Side Tagline with Mini Graphic -->
+<div class="flex items-center gap-4 relative z-10">
+<div class="hidden lg:flex flex-col text-right font-medium text-[11px] leading-relaxed text-indigo-300 border-r border-slate-700/60 pr-4">
+<span class="text-slate-400">Ideas</span>
+<span class="text-purple-300">Documents</span>
+<span class="text-slate-400">Designs</span>
+<span class="text-purple-300 font-semibold">Code</span>
+<span class="text-indigo-400 font-bold mt-0.5">All in one hub.</span>
+</div>
+<!-- Laptop/Code Mock Illustration preview -->
+<div class="w-36 h-20 rounded-xl bg-slate-900/90 border border-purple-500/30 shadow-xl overflow-hidden p-2 flex flex-col justify-between relative group">
+<div class="flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+</div>
+<div class="space-y-1">
+<div class="w-16 h-1 bg-purple-500/50 rounded"></div>
+<div class="w-20 h-1 bg-indigo-500/40 rounded"></div>
+<div class="w-12 h-1 bg-blue-500/30 rounded"></div>
+</div>
+<div class="text-[8px] font-mono text-purple-400/80">console.log("ready");</div>
+</div>
+<div class="text-right">
+<p class="text-xs italic text-slate-300 font-serif">"Organized files<br/>create organized minds."</p>
+<div class="w-8 h-0.5 bg-purple-500 ml-auto mt-1 rounded-full"></div>
+</div>
+</div>
+</section>
+<!-- END: HeroBreadcrumbAndBanner -->
+<!-- BEGIN: ToolbarFilterAndActions -->
+<section class="flex flex-wrap items-center justify-between gap-3" data-purpose="toolbar-filters">
+<!-- Filter Tabs -->
+<div class="flex items-center gap-1.5 bg-[#101420] border border-[#1b2234] p-1 rounded-xl">
+<button class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-600 text-white shadow-sm transition">
+            All Files
+          </button>
+<button class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-[#181f30] transition">
+            Shared with Me
+          </button>
+<button class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-[#181f30] transition">
+            Recent
+          </button>
+<button class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-[#181f30] transition">
+            Starred
+          </button>
+<button class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-[#181f30] transition">
+            Trash
+          </button>
+</div>
+<!-- Action Buttons -->
+<div class="flex items-center gap-2">
+<!-- Upload Button -->
+<button class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#151926] hover:bg-[#1c2336] text-white border border-[#232b40] text-xs font-medium transition shadow-sm">
+<svg class="w-3.5 h-3.5 text-slate-300" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Upload</span>
+</button>
+<!-- New Dropdown Button -->
+<button class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-[#151926] hover:bg-[#1c2336] text-white border border-[#232b40] text-xs font-medium transition shadow-sm">
+<span>New</span>
+<svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+<!-- View Mode Toggles -->
+<div class="flex items-center bg-[#101420] border border-[#1b2234] rounded-lg p-0.5">
+<button class="p-1.5 rounded text-white bg-purple-600 shadow" title="Grid View">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+<button class="p-1.5 rounded text-slate-400 hover:text-white" title="List View">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+</div>
+</section>
+<!-- END: ToolbarFilterAndActions -->
+<!-- BEGIN: FoldersGridSection -->
+<section class="space-y-3" data-purpose="folders-overview">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<h2 class="text-sm font-semibold text-white">Folders</h2>
+</div>
+<span class="text-xs text-slate-400">8 folders</span>
+</div>
+<!-- 8 Folders Grid: 4 columns on large screens -->
+<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+<!-- Folder 1: AG Solar Solutions -->
+<div class="bg-[#111522] border border-[#1d2337] hover:border-purple-500/50 rounded-xl p-3 flex flex-col justify-between h-24 hover:bg-[#141a2a] transition group cursor-pointer">
+<div class="flex items-start justify-between">
+<!-- Blue Folder Icon -->
+<div class="w-7 h-7 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center">
+<svg class="w-4 h-4" fill="currentColor" viewbox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path></svg>
+</div>
+<button class="text-slate-500 group-hover:text-slate-300">
+<svg class="w-4 h-4" fill="currentColor" viewbox="0 0 24 24"><circle cx="12" cy="12" r="1.5"></circle><circle cx="6" cy="12" r="1.5"></circle><circle cx="18" cy="12" r="1.5"></circle></svg>
+</button>
+</div>
+<div>
+<h3 class="text-xs font-semibold text-slate-200 truncate group-hover:text-white">AG Solar Solutions</h3>
+<p class="text-[10px] text-slate-400">12 files · Updated 2 days ago</p>
+</div>
+</div>
+<!-- Folder 2: WaterTech Brochure -->
+<div class="bg-[#111522] border border-[#1d2337] hover:border-purple-500/50 rounded-xl p-3 flex flex-col justify-between h-24 hover:bg-[#141a2a] transition group cursor-pointer">
+<div class="flex items-start justify-between">
+<!-- Green Folder Icon -->
+<div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+<svg class="w-4 h-4" fill="currentColor" viewbox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path></svg>
+</div>
+<button class="text-slate-500 group-hover:text-slate-300">
+<svg class="w-4 h-4" fill="currentColor" viewbox="0 0 24 24"><circle cx="12" cy="12" r="1.5"></circle><circle cx="6" cy="12" r="1.5"></circle><circle cx="18" cy="12" r="1.5"></circle></svg>
+</button>
+</div>
+<div>
+<h3 class="text-xs font-semibold text-slate-200 truncate group-hover:text-white">WaterTech Brochure</h3>
+<p class="text-[10px] text-slate-400">8 files · Updated 5 days ago</p>
+</div>
+</div>
+<!-- Folder 3: College Fest 2026 -->
+<div class="bg-[#111522] border border-[#1d2337] hover:border-purple-500/50 rounded-xl p-3 flex flex-col justify-between h-24 hover:bg-[#141a2a] transition group cursor-pointer">
+<div class="flex items-start justify-between">
+<!-- Purple Folder Icon -->
+<div class="w-7 h-7 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center">
+<svg class="w-4 h-4" fill="currentColor" viewbox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path></svg>
+</div>
+<button class="text-slate-500 group-hover:text-slate-300">
+<svg class="w-4 h-4" fill="currentColor" viewbox="0 0 24 24"><circle cx="12" cy="12" r="1.5"></circle><circle cx="6" cy="12" r="1.5"></circle><circle cx="18" cy="12" r="1.5"></circle></svg>
+</button>
+</div>
+<div>
+<h3 class="text-xs font-semibold text-slate-200 truncate group-hover:text-white">College Fest 2026</h3>
+<p class="text-[10px] text-slate-400">15 files · Updated 1 day ago</p>
+</div>
+</div>
+<!-- Folder 4: Assignments -->
+<div class="bg-[#111522] border border-[#1d2337] hover:border-purple-500/50 rounded-xl p-3 flex flex-col justify-between h-24 hover:bg-[#141a2a] transition group cursor-pointer">
+<div class="flex items-start justify-between">
+<!-- Orange Folder Icon -->
+<div class="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center">
+<svg class="w-4 h-4" fill="currentColor" viewbox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path></svg>
+</div>
+<button class="text-slate-500 group-hover:text-slate-300">
+<svg class="w-4 h-4" fill="currentColor" viewbox="0 0 24 24"><circle cx="12" cy="12" r="1.5"></circle><circle cx="6" cy="12" r="1.5"></circle><circle cx="18" cy="12" r="1.5"></circle></svg>
+</button>
+</div>
+<div>
+<h3 class="text-xs font-semibold text-slate-200 truncate group-hover:text-white">Assignments</h3>
+<p class="text-[10px] text-slate-400">22 files · Updated 3 days ago</p>
+</div>
+</div>
+<!-- Folder 5: Notes & Resources -->
+<div class="bg-[#111522] border border-[#1d2337] hover:border-purple-500/50 rounded-xl p-3 flex flex-col justify-between h-24 hover:bg-[#141a2a] transition group cursor-pointer">
+<div class="flex items-start justify-between">
+<!-- Red Folder Icon -->
+<div class="w-7 h-7 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center">
+<svg class="w-4 h-4" fill="currentColor" viewbox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path></svg>
+</div>
+<button class="text-slate-500 group-hover:text-slate-300">
+<svg class="w-4 h-4" fill="currentColor" viewbox="0 0 24 24"><circle cx="12" cy="12" r="1.5"></circle><circle cx="6" cy="12" r="1.5"></circle><circle cx="18" cy="12" r="1.5"></circle></svg>
+</button>
+</div>
+<div>
+<h3 class="text-xs font-semibold text-slate-200 truncate group-hover:text-white">Notes &amp; Resources</h3>
+<p class="text-[10px] text-slate-400">9 files · Updated 6 days ago</p>
+</div>
+</div>
+<!-- Folder 6: Design Assets -->
+<div class="bg-[#111522] border border-[#1d2337] hover:border-purple-500/50 rounded-xl p-3 flex flex-col justify-between h-24 hover:bg-[#141a2a] transition group cursor-pointer">
+<div class="flex items-start justify-between">
+<!-- Pink Folder Icon -->
+<div class="w-7 h-7 rounded-lg bg-pink-500/20 text-pink-400 flex items-center justify-center">
+<svg class="w-4 h-4" fill="currentColor" viewbox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path></svg>
+</div>
+<button class="text-slate-500 group-hover:text-slate-300">
+<svg class="w-4 h-4" fill="currentColor" viewbox="0 0 24 24"><circle cx="12" cy="12" r="1.5"></circle><circle cx="6" cy="12" r="1.5"></circle><circle cx="18" cy="12" r="1.5"></circle></svg>
+</button>
+</div>
+<div>
+<h3 class="text-xs font-semibold text-slate-200 truncate group-hover:text-white">Design Assets</h3>
+<p class="text-[10px] text-slate-400">18 files · Updated 2 days ago</p>
+</div>
+</div>
+<!-- Folder 7: Project Documentation -->
+<div class="bg-[#111522] border border-[#1d2337] hover:border-purple-500/50 rounded-xl p-3 flex flex-col justify-between h-24 hover:bg-[#141a2a] transition group cursor-pointer">
+<div class="flex items-start justify-between">
+<!-- Blue Folder Icon -->
+<div class="w-7 h-7 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center">
+<svg class="w-4 h-4" fill="currentColor" viewbox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path></svg>
+</div>
+<button class="text-slate-500 group-hover:text-slate-300">
+<svg class="w-4 h-4" fill="currentColor" viewbox="0 0 24 24"><circle cx="12" cy="12" r="1.5"></circle><circle cx="6" cy="12" r="1.5"></circle><circle cx="18" cy="12" r="1.5"></circle></svg>
+</button>
+</div>
+<div>
+<h3 class="text-xs font-semibold text-slate-200 truncate group-hover:text-white">Project Documentation</h3>
+<p class="text-[10px] text-slate-400">11 files · Updated 4 days ago</p>
+</div>
+</div>
+<!-- Folder 8: Miscellaneous -->
+<div class="bg-[#111522] border border-[#1d2337] hover:border-purple-500/50 rounded-xl p-3 flex flex-col justify-between h-24 hover:bg-[#141a2a] transition group cursor-pointer">
+<div class="flex items-start justify-between">
+<!-- Grey Folder Icon -->
+<div class="w-7 h-7 rounded-lg bg-slate-500/20 text-slate-300 flex items-center justify-center">
+<svg class="w-4 h-4" fill="currentColor" viewbox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path></svg>
+</div>
+<button class="text-slate-500 group-hover:text-slate-300">
+<svg class="w-4 h-4" fill="currentColor" viewbox="0 0 24 24"><circle cx="12" cy="12" r="1.5"></circle><circle cx="6" cy="12" r="1.5"></circle><circle cx="18" cy="12" r="1.5"></circle></svg>
+</button>
+</div>
+<div>
+<h3 class="text-xs font-semibold text-slate-200 truncate group-hover:text-white">Miscellaneous</h3>
+<p class="text-[10px] text-slate-400">6 files · Updated 1 week ago</p>
+</div>
+</div>
+</div>
+</section>
+<!-- END: FoldersGridSection -->
+<!-- BEGIN: FilesTableSection -->
+<section class="bg-[#111522] border border-[#1b2234] rounded-2xl overflow-hidden flex flex-col" data-purpose="files-list">
+<!-- Files Table Header Control Bar -->
+<div class="p-3.5 border-b border-[#1b2234] flex flex-wrap items-center justify-between gap-3">
+<div class="flex items-center gap-2">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<h3 class="text-sm font-semibold text-white">Files</h3>
+</div>
+<div class="flex items-center gap-2">
+<!-- Search files small -->
+<div class="relative">
+<svg class="w-3.5 h-3.5 absolute left-2.5 top-2 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<input class="bg-[#0e121c] border border-[#1e2538] focus:border-purple-500 rounded-lg pl-8 pr-3 py-1 text-xs text-slate-200 placeholder-slate-500 outline-none w-44" placeholder="Search files..." type="text"/>
+</div>
+<!-- Filter Button -->
+<button class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#161a29] border border-[#20273c] text-xs text-slate-300 hover:text-white">
+<svg class="w-3 h-3" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Filter</span>
+<svg class="w-2.5 h-2.5 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+<!-- Sort Button -->
+<button class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#161a29] border border-[#20273c] text-xs text-slate-300 hover:text-white">
+<svg class="w-3 h-3" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Sort</span>
+<svg class="w-2.5 h-2.5 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+</div>
+<!-- Table Responsive Container -->
+<div class="overflow-x-auto">
+<table class="w-full text-left text-xs whitespace-nowrap">
+<thead class="bg-[#0e121d] text-slate-400 uppercase font-medium text-[10px] tracking-wider border-b border-[#1b2234]">
+<tr>
+<th class="p-3 w-8 text-center">
+<input class="rounded bg-[#161b2a] border-[#29324d] text-purple-600 focus:ring-0" type="checkbox"/>
+</th>
+<th class="py-3 px-2">Name</th>
+<th class="py-3 px-2">Type</th>
+<th class="py-3 px-2">Project / Folder</th>
+<th class="py-3 px-2">Size</th>
+<th class="py-3 px-2">Last Modified</th>
+<th class="py-3 px-2">Shared</th>
+<th class="py-3 px-2 text-right pr-4">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-[#182033] font-normal text-slate-300">
+<!-- Row 1 -->
+<tr class="hover:bg-[#151b2c] transition group">
+<td class="p-3 text-center">
+<input class="rounded bg-[#161b2a] border-[#29324d] text-purple-600 focus:ring-0" type="checkbox"/>
+</td>
+<td class="py-3 px-2 flex items-center gap-2.5 font-medium text-white">
+<div class="w-6 h-6 rounded bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0">
+<svg class="w-3.5 h-3.5" fill="currentColor" viewbox="0 0 24 24"><path d="M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13z"></path></svg>
+</div>
+<span class="truncate">Solar_Presentation_Final.pptx</span>
+</td>
+<td class="py-3 px-2 text-slate-400">PPTX</td>
+<td class="py-3 px-2">
+<span class="inline-flex items-center gap-1.5 text-slate-300">
+<span class="w-2 h-2 rounded-full bg-blue-500"></span> AG Solar Solutions
+                  </span>
+</td>
+<td class="py-3 px-2 text-slate-400">12.4 MB</td>
+<td class="py-3 px-2 text-slate-400">2 days ago</td>
+<td class="py-3 px-2">
+<div class="flex items-center -space-x-1.5">
+<img alt="avatar" class="w-5 h-5 rounded-full border border-slate-900 object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCo3PAV_HUg94bYBfZARMsGj5iNrwp2soC3ViMb_AEXNNxS2v2uhKqShbL73wQxvr9qfruQ4ez33u1OgJhWZvysBc2RFkqkYIf93EHfj9simcIU7c-f02uwh0xfALXFan0knjzCPdXTFCFz1feIvMx_2OzHxp_cBIuK4jCsvdtXv55mOw3AwdFkUttubH-5aoNQqKcV5IhcJEs7zFXq7PyLbxrN_GjOL7AJ3hBTfE1P-FL9V9Ox1OalCA"/>
+<img alt="avatar" class="w-5 h-5 rounded-full border border-slate-900 object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBtTYI7sXHxa9-GlTR5x9_bsejyyvefA4ZnJLE8H6VeHJJUN5F2WrASJ7ChY3iJACsUjvTfS6sBAS5yypxr2gDiz7N3FXyuuH3vsvZO5JWQOt5FrnzmY-VT6_oPdo2husX62UIc1sGLTO-70IcaPYm8g7Qt9nr3IZKMo8TUxSt-QzwoOLGB1vePm3-Z9bJrMIT19At7PjSZk6cCSw-XOcD8xvtZfm82SQaIUe8hQn4U8AWILR82tU6sbQ"/>
+<span class="w-5 h-5 rounded-full border border-slate-900 bg-purple-900/80 text-[9px] text-purple-200 flex items-center justify-center font-medium">+2</span>
+</div>
+</td>
+<td class="py-3 px-2 text-right pr-4">
+<button class="text-slate-500 group-hover:text-slate-300">
+<svg class="w-4 h-4 ml-auto" fill="currentColor" viewbox="0 0 24 24"><circle cx="12" cy="12" r="1.5"></circle><circle cx="6" cy="12" r="1.5"></circle><circle cx="18" cy="12" r="1.5"></circle></svg>
+</button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-[#151b2c] transition group">
+<td class="p-3 text-center">
+<input class="rounded bg-[#161b2a] border-[#29324d] text-purple-600 focus:ring-0" type="checkbox"/>
+</td>
+<td class="py-3 px-2 flex items-center gap-2.5 font-medium text-white">
+<div class="w-6 h-6 rounded bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
+<svg class="w-3.5 h-3.5" fill="currentColor" viewbox="0 0 24 24"><path d="M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13z"></path></svg>
+</div>
+<span class="truncate">Website_Requirements.docx</span>
+</td>
+<td class="py-3 px-2 text-slate-400">DOCX</td>
+<td class="py-3 px-2">
+<span class="inline-flex items-center gap-1.5 text-slate-300">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span> WaterTech Brochure
+                  </span>
+</td>
+<td class="py-3 px-2 text-slate-400">245 KB</td>
+<td class="py-3 px-2 text-slate-400">3 days ago</td>
+<td class="py-3 px-2">
+<div class="flex items-center -space-x-1.5">
+<img alt="avatar" class="w-5 h-5 rounded-full border border-slate-900 object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBSnnLLo1j1WIlOlYthWjuSFpFXBvOnUFtBPtvkAOlKcCLjen50LVYGlYiVOXFA0Ui_G_RBKa1CsCQQ5_IZBHitkmdL9cidpNPyuupYGztqiEfiNzaY8N1A7VmJcPCYGw7dWQS2GuXP3PmQ_B0h-i9i3N4ovDofSTMIvqtV7C2BXb9PtOZQXQVZ4iFIDOrsjdWqAfgL7OBT0RZ0DDiPnTxv-rqhO9M6Y31C_vABrSQntAEnaeHroipwmA"/>
+<span class="w-5 h-5 rounded-full border border-slate-900 bg-purple-900/80 text-[9px] text-purple-200 flex items-center justify-center font-medium">+1</span>
+</div>
+</td>
+<td class="py-3 px-2 text-right pr-4">
+<button class="text-slate-500 group-hover:text-slate-300">
+<svg class="w-4 h-4 ml-auto" fill="currentColor" viewbox="0 0 24 24"><circle cx="12" cy="12" r="1.5"></circle><circle cx="6" cy="12" r="1.5"></circle><circle cx="18" cy="12" r="1.5"></circle></svg>
+</button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-[#151b2c] transition group">
+<td class="p-3 text-center">
+<input class="rounded bg-[#161b2a] border-[#29324d] text-purple-600 focus:ring-0" type="checkbox"/>
+</td>
+<td class="py-3 px-2 flex items-center gap-2.5 font-medium text-white">
+<div class="w-6 h-6 rounded bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+<svg class="w-3.5 h-3.5" fill="currentColor" viewbox="0 0 24 24"><path d="M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13z"></path></svg>
+</div>
+<span class="truncate">Project_Timeline.xlsx</span>
+</td>
+<td class="py-3 px-2 text-slate-400">XLSX</td>
+<td class="py-3 px-2">
+<span class="inline-flex items-center gap-1.5 text-slate-300">
+<span class="w-2 h-2 rounded-full bg-blue-500"></span> AG Solar Solutions
+                  </span>
+</td>
+<td class="py-3 px-2 text-slate-400">180 KB</td>
+<td class="py-3 px-2 text-slate-400">4 days ago</td>
+<td class="py-3 px-2">
+<div class="flex items-center -space-x-1.5">
+<img alt="avatar" class="w-5 h-5 rounded-full border border-slate-900 object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAjsdl6jyiSI3KvKv-pUWGEdyMFMoZ5sMPpROTEoaTi9slbaLyeYOX6c9AZDEVAhNGl55xc1rVclE9tJtMjnApcLrRCedruxkMioivjFSKL9vQuyiqjc-cRnnVSZzb3m5WCH4BYUKeZnWi5_7g-yDozAu1Dk8EGwarm84Jh6Bk1zXeB_Pab5J7LQjGjOP7GYE3oja8w5YXC45C6d2eK6socdWWI1unMdynsLskoiDKEkfbE4kEQoGsUeg"/>
+<span class="w-5 h-5 rounded-full border border-slate-900 bg-purple-900/80 text-[9px] text-purple-200 flex items-center justify-center font-medium">3</span>
+</div>
+</td>
+<td class="py-3 px-2 text-right pr-4">
+<button class="text-slate-500 group-hover:text-slate-300">
+<svg class="w-4 h-4 ml-auto" fill="currentColor" viewbox="0 0 24 24"><circle cx="12" cy="12" r="1.5"></circle><circle cx="6" cy="12" r="1.5"></circle><circle cx="18" cy="12" r="1.5"></circle></svg>
+</button>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-[#151b2c] transition group">
+<td class="p-3 text-center">
+<input class="rounded bg-[#161b2a] border-[#29324d] text-purple-600 focus:ring-0" type="checkbox"/>
+</td>
+<td class="py-3 px-2 flex items-center gap-2.5 font-medium text-white">
+<div class="w-6 h-6 rounded bg-purple-500/20 text-purple-400 flex items-center justify-center shrink-0">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><rect height="18" rx="2" stroke-width="2" width="18" x="3" y="3"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="M21 15l-5-5L5 21" stroke-width="2"></path></svg>
+</div>
+<span class="truncate">UI_Design_Figma.fig</span>
+</td>
+<td class="py-3 px-2 text-slate-400">FIG</td>
+<td class="py-3 px-2">
+<span class="inline-flex items-center gap-1.5 text-slate-300">
+<span class="w-2 h-2 rounded-full bg-pink-500"></span> Design Assets
+                  </span>
+</td>
+<td class="py-3 px-2 text-slate-400">8.7 MB</td>
+<td class="py-3 px-2 text-slate-400">5 days ago</td>
+<td class="py-3 px-2">
+<div class="flex items-center -space-x-1.5">
+<img alt="avatar" class="w-5 h-5 rounded-full border border-slate-900 object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDS_OoN_rdQeXiZjBfqInFnBLMtxMmsf9b4irQceHzuW8LAhNBNri9uBRXc3vm9i2FTGi8mzUyMXE3xrFPledHNxbXnJhUvIm89zksMKdzRbIXQWQc8T_bgnGBLrZOQpMTno3t45DU-KelhnL1ugoIZ901PcuWM0AeUsb0jAohjq5iptg3kbjM7FqVEo3OI95YPdz_e-nOS36OX7jXCkrpVWNPnUpfflBAL8_BtkcjBSSXas6sK78V3_g"/>
+<img alt="avatar" class="w-5 h-5 rounded-full border border-slate-900 object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuASbXe7l5CRkdkInrXODBgWR3qYyUnDfSSU9iY1z_-3DLRqB8tdldghs5JF8_-5_9kN94JRToDDV0EZJY29RZ6NOjpzZyab10Su03dxCWMNtA87waYN9oH6U91D741vd9R4WEurWPnP8jr74-rjVKYW1HZysHXHwwfg8qEqRDDiIdVvS9M7Ge5O1dFAx9G9gq_wDnnfdwJGxLHfPBPudaLvmfvungomc1kHVFEPxlWiXbwtICEWpICUXA"/>
+<span class="w-5 h-5 rounded-full border border-slate-900 bg-purple-900/80 text-[9px] text-purple-200 flex items-center justify-center font-medium">-2</span>
+</div>
+</td>
+<td class="py-3 px-2 text-right pr-4">
+<button class="text-slate-500 group-hover:text-slate-300">
+<svg class="w-4 h-4 ml-auto" fill="currentColor" viewbox="0 0 24 24"><circle cx="12" cy="12" r="1.5"></circle><circle cx="6" cy="12" r="1.5"></circle><circle cx="18" cy="12" r="1.5"></circle></svg>
+</button>
+</td>
+</tr>
+<!-- Row 5 -->
+<tr class="hover:bg-[#151b2c] transition group">
+<td class="p-3 text-center">
+<input class="rounded bg-[#161b2a] border-[#29324d] text-purple-600 focus:ring-0" type="checkbox"/>
+</td>
+<td class="py-3 px-2 flex items-center gap-2.5 font-medium text-white">
+<div class="w-6 h-6 rounded bg-sky-500/20 text-sky-400 flex items-center justify-center shrink-0">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><rect height="18" rx="2" stroke-width="2" width="18" x="3" y="3"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+</div>
+<span class="truncate">College_Fest_Poster.png</span>
+</td>
+<td class="py-3 px-2 text-slate-400">PNG</td>
+<td class="py-3 px-2">
+<span class="inline-flex items-center gap-1.5 text-slate-300">
+<span class="w-2 h-2 rounded-full bg-purple-500"></span> College Fest 2026
+                  </span>
+</td>
+<td class="py-3 px-2 text-slate-400">2.1 MB</td>
+<td class="py-3 px-2 text-slate-400">6 days ago</td>
+<td class="py-3 px-2">
+<span class="inline-flex items-center gap-1 text-[11px] text-slate-400">
+<svg class="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+                    Only me
+                  </span>
+</td>
+<td class="py-3 px-2 text-right pr-4">
+<button class="text-slate-500 group-hover:text-slate-300">
+<svg class="w-4 h-4 ml-auto" fill="currentColor" viewbox="0 0 24 24"><circle cx="12" cy="12" r="1.5"></circle><circle cx="6" cy="12" r="1.5"></circle><circle cx="18" cy="12" r="1.5"></circle></svg>
+</button>
+</td>
+</tr>
+<!-- Row 6 -->
+<tr class="hover:bg-[#151b2c] transition group">
+<td class="p-3 text-center">
+<input class="rounded bg-[#161b2a] border-[#29324d] text-purple-600 focus:ring-0" type="checkbox"/>
+</td>
+<td class="py-3 px-2 flex items-center gap-2.5 font-medium text-white">
+<div class="w-6 h-6 rounded bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0">
+<svg class="w-3.5 h-3.5" fill="currentColor" viewbox="0 0 24 24"><path d="M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13z"></path></svg>
+</div>
+<span class="truncate">Assignment_3_Report.pdf</span>
+</td>
+<td class="py-3 px-2 text-slate-400">PDF</td>
+<td class="py-3 px-2">
+<span class="inline-flex items-center gap-1.5 text-slate-300">
+<span class="w-2 h-2 rounded-full bg-amber-500"></span> Assignments
+                  </span>
+</td>
+<td class="py-3 px-2 text-slate-400">1.3 MB</td>
+<td class="py-3 px-2 text-slate-400">1 week ago</td>
+<td class="py-3 px-2">
+<div class="flex items-center -space-x-1.5">
+<img alt="avatar" class="w-5 h-5 rounded-full border border-slate-900 object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuALe14tvWj26igEqncaf3dQ5HyKl5MnEw--3IP-oHWJtdPUR_tWRk6BAIzDNNjhVjEzVbLZYuoNbV0_y5SXhEUmSi9ldUHbsf0swzlfoJYUFFgZaslCVkVh1-2VIm6tKfu1GAfn394srMpP8GsPSMMkP65oLL_m86w6-gjJyglBucA9PU5SCucKq48jDMwVDrs-PIrQq2VIFiSdzqGhQPdwgAPKBUDvORMSuSEeGDYHzUEug_UHrAix5w"/>
+<img alt="avatar" class="w-5 h-5 rounded-full border border-slate-900 object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA_0xunbFWxZuN0ihMxED9mo5j6RBt9D1DYoipJ24LpoZDRCLmw_mg-y4vRzlso3Ole6Ul6WUc_mFCnNDUS7SYmCL7QACSCV0z_Aj9eY1H7ltxz6yubafzqwtIEEu6KTfWM7HqnWdqdnNQT-ED4SoRUw26fRehF_0VGKY9VFll-GRTEHycWJ27MY37320XHuz1RC2G20zsyQSfxaIussgqN3Jf3fH7jPEvfMF-bQbKSah9limWxIGnK_g"/>
+<span class="w-5 h-5 rounded-full border border-slate-900 bg-purple-900/80 text-[9px] text-purple-200 flex items-center justify-center font-medium">+2</span>
+</div>
+</td>
+<td class="py-3 px-2 text-right pr-4">
+<button class="text-slate-500 group-hover:text-slate-300">
+<svg class="w-4 h-4 ml-auto" fill="currentColor" viewbox="0 0 24 24"><circle cx="12" cy="12" r="1.5"></circle><circle cx="6" cy="12" r="1.5"></circle><circle cx="18" cy="12" r="1.5"></circle></svg>
+</button>
+</td>
+</tr>
+<!-- Row 7 -->
+<tr class="hover:bg-[#151b2c] transition group">
+<td class="p-3 text-center">
+<input class="rounded bg-[#161b2a] border-[#29324d] text-purple-600 focus:ring-0" type="checkbox"/>
+</td>
+<td class="py-3 px-2 flex items-center gap-2.5 font-medium text-white">
+<div class="w-6 h-6 rounded bg-slate-500/20 text-slate-400 flex items-center justify-center shrink-0">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<span class="truncate">Meeting_Notes_12Sep.txt</span>
+</td>
+<td class="py-3 px-2 text-slate-400">TXT</td>
+<td class="py-3 px-2">
+<span class="inline-flex items-center gap-1.5 text-slate-300">
+<span class="w-2 h-2 rounded-full bg-rose-500"></span> Notes &amp; Resources
+                  </span>
+</td>
+<td class="py-3 px-2 text-slate-400">12 KB</td>
+<td class="py-3 px-2 text-slate-400">1 week ago</td>
+<td class="py-3 px-2">
+<span class="inline-flex items-center gap-1 text-[11px] text-slate-400">
+<svg class="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+                    Only me
+                  </span>
+</td>
+<td class="py-3 px-2 text-right pr-4">
+<button class="text-slate-500 group-hover:text-slate-300">
+<svg class="w-4 h-4 ml-auto" fill="currentColor" viewbox="0 0 24 24"><circle cx="12" cy="12" r="1.5"></circle><circle cx="6" cy="12" r="1.5"></circle><circle cx="18" cy="12" r="1.5"></circle></svg>
+</button>
+</td>
+</tr>
+<!-- Row 8 -->
+<tr class="hover:bg-[#151b2c] transition group">
+<td class="p-3 text-center">
+<input class="rounded bg-[#161b2a] border-[#29324d] text-purple-600 focus:ring-0" type="checkbox"/>
+</td>
+<td class="py-3 px-2 flex items-center gap-2.5 font-medium text-white">
+<div class="w-6 h-6 rounded bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><rect height="7" width="7" x="3" y="3"></rect><rect height="7" width="7" x="14" y="3"></rect><rect height="7" width="7" x="14" y="14"></rect><rect height="7" width="7" x="3" y="14"></rect></svg>
+</div>
+<span class="truncate">Database_Schema.drawio</span>
+</td>
+<td class="py-3 px-2 text-slate-400">DRAWIO</td>
+<td class="py-3 px-2">
+<span class="inline-flex items-center gap-1.5 text-slate-300">
+<span class="w-2 h-2 rounded-full bg-blue-500"></span> Project Documentation
+                  </span>
+</td>
+<td class="py-3 px-2 text-slate-400">540 KB</td>
+<td class="py-3 px-2 text-slate-400">1 week ago</td>
+<td class="py-3 px-2">
+<div class="flex items-center -space-x-1.5">
+<img alt="avatar" class="w-5 h-5 rounded-full border border-slate-900 object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCDhbg-gJaBC9xs6wDsLokDG4X7sgexl4NxWmT3mzQx6F9o2xWZRIbynSuqG48RCFm3DR_Xb06npf2k3TIkPlhH9qJ8VtCLQ9hR6DdC1O06tl8eSnof7TXOwAKA7l1Ojiu7bOAAdunjRC-HFETu5pfHbgEifWgUOCAmNxnqm9LaWlz5ZzZZf6FLlW6oPoFYR8_d_wMvEKoGUYeD5gZsPrI8W2LtdxSWB-vB1jGSP2foK3_cwe8zh9Vwcw"/>
+<span class="w-5 h-5 rounded-full border border-slate-900 bg-purple-900/80 text-[9px] text-purple-200 flex items-center justify-center font-medium">+1</span>
+</div>
+</td>
+<td class="py-3 px-2 text-right pr-4">
+<button class="text-slate-500 group-hover:text-slate-300">
+<svg class="w-4 h-4 ml-auto" fill="currentColor" viewbox="0 0 24 24"><circle cx="12" cy="12" r="1.5"></circle><circle cx="6" cy="12" r="1.5"></circle><circle cx="18" cy="12" r="1.5"></circle></svg>
+</button>
+</td>
+</tr>
+<!-- Row 9 -->
+<tr class="hover:bg-[#151b2c] transition group">
+<td class="p-3 text-center">
+<input class="rounded bg-[#161b2a] border-[#29324d] text-purple-600 focus:ring-0" type="checkbox"/>
+</td>
+<td class="py-3 px-2 flex items-center gap-2.5 font-medium text-white">
+<div class="w-6 h-6 rounded bg-slate-500/20 text-slate-300 flex items-center justify-center shrink-0">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<span class="truncate">BUG_Screenshots.zip</span>
+</td>
+<td class="py-3 px-2 text-slate-400">ZIP</td>
+<td class="py-3 px-2">
+<span class="inline-flex items-center gap-1.5 text-slate-300">
+<span class="w-2 h-2 rounded-full bg-purple-500"></span> QA / Testing
+                  </span>
+</td>
+<td class="py-3 px-2 text-slate-400">6.2 MB</td>
+<td class="py-3 px-2 text-slate-400">1 week ago</td>
+<td class="py-3 px-2">
+<div class="flex items-center -space-x-1.5">
+<img alt="avatar" class="w-5 h-5 rounded-full border border-slate-900 object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBxFFvmNcUDGD5Jxjenz_97BaVF-6J-fl8pt2P88eLNMcUR_n0uhBfkVSvFfJffN2j93tb2uhcomddNUSNBMT21YnGhYpr2OMsVLOGRN12E5vqbLscSjiT_N-kTzUJEqeTIb3Fr9JZVc4D_vGg8MRq_s8qUFmfAZakKAtkZMuCzpTykpW6gfcCMoEaC2gOn0rg2fYLvEJapzUINr27ZTlx3H_F32J0IpB-e2bD5RSL2jsS5eBZWOOm5mQ"/>
+<img alt="avatar" class="w-5 h-5 rounded-full border border-slate-900 object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBMKZs0j0nUSa6LSrI2lw9JHZJmmVnu-WJubMkuBZS87CZfIYERaFISvfn0cBv6LyI2hQElBVNb_zFIH_yMaOtAU0FJHC1ZFhW97kcbROr7PaHhvWc8jn_SdZBJN0F8PgdiIqJpQNKx6-SVDaLGux1XtCZF_eTA83alqRISQMHnzdC0FeRTgpFFmMeTdhHmIafw6T_osAwbAK01EZ3MbD9BbUhGXNr3qLMwhq5_2BlldkC5c8cNPO-MrA"/>
+<span class="w-5 h-5 rounded-full border border-slate-900 bg-purple-900/80 text-[9px] text-purple-200 flex items-center justify-center font-medium">+3</span>
+</div>
+</td>
+<td class="py-3 px-2 text-right pr-4">
+<button class="text-slate-500 group-hover:text-slate-300">
+<svg class="w-4 h-4 ml-auto" fill="currentColor" viewbox="0 0 24 24"><circle cx="12" cy="12" r="1.5"></circle><circle cx="6" cy="12" r="1.5"></circle><circle cx="18" cy="12" r="1.5"></circle></svg>
+</button>
+</td>
+</tr>
+<!-- Row 10 -->
+<tr class="hover:bg-[#151b2c] transition group">
+<td class="p-3 text-center">
+<input class="rounded bg-[#161b2a] border-[#29324d] text-purple-600 focus:ring-0" type="checkbox"/>
+</td>
+<td class="py-3 px-2 flex items-center gap-2.5 font-medium text-white">
+<div class="w-6 h-6 rounded bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0">
+<svg class="w-3.5 h-3.5" fill="currentColor" viewbox="0 0 24 24"><path d="M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13z"></path></svg>
+</div>
+<span class="truncate">Resume_Updated.pdf</span>
+</td>
+<td class="py-3 px-2 text-slate-400">PDF</td>
+<td class="py-3 px-2">
+<span class="inline-flex items-center gap-1.5 text-slate-300">
+<span class="w-2 h-2 rounded-full bg-slate-500"></span> Miscellaneous
+                  </span>
+</td>
+<td class="py-3 px-2 text-slate-400">310 KB</td>
+<td class="py-3 px-2 text-slate-400">2 weeks ago</td>
+<td class="py-3 px-2">
+<span class="inline-flex items-center gap-1 text-[11px] text-slate-400">
+<svg class="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+                    Only me
+                  </span>
+</td>
+<td class="py-3 px-2 text-right pr-4">
+<button class="text-slate-500 group-hover:text-slate-300">
+<svg class="w-4 h-4 ml-auto" fill="currentColor" viewbox="0 0 24 24"><circle cx="12" cy="12" r="1.5"></circle><circle cx="6" cy="12" r="1.5"></circle><circle cx="18" cy="12" r="1.5"></circle></svg>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- END: FilesTableSection -->
+<!-- BEGIN: BottomCalloutCard -->
+<section class="bg-gradient-to-r from-[#121626] to-[#171b30] border border-[#20273f] rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4" data-purpose="workspace-organization-tip">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<div>
+<h4 class="text-xs font-semibold text-white">Keep your workspace organized</h4>
+<p class="text-[11px] text-slate-400">Use folders, tags and consistent naming to find files faster.</p>
+</div>
+</div>
+<a class="text-xs font-medium text-purple-400 hover:text-purple-300 flex items-center gap-1 shrink-0 transition" href="#">
+<span>Learn file organization tips</span>
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</a>
+</section>
+<!-- END: BottomCalloutCard -->
+</main>
+<!-- END: CentralContentArea -->
+<!-- BEGIN: RightSidebarWidgets -->
+<aside class="w-72 shrink-0 bg-[#0d1017] border-l border-hubDark-border p-4 space-y-4 overflow-y-auto">
+<!-- Widget 1: Storage Card -->
+<section class="bg-[#111522] border border-[#1b2234] rounded-2xl p-4 space-y-3" data-purpose="storage-card">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M4 7v10c0 2 1.5 3 3.5 3h9c2 0 3.5-1 3.5-3V7c0-2-1.5-3-3.5-3h-9C5.5 4 4 5 4 7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<h3 class="text-xs font-semibold text-white">Storage</h3>
+</div>
+<span class="text-xs font-semibold text-purple-400">78% used</span>
+</div>
+<!-- Progress Bar -->
+<div class="space-y-1.5">
+<div class="w-full bg-[#181f33] rounded-full h-1.5 overflow-hidden">
+<div class="bg-gradient-to-r from-purple-500 to-indigo-500 h-1.5 rounded-full" style="width: 78%"></div>
+</div>
+<p class="text-[10px] text-slate-400">7.8 GB of 10 GB used</p>
+</div>
+<!-- Breakdown List -->
+<div class="space-y-1.5 pt-1 text-xs">
+<div class="flex items-center justify-between">
+<span class="flex items-center gap-2 text-slate-400 text-[11px]">
+<span class="w-2 h-2 rounded-full bg-blue-500"></span> Documents
+            </span>
+<span class="text-slate-300 text-[11px] font-medium">3.2 GB</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="flex items-center gap-2 text-slate-400 text-[11px]">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span> Images
+            </span>
+<span class="text-slate-300 text-[11px] font-medium">2.1 GB</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="flex items-center gap-2 text-slate-400 text-[11px]">
+<span class="w-2 h-2 rounded-full bg-amber-500"></span> Videos
+            </span>
+<span class="text-slate-300 text-[11px] font-medium">1.5 GB</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="flex items-center gap-2 text-slate-400 text-[11px]">
+<span class="w-2 h-2 rounded-full bg-slate-500"></span> Others
+            </span>
+<span class="text-slate-300 text-[11px] font-medium">1.0 GB</span>
+</div>
+</div>
+<!-- Upgrade Button -->
+<button class="w-full mt-2 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow-md shadow-purple-900/30 transition">
+          Upgrade Storage
+        </button>
+</section>
+<!-- Widget 2: Recent Activity -->
+<section class="bg-[#111522] border border-[#1b2234] rounded-2xl p-4 space-y-3" data-purpose="recent-activity-card">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<h3 class="text-xs font-semibold text-white">Recent Activity</h3>
+</div>
+<a class="text-[10px] text-slate-400 hover:text-white flex items-center gap-0.5" href="#">
+            View All <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</a>
+</div>
+<div class="space-y-3 pt-1">
+<!-- Activity 1 -->
+<div class="flex items-start gap-2.5">
+<div class="w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 mt-0.5">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<div class="text-[11px] leading-tight">
+<p class="text-slate-200">Rahul uploaded <span class="font-medium text-white">Solar_Presentation_Final.pptx</span></p>
+<span class="text-[10px] text-slate-500">2 days ago</span>
+</div>
+</div>
+<!-- Activity 2 -->
+<div class="flex items-start gap-2.5">
+<div class="w-6 h-6 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center shrink-0 mt-0.5">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<div class="text-[11px] leading-tight">
+<p class="text-slate-200">Aditya shared <span class="font-medium text-white">Website_Requirements.docx</span></p>
+<span class="text-[10px] text-slate-500">3 days ago</span>
+</div>
+</div>
+<!-- Activity 3 -->
+<div class="flex items-start gap-2.5">
+<div class="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<div class="text-[11px] leading-tight">
+<p class="text-slate-200">You edited <span class="font-medium text-white">Project_Timeline.xlsx</span></p>
+<span class="text-[10px] text-slate-500">4 days ago</span>
+</div>
+</div>
+<!-- Activity 4 -->
+<div class="flex items-start gap-2.5">
+<div class="w-6 h-6 rounded-lg bg-pink-500/20 text-pink-400 flex items-center justify-center shrink-0 mt-0.5">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<div class="text-[11px] leading-tight">
+<p class="text-slate-200">Om uploaded <span class="font-medium text-white">College_Fest_Poster.png</span></p>
+<span class="text-[10px] text-slate-500">6 days ago</span>
+</div>
+</div>
+<!-- Activity 5 -->
+<div class="flex items-start gap-2.5">
+<div class="w-6 h-6 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0 mt-0.5">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<div class="text-[11px] leading-tight">
+<p class="text-slate-200">Parth deleted <span class="font-medium text-white">Old_Version.pdf</span></p>
+<span class="text-[10px] text-slate-500">1 week ago</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Widget 3: Quick Actions -->
+<section class="bg-[#111522] border border-[#1b2234] rounded-2xl p-4 space-y-3" data-purpose="quick-actions-card">
+<div class="flex items-center gap-1.5">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<h3 class="text-xs font-semibold text-white">Quick Actions</h3>
+</div>
+<div class="grid grid-cols-2 gap-2 text-xs">
+<!-- Action 1 -->
+<button class="p-2.5 rounded-xl bg-[#151928] hover:bg-[#1a2033] border border-[#21283e] flex items-center gap-2 text-left transition group">
+<svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span class="text-[11px] text-slate-300 group-hover:text-white font-medium truncate">Upload Files</span>
+</button>
+<!-- Action 2 -->
+<button class="p-2.5 rounded-xl bg-[#151928] hover:bg-[#1a2033] border border-[#21283e] flex items-center gap-2 text-left transition group">
+<svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span class="text-[11px] text-slate-300 group-hover:text-white font-medium truncate">Create Folder</span>
+</button>
+<!-- Action 3 -->
+<button class="p-2.5 rounded-xl bg-[#151928] hover:bg-[#1a2033] border border-[#21283e] flex items-center gap-2 text-left transition group">
+<svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span class="text-[11px] text-slate-300 group-hover:text-white font-medium truncate">Share Files</span>
+</button>
+<!-- Action 4 -->
+<button class="p-2.5 rounded-xl bg-[#151928] hover:bg-[#1a2033] border border-[#21283e] flex items-center gap-2 text-left transition group">
+<svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span class="text-[11px] text-slate-300 group-hover:text-white font-medium truncate">View Trash</span>
+</button>
+</div>
+</section>
+<!-- Widget 4: Integrations -->
+<section class="bg-[#111522] border border-[#1b2234] rounded-2xl p-4 space-y-3" data-purpose="integrations-card">
+<div class="flex items-center justify-between">
+<div>
+<h3 class="text-xs font-semibold text-white">Integrations</h3>
+<p class="text-[10px] text-slate-500">Connect and access your files</p>
+</div>
+<button class="text-[10px] bg-[#1a2033] border border-[#262f4b] hover:bg-[#20273d] text-slate-300 px-2 py-0.5 rounded font-medium transition">
+            Manage
+          </button>
+</div>
+<div class="space-y-2 pt-1 text-xs">
+<!-- Google Drive -->
+<div class="flex items-center justify-between p-2 rounded-xl bg-[#151928] border border-[#20273f]">
+<div class="flex items-center gap-2">
+<!-- Drive Icon Mock -->
+<div class="w-5 h-5 flex items-center justify-center">
+<svg class="w-4 h-4" fill="none" viewbox="0 0 24 24"><path d="M8.5 3.5L3.5 12L7.5 19H12.5L17.5 10.5L12.5 3.5H8.5Z" fill="#34A853" fill-opacity="0.3"></path><path d="M12.5 3.5L17.5 12L22.5 12L17.5 3.5H12.5Z" fill="#4285F4"></path><path d="M7.5 19L10 14.5L17.5 14.5L15 19H7.5Z" fill="#FBBC05"></path><path d="M3.5 12L6 7.5L13.5 7.5L11 12H3.5Z" fill="#EA4335"></path></svg>
+</div>
+<span class="text-[11px] font-medium text-slate-200">Google Drive</span>
+</div>
+<span class="inline-flex items-center gap-1 text-[10px] text-emerald-400">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Connected
+            </span>
+</div>
+<!-- Dropbox -->
+<div class="flex items-center justify-between p-2 rounded-xl bg-[#151928] border border-[#20273f]">
+<div class="flex items-center gap-2">
+<!-- Dropbox Icon Mock -->
+<div class="w-5 h-5 flex items-center justify-center text-blue-500">
+<svg class="w-4 h-4" fill="currentColor" viewbox="0 0 24 24"><path d="M6 3l6 4-6 4-6-4 6-4zm12 0l6 4-6 4-6-4 6-4zM0 11l6 4 6-4-6-4-6 4zm18-4l-6 4 6 4 6-4-6-4zm-6 9l-6-4-6 4 6 4 6-4zm0 0l6-4 6 4-6 4-6-4z"></path></svg>
+</div>
+<span class="text-[11px] font-medium text-slate-200">Dropbox</span>
+</div>
+<span class="inline-flex items-center gap-1 text-[10px] text-slate-500">
+<span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span> Not Connected
+            </span>
+</div>
+<!-- OneDrive -->
+<div class="flex items-center justify-between p-2 rounded-xl bg-[#151928] border border-[#20273f]">
+<div class="flex items-center gap-2">
+<!-- OneDrive Icon Mock -->
+<div class="w-5 h-5 flex items-center justify-center text-sky-400">
+<svg class="w-4 h-4" fill="currentColor" viewbox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"></path></svg>
+</div>
+<span class="text-[11px] font-medium text-slate-200">OneDrive</span>
+</div>
+<span class="inline-flex items-center gap-1 text-[10px] text-slate-500">
+<span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span> Not Connected
+            </span>
+</div>
+</div>
+</section>
+</aside>
+<!-- END: RightSidebarWidgets -->
+</div>
+<!-- END: MainContentWrapper -->
+</body></html>

@@ -1,0 +1,856 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>DevHub - Projects</title>
+<!-- Tailwind CSS CDN with forms and container queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Custom Configuration -->
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              purple: '#6d28d9',
+              darkPurple: '#4c1d95',
+              neonPurple: '#8b5cf6',
+              bgDark: '#0b0f17',
+              panelDark: '#111726',
+              cardDark: '#13192b',
+              borderDark: '#1e293b'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+<style data-purpose="custom-scrollbars-and-svg">
+    /* Custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0f17;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+  </style>
+</head>
+<body class="bg-[#080c14] text-slate-300 font-sans antialiased min-h-screen flex flex-col selection:bg-purple-600 selection:text-white">
+<!-- BEGIN: ApplicationLayout -->
+<div class="flex flex-1 w-full min-h-screen">
+<!-- BEGIN: LeftSidebar -->
+<aside class="w-64 bg-[#0a0e17] border-r border-[#151c2d] flex flex-col justify-between shrink-0 select-none">
+<div class="p-5 flex flex-col gap-6">
+<!-- Logo Branding -->
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-purple-900/30">
+<svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+</div>
+<div>
+<div class="text-white font-bold tracking-wider text-base leading-none">DEVHUB</div>
+<div class="text-[10px] text-slate-500 font-medium tracking-tight mt-1">Plan · Build · Test · Grow</div>
+</div>
+</div>
+<!-- Navigation Group: Main -->
+<nav class="flex flex-col gap-1 text-xs">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131b2e] transition" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131b2e] transition" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>My Day</span>
+</a>
+</nav>
+<!-- Navigation Group: Workspace -->
+<div class="flex flex-col gap-1">
+<span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-3 mb-1">Workspace</span>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-[#3e1b7c] text-white font-medium shadow-sm" href="#">
+<svg class="w-4 h-4 text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Projects</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131b2e] transition text-xs" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Tasks</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131b2e] transition text-xs" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>QA / Testing</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131b2e] transition text-xs" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Calendar</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131b2e] transition text-xs" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Team</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131b2e] transition text-xs" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Files</span>
+</a>
+</div>
+<!-- Navigation Group: Development -->
+<div class="flex flex-col gap-1">
+<span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-3 mb-1">Development</span>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131b2e] transition text-xs" href="#">
+<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" fill-rule="evenodd"></path></svg>
+<span>GitHub</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131b2e] transition text-xs" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7v8a2 2 0 002 2h6M8 7a2 2 0 100-4 2 2 0 000 4zm0 8a2 2 0 100 4 2 2 0 000-4zm8 0a2 2 0 100-4 2 2 0 000 4z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Pull Requests</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131b2e] transition text-xs" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Deployments</span>
+</a>
+</div>
+<!-- Navigation Group: College -->
+<div class="flex flex-col gap-1">
+<span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-3 mb-1">College</span>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131b2e] transition text-xs" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Activities</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131b2e] transition text-xs" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Assignments</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131b2e] transition text-xs" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Notes</span>
+</a>
+</div>
+<!-- Navigation Group: Analytics -->
+<div class="flex flex-col gap-1">
+<span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-3 mb-1">Analytics</span>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131b2e] transition text-xs" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Reports</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#131b2e] transition text-xs" href="#">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Insights</span>
+</a>
+</div>
+</div>
+<!-- User Profile Pill in Sidebar -->
+<div class="p-3 border-t border-[#151c2d] m-2">
+<div class="flex items-center justify-between p-2 rounded-xl bg-[#111728] border border-[#1b253b]">
+<div class="flex items-center gap-2.5">
+<img alt="Paarth Kadam" class="w-8 h-8 rounded-full border border-purple-500/40 object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA7dFrDMGGwXmP41HsO6vr5S057EnFBipC0XzjuHCuyCsHYhG3B8FxQyuz2AbwYKLhdPAapOVRYV99pgva-or6eGKKo0FuMNJANtStQs1KGuG3r0eUZa2hIZABdVeldPHBcJQWNIXU3_jI-L73CGkoa9lOe5QeOOYrFCpd9SE4Q1iJ4w34lpvpVXi3SWMDNLMXJa8X0nH1FAzDgIy-w-L_qFspgkuMG4W4jvtnRdf7luhO-aK4S10q_yA">
+<div>
+<div class="text-xs font-semibold text-white">Paarth Kadam</div>
+<div class="text-[10px] text-slate-400">Team Member</div>
+</div>
+</div>
+<button aria-label="Toggle user options" class="text-slate-400 hover:text-white">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+</div>
+</aside>
+<!-- END: LeftSidebar -->
+<!-- BEGIN: MainContentArea -->
+<div class="flex-1 flex flex-col min-w-0 bg-[#090d16]">
+<!-- Top Header Bar -->
+<header class="h-16 px-8 flex items-center justify-between border-b border-[#141c2d]">
+<!-- Global Search Bar -->
+<div class="relative w-80">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<input class="w-full bg-[#111728] border border-[#1c263c] rounded-lg pl-9 pr-10 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500" placeholder="Search projects, tasks, or anything..." type="text">
+<div class="absolute inset-y-0 right-0 pr-2 flex items-center">
+<kbd class="text-[10px] bg-[#1a233a] text-slate-400 px-1.5 py-0.5 rounded border border-[#273552]">⌘ K</kbd>
+</div>
+</div>
+<!-- Top Right Actions & Quote -->
+<div class="flex items-center gap-6">
+<div class="text-right hidden xl:block">
+<div class="text-xs italic text-slate-300 font-serif">"Great projects are built by consistent people."</div>
+<div class="text-[10px] text-purple-400 font-medium">— Keep going</div>
+</div>
+<div class="flex items-center gap-3">
+<button aria-label="Add project or task" class="w-8 h-8 rounded-lg bg-[#141b2e] border border-[#1f2b45] flex items-center justify-center text-slate-300 hover:text-white">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+<div class="relative">
+<button aria-label="Notifications" class="w-8 h-8 rounded-lg bg-[#141b2e] border border-[#1f2b45] flex items-center justify-center text-slate-300 hover:text-white">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+<span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-[#090d16]"></span>
+</div>
+<img alt="Paarth Kadam" class="w-8 h-8 rounded-full border border-purple-500/50 object-cover cursor-pointer" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB7fuS9K5vPstwPRyKleSB9cfUb58VoNnZpNoTLnf24-bNekedZmu-WPeb4cyc94T9Gk73hXTMVydXowrwAMAbNHTB-Y9nJd9DDro5puYyhK6x60ry3WhtAWCjpqcSv74ijjEONRd2QhJu3MSnNTJ1RsQz0kXVl6vm__kLrSHYqhPLeB7mofpP4uiHHDdmODZcKMQmR_Gg6agV_turqZVeuD_-VOXrO24VPb-Ry-2LPYudHjmpuOb2HAg">
+</div>
+</div>
+</header>
+<!-- Main Scrollable Dashboard Content -->
+<main class="flex-1 p-8 overflow-y-auto">
+<div class="flex gap-6">
+<!-- Left/Center Main Column: Header, Filter Bar, Grid, Timeline -->
+<div class="flex-1 min-w-0 flex flex-col gap-6">
+<!-- Title & Breadcrumbs -->
+<div>
+<div class="flex items-center gap-2 text-xs text-slate-400 font-medium mb-1">
+<span>Projects</span>
+<span>›</span>
+<span class="text-white font-semibold">All Projects</span>
+</div>
+<h1 class="text-2xl font-bold text-white tracking-tight">Projects</h1>
+<p class="text-xs text-slate-400 mt-0.5">Organize, track and deliver — all your work in one place.</p>
+</div>
+<!-- Filters, Search & Action Bar -->
+<div class="flex items-center justify-between gap-4 flex-wrap">
+<!-- Category Filter Pills -->
+<div class="flex items-center gap-2">
+<button class="px-3 py-1.5 rounded-lg bg-[#3a1d77] text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm">
+<span>All</span>
+<span class="px-1.5 py-0.2 bg-[#5527a9] rounded-full text-[10px]">6</span>
+</button>
+<button class="px-3 py-1.5 rounded-lg bg-[#111728] border border-[#1b253b] text-slate-300 hover:text-white text-xs font-medium flex items-center gap-1.5">
+<span>College</span>
+<span class="text-slate-500 text-[11px]">2</span>
+</button>
+<button class="px-3 py-1.5 rounded-lg bg-[#111728] border border-[#1b253b] text-slate-300 hover:text-white text-xs font-medium flex items-center gap-1.5">
+<span>Side Hustle</span>
+<span class="text-slate-500 text-[11px]">2</span>
+</button>
+<button class="px-3 py-1.5 rounded-lg bg-[#111728] border border-[#1b253b] text-slate-300 hover:text-white text-xs font-medium flex items-center gap-1.5">
+<span>Personal</span>
+<span class="text-slate-500 text-[11px]">2</span>
+</button>
+</div>
+<!-- Filter Search, Sort & New Button -->
+<div class="flex items-center gap-3">
+<div class="relative">
+<span class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-500">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</span>
+<input class="bg-[#111728] border border-[#1e293f] rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none w-36" placeholder="Search projects..." type="text">
+</div>
+<div class="relative">
+<button class="flex items-center gap-2 bg-[#111728] border border-[#1e293f] rounded-lg px-3 py-1.5 text-xs text-slate-300 font-medium hover:text-white">
+<span>Last Updated</span>
+<svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+<!-- Grid/List Switch -->
+<div class="flex items-center bg-[#111728] border border-[#1e293f] rounded-lg p-0.5">
+<button aria-label="Grid view" class="p-1 rounded bg-[#1f2b45] text-white">
+<svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+</button>
+<button aria-label="List view" class="p-1 rounded text-slate-400 hover:text-white">
+<svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" fill-rule="evenodd"></path></svg>
+</button>
+</div>
+<!-- Create Project Button -->
+<button class="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#5922cf] hover:bg-[#682ae6] text-white rounded-lg text-xs font-semibold shadow-md shadow-purple-900/40 transition">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path></svg>
+<span>New Project</span>
+</button>
+</div>
+</div>
+<!-- BEGIN: ProjectCardsGrid -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+<!-- Card 1: AG Solar Solutions -->
+<div class="bg-[#101524] border border-[#192238] rounded-xl overflow-hidden flex flex-col hover:border-slate-600 transition shadow-sm">
+<div class="relative h-28 bg-[#182035] overflow-hidden">
+<img alt="Solar 3d render" class="w-full h-full object-cover opacity-75" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCbSYXLvwTtoxw1LzdGq3hgv2nQUw4UFp3tCvaWe_TmDbPx6YzxVtWMveomaVq8JCZ0ZNMsuRYiKmcZn3ra-tT8-jGWoNvcVm0r_pbjYZSABU2yBE25t-3oag3dkU8GKtTyxskH7VW0xmKSVPbIk-aNiBrROd8FfXy-iekBqFWGTOWfnMCtV1HQr45D_YvhOYH9dueCmNlyD5fb_04qF8aOUNhcMGYwuQgLXl1boVeMaIYT0AyBIOSpqA">
+<div class="absolute inset-0 bg-gradient-to-t from-[#101524] via-transparent to-transparent"></div>
+<div class="absolute top-2.5 left-2.5 w-7 h-7 rounded-lg bg-blue-600/30 backdrop-blur border border-blue-400/30 flex items-center justify-center text-blue-400">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<button aria-label="More options" class="absolute top-2.5 right-2.5 text-slate-400 hover:text-white">
+<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"></path></svg>
+</button>
+</div>
+<div class="p-4 flex flex-col gap-3 flex-1 justify-between">
+<div>
+<div class="flex items-center gap-2">
+<h2 class="text-sm font-bold text-white tracking-tight">AG Solar Solutions</h2>
+<span class="text-[10px] px-2 py-0.5 rounded bg-[#332513] text-[#f59e0b] border border-[#523b18] font-medium">Side Hustle</span>
+</div>
+<p class="text-[11px] text-slate-400 mt-1">Client website for renewable energy solutions.</p>
+</div>
+<!-- Progress -->
+<div>
+<div class="flex justify-end text-[11px] font-semibold text-slate-300 mb-1">78%</div>
+<div class="w-full bg-[#1e2840] h-1.5 rounded-full overflow-hidden">
+<div class="bg-indigo-500 h-full rounded-full" style="width: 78%"></div>
+</div>
+</div>
+<!-- Details footer -->
+<div class="pt-2 border-t border-[#172033] flex flex-col gap-2">
+<div class="flex items-center gap-3 text-[11px] text-slate-400">
+<div class="flex items-center gap-1">
+<svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>12 tasks</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-cyan-500"></span>
+<span>4 open</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-rose-500"></span>
+<span>2 bugs</span>
+</div>
+</div>
+<div class="flex items-center justify-between mt-1">
+<div class="flex -space-x-1.5">
+<img alt="Avatar" class="w-5 h-5 rounded-full border border-[#101524]" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAC6MP8C20qFTe_uV_dWDM5cndQX__8ocsuMzc1aqjMdDAFja6a9AlTQtxpxuZNWZ43Kce7y0QD5j5GZxq4HkT93gn1H9AWTBfmHVqi3PhBylYVi4CQW5z5A8SVC6x0lVVLxSHnEfUM3gKIKkHmV2ag9_8F1sj6hHePSZnkkxPYl3krPaXp8epPZkynpTOTaKObrJUzNTd6wCbLO7DOIs8AHg9LUQXgKMD9zffT7U-XS5PQHIYZv4Bm1g">
+<img alt="Avatar" class="w-5 h-5 rounded-full border border-[#101524]" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC8r53NeMmxPnvp5foGO1iYgfCDMmV29-_GyW7lrfMrOdyXlZ1tWQciY9i1QjgtXP-A4zayJ97D7nedDmpgo3-kQ7oiJ82MxmG5TTMKk5Wyyj0mzlOh4OZSfjps9xcLpK093J7lh1w3Xyn06i59V2Wsaq8bTdAHQZpkwHOWKHHdG2s5hPRw9u-_fRJhcWr-t5p599wO90OJObpqpVbrkS7_lUSeltE0RSHZpY1rAm8BiH-QFsH-Efr3GA">
+<span class="w-5 h-5 rounded-full bg-[#1c273e] text-[9px] text-slate-300 flex items-center justify-center font-bold border border-[#101524]">+2</span>
+</div>
+<div class="flex items-center gap-1 text-[11px] text-slate-400">
+<svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Due 25 Sep 2026</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Card 2: WaterTech Brochure -->
+<div class="bg-[#101524] border border-[#192238] rounded-xl overflow-hidden flex flex-col hover:border-slate-600 transition shadow-sm">
+<div class="relative h-28 bg-[#182035] overflow-hidden">
+<img alt="Water splash" class="w-full h-full object-cover opacity-75" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBRaAauA4K_lCLIgZKNfDKZ7pvo_WcB1bMRo9v5j1s60FpwZ0DSnSfgGLaTl7JN3OJSq5IwwjWEwMvZ5WLBbzpFzQb6Kj87en4yzoYpLXDiuGlfVAlzqHQ4zoUcFIrC8Ib-CEm-NY3ncu3lgg2qSqAEzxZV5b0Au_GX_yIYVNleylQPJPHf8sy5eEyL0VfleuslZGZtp0xJNyKMIVv7OMMROzoHnVRX7hF7y2eBfsHAMjy7vJEc_ngMJQ">
+<div class="absolute inset-0 bg-gradient-to-t from-[#101524] via-transparent to-transparent"></div>
+<div class="absolute top-2.5 left-2.5 w-7 h-7 rounded-lg bg-sky-600/30 backdrop-blur border border-sky-400/30 flex items-center justify-center text-sky-400">
+<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M10 2a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 01.894 1.79l-1.233.616 1.738 5.42a1 1 0 01-.285 1.05A3.989 3.989 0 0115 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.715-5.349L11 6.477V16h2a1 1 0 110 2H7a1 1 0 110-2h2V6.477L6.237 7.582l1.715 5.349a1 1 0 01-.285 1.05A3.989 3.989 0 015 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.738-5.42-1.233-.617a1 1 0 01.894-1.788l1.599.799L9 4.323V3a1 1 0 011-1z" fill-rule="evenodd"></path></svg>
+</div>
+<button aria-label="More options" class="absolute top-2.5 right-2.5 text-slate-400 hover:text-white">
+<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"></path></svg>
+</button>
+</div>
+<div class="p-4 flex flex-col gap-3 flex-1 justify-between">
+<div>
+<div class="flex items-center gap-2">
+<h2 class="text-sm font-bold text-white tracking-tight">WaterTech Brochure</h2>
+<span class="text-[10px] px-2 py-0.5 rounded bg-[#1e2538] text-[#38bdf8] border border-[#263750] font-medium">Side Hustle</span>
+</div>
+<p class="text-[11px] text-slate-400 mt-1">Brochure website for water technology.</p>
+</div>
+<!-- Progress -->
+<div>
+<div class="flex justify-end text-[11px] font-semibold text-slate-300 mb-1">54%</div>
+<div class="w-full bg-[#1e2840] h-1.5 rounded-full overflow-hidden">
+<div class="bg-blue-500 h-full rounded-full" style="width: 54%"></div>
+</div>
+</div>
+<!-- Details footer -->
+<div class="pt-2 border-t border-[#172033] flex flex-col gap-2">
+<div class="flex items-center gap-3 text-[11px] text-slate-400">
+<div class="flex items-center gap-1">
+<svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>8 tasks</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-cyan-500"></span>
+<span>3 open</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-rose-500"></span>
+<span>1 bug</span>
+</div>
+</div>
+<div class="flex items-center justify-between mt-1">
+<div class="flex -space-x-1.5">
+<img alt="Avatar" class="w-5 h-5 rounded-full border border-[#101524]" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBNFsXVxCVShjugl9bZeAh5QFeshCo4xtQMD5F1hWmtRMI5_58zfQ1lG6i2npEDPQY2X9WemVJfo2EMv5bJZERPMZQJlGGT963E3R7DEpF6RxUBmv8AZXR4l8j3k9NJ7eQNbCYC6ePdYC2X7wLlwVHtfEI0-tstyKN64QEm90TyRsqgJjJ5eXGrQhFXtBWM87s-ajtC_kwzef9AV0IJJo-pnJc3aKo3ZzUIrJe0gIjxwJc6OxusGiwVvg">
+<span class="w-5 h-5 rounded-full bg-[#1c273e] text-[9px] text-slate-300 flex items-center justify-center font-bold border border-[#101524]">+1</span>
+</div>
+<div class="flex items-center gap-1 text-[11px] text-slate-400">
+<svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Due 30 Sep 2026</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Card 3: College Fest 2026 -->
+<div class="bg-[#101524] border border-[#192238] rounded-xl overflow-hidden flex flex-col hover:border-slate-600 transition shadow-sm">
+<div class="relative h-28 bg-[#182035] overflow-hidden">
+<img alt="Concert crowd" class="w-full h-full object-cover opacity-75" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAKzzEhhB0wb7xaXeK4C98CkMJnm3vgQMDrv2EZhyQ1VawvAApVjXCgFoC3V8rsx3q8ls-dvDSG_X91tlSD3vYoNqj9ThO1W8B5y4wR00qiEy2RcmKlkN5Sp8HPP0GxrqmhYvBkNGMw-Dp2zdDDOlMzpLV-mTvbs1JsrHP8T1gtSBn9JYMAD3zibxwoRefFPk96fvmJsD9yne0mvTOFX7-DqJC2jnKG54g9WQVwe_xO0HhX2UfSOAyu2A">
+<div class="absolute inset-0 bg-gradient-to-t from-[#101524] via-transparent to-transparent"></div>
+<div class="absolute top-2.5 left-2.5 w-7 h-7 rounded-lg bg-purple-600/30 backdrop-blur border border-purple-400/30 flex items-center justify-center text-purple-400">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 14l9-5-9-5-9 5 9 5z"></path><path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path></svg>
+</div>
+<button aria-label="More options" class="absolute top-2.5 right-2.5 text-slate-400 hover:text-white">
+<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"></path></svg>
+</button>
+</div>
+<div class="p-4 flex flex-col gap-3 flex-1 justify-between">
+<div>
+<div class="flex items-center gap-2">
+<h2 class="text-sm font-bold text-white tracking-tight">College Fest 2026</h2>
+<span class="text-[10px] px-2 py-0.5 rounded bg-[#2e1c4f] text-[#c084fc] border border-[#482882] font-medium">College</span>
+</div>
+<p class="text-[11px] text-slate-400 mt-1">Event website and digital registrations.</p>
+</div>
+<!-- Progress -->
+<div>
+<div class="flex justify-end text-[11px] font-semibold text-slate-300 mb-1">91%</div>
+<div class="w-full bg-[#1e2840] h-1.5 rounded-full overflow-hidden">
+<div class="bg-purple-500 h-full rounded-full" style="width: 91%"></div>
+</div>
+</div>
+<!-- Details footer -->
+<div class="pt-2 border-t border-[#172033] flex flex-col gap-2">
+<div class="flex items-center gap-3 text-[11px] text-slate-400">
+<div class="flex items-center gap-1">
+<svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>15 tasks</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-cyan-500"></span>
+<span>2 open</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+<span>0 bugs</span>
+</div>
+</div>
+<div class="flex items-center justify-between mt-1">
+<div class="flex -space-x-1.5">
+<img alt="Avatar" class="w-5 h-5 rounded-full border border-[#101524]" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBhmmBm3XOHffDR1cHpqXZIKImjhcx0tSn1pgbvrPWEPio3COwXjpmHpNmT_bg8q9QKMXCfR74ek28uSftNA6r6ph98RdJERep2eZs2LBAOU1T92KftE0MFNMaI08QQz7TJ5biO9WtBRMfYOhzAF4jcAAwOn3BD-krQ_sOpaFoX1pWCjWBJlyQjNHwflciWvlXacd8C2V6kIpmxETF8JQF43-qR08-dfK985AxYBvcawO0L_XhOGiXCpw">
+<img alt="Avatar" class="w-5 h-5 rounded-full border border-[#101524]" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCBqntfzRPVOYlhJfgD91uWqASkv7tErCYw0wuNQkKzlyZYzMUBymDqy0EVrXUvAP7B7WV8BI11OLgP7Z2i9fikboOLPfe6YwTBSG0cnkrooF-NurbesmoFY5X8az230978ihlnf8Hnjd7M3V5iAx2Kx1ovmB_qWwMXlKIAQFArF-cnU6wuZwxbF-c3aC2tzqc5PLa8acgmEs7Aye6hjGBCwq_I0TCwn7Yw2qieg3iFWlcMh-vjXMJJxw">
+</div>
+<div class="flex items-center gap-1 text-[11px] text-slate-400">
+<svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Due 10 Oct 2026</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Card 4: Personal Portfolio -->
+<div class="bg-[#101524] border border-[#192238] rounded-xl overflow-hidden flex flex-col hover:border-slate-600 transition shadow-sm">
+<div class="relative h-28 bg-[#182035] overflow-hidden">
+<img alt="Mountain peak" class="w-full h-full object-cover opacity-75" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAQXNboVlN3K6h6gN_ODJ4OzAB9aV2H3gSkqCW8-Wf-YByhk0bmvIipiz30gOAEy0NEv53f-Nj4WWQjN_MZDh3Svzjitn-EGyFweQ2XDa-CNXpHfhoH205QEMUNUhcC0Mr9pEC_lXW3bUsCj342eU7Fwx47Yxq_XR7QYrkMQTnkhBi_Fb1f6TEloSDPusuJ1m2Gg9e6bQ4X1CFouiz4T4uAzOLZKeWtV0kMGvRYQjdE49WOEvBZXyKJQQ">
+<div class="absolute inset-0 bg-gradient-to-t from-[#101524] via-transparent to-transparent"></div>
+<div class="absolute top-2.5 left-2.5 w-7 h-7 rounded-lg bg-teal-600/30 backdrop-blur border border-teal-400/30 flex items-center justify-center text-teal-400">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<button aria-label="More options" class="absolute top-2.5 right-2.5 text-slate-400 hover:text-white">
+<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"></path></svg>
+</button>
+</div>
+<div class="p-4 flex flex-col gap-3 flex-1 justify-between">
+<div>
+<div class="flex items-center gap-2">
+<h2 class="text-sm font-bold text-white tracking-tight">Personal Portfolio</h2>
+<span class="text-[10px] px-2 py-0.5 rounded bg-[#10302b] text-[#2dd4bf] border border-[#1b4b42] font-medium">Personal</span>
+</div>
+<p class="text-[11px] text-slate-400 mt-1">My personal website and projects.</p>
+</div>
+<!-- Progress -->
+<div>
+<div class="flex justify-end text-[11px] font-semibold text-slate-300 mb-1">32%</div>
+<div class="w-full bg-[#1e2840] h-1.5 rounded-full overflow-hidden">
+<div class="bg-rose-500 h-full rounded-full" style="width: 32%"></div>
+</div>
+</div>
+<!-- Details footer -->
+<div class="pt-2 border-t border-[#172033] flex flex-col gap-2">
+<div class="flex items-center gap-3 text-[11px] text-slate-400">
+<div class="flex items-center gap-1">
+<svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>10 tasks</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-cyan-500"></span>
+<span>6 open</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-rose-500"></span>
+<span>1 bug</span>
+</div>
+</div>
+<div class="flex items-center justify-between mt-1">
+<div class="flex -space-x-1.5">
+<img alt="Avatar" class="w-5 h-5 rounded-full border border-[#101524]" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAKVRfER1Pw4jY3aXcBplY5h90cvpWDKmOqQYmVRoWUqOzD9StYBdlITM9tPXhhjzoJeI2EeWsLETGKuUb6mj3BT53uDv-SDh8kzfNR_Lihi8PaFHhiUN1FsjcasqWK1koR1LGL8BBJzhCRqfr2bnwvwA9o7WNzvgg-BpOJ2ZPJ95e-KLVzMjSurz2LOK28igQC5yhE4vqtPOSABiH_dAEkS1WImVcQdaj3t24LXqyRv0uiGgPMQDJBIg">
+<img alt="Avatar" class="w-5 h-5 rounded-full border border-[#101524]" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD-PN01HfcoF1ED7086WrIQZikPdij1BuaLiZ9e0k-oEvQPS9YD4THSe4XWp36LDGdf9MEuju7wyWmAkAphWTYtnn_sZJPvu4kh02ITjXo0tz0asI5XcuIM55QrhTE6GvfHmjbdU1vc3HWSqEFTHh3PCAOCDbfTnZEw9BwwIEopmmIGBKtYyRrzyoDRhztm7phynYlhuFA2j95rur_WiWi77Pm-DOFbnyzXrZHqMsfE6lyzXdWjvO3nBg">
+</div>
+<div class="flex items-center gap-1 text-[11px] text-slate-400">
+<svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Due 15 Oct 2026</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Card 5: College Assignments -->
+<div class="bg-[#101524] border border-[#192238] rounded-xl overflow-hidden flex flex-col hover:border-slate-600 transition shadow-sm">
+<div class="relative h-28 bg-[#182035] overflow-hidden">
+<img alt="Desk setup" class="w-full h-full object-cover opacity-75" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDAoLzKhNnUucuAg2Ws77TczZiBa74wuN_j0-U05cBwx0oLJmmTMAv2aeNysLGcWHxrqpUsiQxu65SK79roXOzWramRrDiTdUTCekxCPLl4qWbLW7h0BF1OhBFIpJGLmKJJSjv1yBAVHPtpS9irbQlTkk_I3BoImlMSmoSMxIYZWyfxIvO_Kya1FE1RaSy1hFHT8gorYS9ZviI8pTjzCXQoxjQCwW2haFevda-Qigw5t9CTSmjFZOc2yw">
+<div class="absolute inset-0 bg-gradient-to-t from-[#101524] via-transparent to-transparent"></div>
+<div class="absolute top-2.5 left-2.5 w-7 h-7 rounded-lg bg-pink-600/30 backdrop-blur border border-pink-400/30 flex items-center justify-center text-pink-400">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<button aria-label="More options" class="absolute top-2.5 right-2.5 text-slate-400 hover:text-white">
+<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"></path></svg>
+</button>
+</div>
+<div class="p-4 flex flex-col gap-3 flex-1 justify-between">
+<div>
+<div class="flex items-center gap-2">
+<h2 class="text-sm font-bold text-white tracking-tight">College Assignments</h2>
+<span class="text-[10px] px-2 py-0.5 rounded bg-[#2e1c4f] text-[#c084fc] border border-[#482882] font-medium">College</span>
+</div>
+<p class="text-[11px] text-slate-400 mt-1">Track and manage all subject assignments.</p>
+</div>
+<!-- Progress -->
+<div>
+<div class="flex justify-end text-[11px] font-semibold text-slate-300 mb-1">60%</div>
+<div class="w-full bg-[#1e2840] h-1.5 rounded-full overflow-hidden">
+<div class="bg-amber-500 h-full rounded-full" style="width: 60%"></div>
+</div>
+</div>
+<!-- Details footer -->
+<div class="pt-2 border-t border-[#172033] flex flex-col gap-2">
+<div class="flex items-center gap-3 text-[11px] text-slate-400">
+<div class="flex items-center gap-1">
+<svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>20 tasks</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-cyan-500"></span>
+<span>8 open</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-rose-500"></span>
+<span>1 bug</span>
+</div>
+</div>
+<div class="flex items-center justify-between mt-1">
+<div class="flex -space-x-1.5">
+<img alt="Avatar" class="w-5 h-5 rounded-full border border-[#101524]" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAAHamuP7h8qdJiFEON_V7797mxo8PV1blUJ3xN1Xlv-ftGe-o45L8zr_6VZ_SPBm9OFl8-e_HiORKrU282JqOr62fnex8pFaXf328_Mexewom11UvE3449Ax-atvi5Q5VKETxJsK4xq9of7SKIcZt2toU29Oj__Wc7jAN8w9sXO_RHCpXk_Ch58ohte4Q2kjAZW1sSpICdh1RXxLNVDy9dkkULrornesvYygi8UPIHZSjMbfHEnUEHRA">
+<img alt="Avatar" class="w-5 h-5 rounded-full border border-[#101524]" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBkWwG-CO66o_WlmIwZgY55JIX6HVri-bDquaQPaumUM2daCNNnlFGoj2Uz1bhG96BGl-cie4ZfOzROjFEgFeSB5tTUsNoTNpSKwSuriTC3hKiGPgNO8WAtZlrHfxspcTlQfjPcElI4EXFxPwNF8Xi3LiJQaBMTtkVAssTjTlO0cUm3UZppKtEooZ5GsIZT-weGgfM-MmnhOPg4-hVD36auUoAb6o6cZuTXqFcxP1LRWfRD05ByxwHtVA">
+<span class="w-5 h-5 rounded-full bg-[#1c273e] text-[9px] text-slate-300 flex items-center justify-center font-bold border border-[#101524]">+3</span>
+</div>
+<div class="flex items-center gap-1 text-[11px] text-slate-400">
+<svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Due 20 Oct 2026</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Card 6: Side Hustle Ideas -->
+<div class="bg-[#101524] border border-[#192238] rounded-xl overflow-hidden flex flex-col hover:border-slate-600 transition shadow-sm">
+<div class="relative h-28 bg-[#182035] overflow-hidden">
+<img alt="Ideas chalkboard" class="w-full h-full object-cover opacity-75" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDKKx-KjotKCt0Na1S_tooNcLb9yWIH7Tvdfm5nde2EXoLtp8Yu9-ombTYOcA8vcSMgMA6J15k13AzDRYXpy0wz6RnACKa9iOFeHO-VXEVx1WNhir23748gizaPzhieam4_3TX0Lkz75cTBwhfmd0g8X7vgAbhwpR5c9uHDdwontv0RWj3Am3mi2r6ulmwTNFED7z7Dwoi8_jnxYynFQTHL-RYvDK-oE8HmkTf_sGba8jTKeUQ843XK3A">
+<div class="absolute inset-0 bg-gradient-to-t from-[#101524] via-transparent to-transparent"></div>
+<div class="absolute top-2.5 left-2.5 w-7 h-7 rounded-lg bg-amber-600/30 backdrop-blur border border-amber-400/30 flex items-center justify-center text-amber-400">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<button aria-label="More options" class="absolute top-2.5 right-2.5 text-slate-400 hover:text-white">
+<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"></path></svg>
+</button>
+</div>
+<div class="p-4 flex flex-col gap-3 flex-1 justify-between">
+<div>
+<div class="flex items-center gap-2">
+<h2 class="text-sm font-bold text-white tracking-tight">Side Hustle Ideas</h2>
+<span class="text-[10px] px-2 py-0.5 rounded bg-[#10302b] text-[#2dd4bf] border border-[#1b4b42] font-medium">Personal</span>
+</div>
+<p class="text-[11px] text-slate-400 mt-1">Brainstorm and execute new ideas.</p>
+</div>
+<!-- Progress -->
+<div>
+<div class="flex justify-end text-[11px] font-semibold text-slate-300 mb-1">25%</div>
+<div class="w-full bg-[#1e2840] h-1.5 rounded-full overflow-hidden">
+<div class="bg-emerald-500 h-full rounded-full" style="width: 25%"></div>
+</div>
+</div>
+<!-- Details footer -->
+<div class="pt-2 border-t border-[#172033] flex flex-col gap-2">
+<div class="flex items-center gap-3 text-[11px] text-slate-400">
+<div class="flex items-center gap-1">
+<svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>6 tasks</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-cyan-500"></span>
+<span>5 open</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+<span>0 bugs</span>
+</div>
+</div>
+<div class="flex items-center justify-between mt-1">
+<div class="flex -space-x-1.5">
+<img alt="Avatar" class="w-5 h-5 rounded-full border border-[#101524]" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAXjDajcaulQQ8Dcb51zSQyImpKxMlEN1aF6hI2ZQfADXERdl2N3mVLs8xLaFRj7S1JBBBdPYSJqh_vA4X0hzvbtFJw8I7milVfKTv4mP4ay2mI4myRtS5_EaACRQ-tyB-_9X63BmWWJVB5ZPwcdQrzTL0e87gLr6EBhgE3GqQzjGl5X--J01Ro0hHJxi5HKhgdO5Lv6q9wK3PpSHC-sIEEq0kIx1SR1qnVJG9tAGvjtFpzqqkax1sW_Q">
+<img alt="Avatar" class="w-5 h-5 rounded-full border border-[#101524]" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB76XBiwwd2ISaSiOSHYQpmfvjF1Fr-3FcjhWp3tZl0juYxheDtRtvC27e6EgNI9I20k9yCD4-Wesvy5uZ4t2qhCpkjDr_f742oUjYskTaARl5fz_fG2oC6D-W8AO1Uu8HKCIDZaiGOq2t3KhDrtyXvc2Hd8GEnJAPxUhLyMkgUo8nims2sq8zlXqC0HDW2tbmDk2BuchipT4964EPpklKU3QWSP2E18K3uUCN0OM7yiCyXgNVa_W7PYA">
+</div>
+<div class="flex items-center gap-1 text-[11px] text-slate-400">
+<svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>No due date</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- END: ProjectCardsGrid -->
+<!-- BEGIN: ProjectTimeline -->
+<section class="bg-[#101524] border border-[#192238] rounded-xl p-5" data-purpose="timeline-gantt">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-2">
+<svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<div>
+<h2 class="text-xs font-bold text-white tracking-wide">Project Timeline</h2>
+<p class="text-[10px] text-slate-400">A quick view of your project schedules.</p>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="flex items-center gap-1.5 px-2.5 py-1 bg-[#161e31] border border-[#232f4c] rounded-md text-[11px] text-slate-300 font-medium">
+<span>Next 2 Months</span>
+<svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+<button class="flex items-center gap-1 px-2 py-1 text-[11px] text-slate-300 hover:text-white font-medium">
+<span>View Details</span>
+<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+</div>
+<!-- Gantt Timeline Chart Container -->
+<div class="relative overflow-x-auto pt-2">
+<!-- Gantt Header (Months & Days) -->
+<div class="grid grid-cols-12 text-[10px] text-slate-400 border-b border-[#1b253b] pb-2 text-center pl-48">
+<div class="col-span-5 text-left pl-2 font-semibold">Sep 2026</div>
+<div class="col-span-7 text-left pl-2 font-semibold">Oct 2026</div>
+</div>
+<div class="grid grid-cols-12 text-[9px] text-slate-500 border-b border-[#172033] py-1 text-center pl-48">
+<span>20</span>
+<span>22</span>
+<span>24</span>
+<span>26</span>
+<span>28</span>
+<span>30</span>
+<span>02</span>
+<span>04</span>
+<span>06</span>
+<span>08</span>
+<span>10</span>
+<span>12</span>
+</div>
+<!-- Timeline Rows -->
+<div class="flex flex-col gap-2.5 py-3 relative">
+<!-- Red 'Today' Indicator Vertical Line -->
+<div class="absolute top-0 bottom-0 left-[262px] w-[1px] bg-rose-500/80 z-20 flex flex-col justify-end">
+<span class="bg-rose-500 text-white text-[8px] font-bold px-1 py-0.5 rounded -ml-3 mb-[-12px] inline-block uppercase tracking-wider">Today</span>
+</div>
+<!-- Row 1: AG Solar Solutions -->
+<div class="flex items-center h-5">
+<div class="w-48 shrink-0 flex items-center gap-2 text-[11px] text-slate-300 font-medium">
+<span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+<span class="truncate">AG Solar Solutions</span>
+</div>
+<div class="flex-1 relative h-4 bg-[#141b2e]/30 rounded">
+<div class="absolute left-[15%] w-[25%] h-3.5 top-0.5 bg-emerald-400 rounded"></div>
+</div>
+</div>
+<!-- Row 2: WaterTech Brochure -->
+<div class="flex items-center h-5">
+<div class="w-48 shrink-0 flex items-center gap-2 text-[11px] text-slate-300 font-medium">
+<span class="w-2 h-2 rounded-full bg-blue-500"></span>
+<span class="truncate">WaterTech Brochure</span>
+</div>
+<div class="flex-1 relative h-4 bg-[#141b2e]/30 rounded">
+<div class="absolute left-[24%] w-[36%] h-3.5 top-0.5 bg-blue-500 rounded"></div>
+</div>
+</div>
+<!-- Row 3: College Fest 2026 -->
+<div class="flex items-center h-5">
+<div class="w-48 shrink-0 flex items-center gap-2 text-[11px] text-slate-300 font-medium">
+<span class="w-2 h-2 rounded-full bg-purple-500"></span>
+<span class="truncate">College Fest 2026</span>
+</div>
+<div class="flex-1 relative h-4 bg-[#141b2e]/30 rounded">
+<div class="absolute left-[56%] w-[44%] h-3.5 top-0.5 bg-purple-500 rounded"></div>
+</div>
+</div>
+<!-- Row 4: Personal Portfolio -->
+<div class="flex items-center h-5">
+<div class="w-48 shrink-0 flex items-center gap-2 text-[11px] text-slate-300 font-medium">
+<span class="w-2 h-2 rounded-full bg-rose-400"></span>
+<span class="truncate">Personal Portfolio</span>
+</div>
+<div class="flex-1 relative h-4 bg-[#141b2e]/30 rounded">
+<div class="absolute left-[47%] w-[28%] h-3.5 top-0.5 bg-rose-400 rounded"></div>
+</div>
+</div>
+<!-- Row 5: College Assignments -->
+<div class="flex items-center h-5">
+<div class="w-48 shrink-0 flex items-center gap-2 text-[11px] text-slate-300 font-medium">
+<span class="w-2 h-2 rounded-full bg-amber-400"></span>
+<span class="truncate">College Assignments</span>
+</div>
+<div class="flex-1 relative h-4 bg-[#141b2e]/30 rounded">
+<div class="absolute left-[88%] w-[32%] h-3.5 top-0.5 bg-amber-400 rounded"></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- END: ProjectTimeline -->
+</div>
+<!-- BEGIN: RightSidebarWidgets -->
+<div class="w-80 shrink-0 flex flex-col gap-4">
+<!-- Widget 1: Project Stats (Donut Chart) -->
+<div class="bg-[#101524] border border-[#192238] rounded-xl p-4 flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<h3 class="text-xs font-bold text-white">Project Stats</h3>
+</div>
+<button class="text-[11px] text-slate-400 hover:text-white flex items-center gap-1 font-medium">
+<span>View All</span>
+<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+<!-- Donut and Legend -->
+<div class="flex items-center justify-between pt-1">
+<!-- SVG Donut Chart -->
+<div class="relative w-28 h-28 flex items-center justify-center">
+<svg class="w-28 h-28 transform -rotate-90" viewBox="0 0 36 36">
+<!-- Background Circle -->
+<path class="text-slate-800" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="4.5"></path>
+<!-- Green (On Track 3/6 = 50%) -->
+<path class="text-emerald-500" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="50, 100" stroke-linecap="round" stroke-width="4.5"></path>
+<!-- Yellow (At Risk 2/6 = 33%) -->
+<path class="text-amber-500" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="33, 100" stroke-dashoffset="-50" stroke-linecap="round" stroke-width="4.5"></path>
+<!-- Red (Delayed 1/6 = 17%) -->
+<path class="text-rose-500" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="17, 100" stroke-dashoffset="-83" stroke-linecap="round" stroke-width="4.5"></path>
+</svg>
+<div class="absolute flex flex-col items-center">
+<span class="text-xl font-bold text-white leading-none">6</span>
+<span class="text-[9px] text-slate-400 mt-0.5">Projects</span>
+</div>
+</div>
+<!-- Chart Legend Breakdown -->
+<div class="flex flex-col gap-2.5 text-xs">
+<div class="flex items-center justify-between gap-4">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+<span class="text-slate-300 text-[11px]">On Track</span>
+</div>
+<span class="font-bold text-white text-[11px]">3</span>
+</div>
+<div class="flex items-center justify-between gap-4">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-amber-400"></span>
+<span class="text-slate-300 text-[11px]">At Risk</span>
+</div>
+<span class="font-bold text-white text-[11px]">2</span>
+</div>
+<div class="flex items-center justify-between gap-4">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-rose-500"></span>
+<span class="text-slate-300 text-[11px]">Delayed</span>
+</div>
+<span class="font-bold text-white text-[11px]">1</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Widget 2: Upcoming Milestones -->
+<div class="bg-[#101524] border border-[#192238] rounded-xl p-4 flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<h3 class="text-xs font-bold text-white">Upcoming Milestones</h3>
+</div>
+<button class="text-[11px] text-slate-400 hover:text-white flex items-center gap-1 font-medium">
+<span>View All</span>
+<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+<!-- List of Milestones -->
+<div class="flex flex-col gap-2.5 mt-1">
+<!-- Milestone 1 -->
+<div class="flex items-center gap-3 p-1.5 rounded-lg hover:bg-[#151c2e] transition">
+<div class="w-7 h-7 rounded-lg bg-emerald-950/70 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<div>
+<h4 class="text-xs font-semibold text-slate-200">AG Solar - Beta Release</h4>
+<span class="text-[10px] text-slate-400">25 Sep 2026</span>
+</div>
+</div>
+<!-- Milestone 2 -->
+<div class="flex items-center gap-3 p-1.5 rounded-lg hover:bg-[#151c2e] transition">
+<div class="w-7 h-7 rounded-lg bg-blue-950/70 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
+<svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M10 2a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 01.894 1.79l-1.233.616 1.738 5.42a1 1 0 01-.285 1.05A3.989 3.989 0 0115 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.715-5.349L11 6.477V16h2a1 1 0 110 2H7a1 1 0 110-2h2V6.477L6.237 7.582l1.715 5.349a1 1 0 01-.285 1.05A3.989 3.989 0 015 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.738-5.42-1.233-.617a1 1 0 01.894-1.788l1.599.799L9 4.323V3a1 1 0 011-1z" fill-rule="evenodd"></path></svg>
+</div>
+<div>
+<h4 class="text-xs font-semibold text-slate-200">WaterTech - Content Complete</h4>
+<span class="text-[10px] text-slate-400">30 Sep 2026</span>
+</div>
+</div>
+<!-- Milestone 3 -->
+<div class="flex items-center gap-3 p-1.5 rounded-lg hover:bg-[#151c2e] transition">
+<div class="w-7 h-7 rounded-lg bg-purple-950/70 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 14l9-5-9-5-9 5 9 5z"></path><path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path></svg>
+</div>
+<div>
+<h4 class="text-xs font-semibold text-slate-200">College Fest - Launch</h4>
+<span class="text-[10px] text-slate-400">10 Oct 2026</span>
+</div>
+</div>
+<!-- Milestone 4 -->
+<div class="flex items-center gap-3 p-1.5 rounded-lg hover:bg-[#151c2e] transition">
+<div class="w-7 h-7 rounded-lg bg-teal-950/70 border border-teal-500/30 flex items-center justify-center text-teal-400 shrink-0">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<div>
+<h4 class="text-xs font-semibold text-slate-200">Portfolio - v1.0</h4>
+<span class="text-[10px] text-slate-400">15 Oct 2026</span>
+</div>
+</div>
+<!-- Milestone 5 -->
+<div class="flex items-center gap-3 p-1.5 rounded-lg hover:bg-[#151c2e] transition">
+<div class="w-7 h-7 rounded-lg bg-indigo-950/70 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<div>
+<h4 class="text-xs font-semibold text-slate-200">Assignments Submission</h4>
+<span class="text-[10px] text-slate-400">20 Oct 2026</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Widget 3: Motivation Card with Mountain Graphic -->
+<div class="relative rounded-xl overflow-hidden min-h-[140px] flex flex-col justify-end p-4 border border-[#231a40]">
+<img alt="Starry night mountains" class="absolute inset-0 w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBdAS-09hKuiy4DUTn7FbXe_lTs8TR1nn99sFpVt3KUgnk6TdTy1ame1WCCKMsaM-J4J65jhPrsjTURpvmvFyxNT-RdKgKjwn6Xa0EW6YyGyfbK2qvSOXVRp5oJ8gkmEX7LWtH9p4eaTK6YNdXxVhsRwzFpjZSnm5Q1VP-gCO8fAKRySBtCa6eo_7cmnec3QRJSKL6-wSItfTD25aySgXuHJTl2sH98yOWRGCkIhsIgad6wamjvP7J6sw">
+<div class="absolute inset-0 bg-gradient-to-t from-[#0e0c1f] via-[#1a1133]/60 to-transparent"></div>
+<div class="relative z-10">
+<p class="text-xs text-slate-300 font-medium leading-relaxed">
+                  Discipline today,<br>
+<span class="text-white font-bold text-sm">Big results tomorrow.</span>
+</p>
+</div>
+</div>
+</div>
+<!-- END: RightSidebarWidgets -->
+</div>
+</main>
+<!-- END: MainDashboardContent -->
+</div>
+<!-- END: MainContentArea -->
+</div>
+<!-- END: ApplicationLayout -->
+</body></html>

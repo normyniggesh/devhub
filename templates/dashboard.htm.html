@@ -1,0 +1,707 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>DevHub Dashboard</title>
+<!-- Tailwind CSS v3 -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Phosphor / FontAwesome Icons for clean vector rendering -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              dark: '#0a0d14',
+              sidebar: '#0d1017',
+              card: '#131823',
+              cardBorder: '#1c2234',
+              purple: '#5e4cfc',
+              purpleHover: '#4e3de0',
+              accent: '#8265f8'
+            }
+          }
+        }
+      }
+    }
+  </script>
+<style data-purpose="custom-layout">
+    body {
+      background-color: #090c13;
+      color: #94a3b8;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    
+    /* Custom subtle scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0d1017;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #23293d;
+      border-radius: 3px;
+    }
+
+    /* Mountain vector graphic background blend */
+    .hero-banner {
+      background-image: 
+        radial-gradient(circle at 85% 20%, rgba(99, 102, 241, 0.15), transparent 45%),
+        linear-gradient(to bottom, rgba(9, 12, 19, 0.2) 0%, #090c13 100%),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320' preserveAspectRatio='none'%3E%3Cpath fill='%23121727' fill-opacity='0.4' d='M0,192L48,176C96,160,192,128,288,138.7C384,149,480,203,576,197.3C672,192,768,128,864,106.7C960,85,1056,107,1152,128C1248,149,1344,171,1392,181.3L1440,192L1440,0L1392,0C1344,0,1248,0,1152,0C1056,0,960,0,864,0C768,0,672,0,576,0C480,0,384,0,288,0C192,0,96,0,48,0L0,0Z'%3E%3C/path%3E%3Cpath fill='%23192033' fill-opacity='0.3' d='M0,96L60,128C120,160,240,224,360,218.7C480,213,600,139,720,112C840,85,960,107,1080,128C1200,149,1320,171,1380,181.3L1440,192L1440,0L1380,0C1320,0,1200,0,1080,0C960,0,840,0,720,0C600,0,480,0,360,0C240,0,120,0,60,0L0,0Z'%3E%3C/path%3E%3C/svg%3E");
+      background-size: cover;
+      background-position: right top;
+      background-repeat: no-repeat;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex antialiased selection:bg-indigo-600 selection:text-white">
+<!-- BEGIN: LeftSidebar -->
+<aside class="w-64 bg-[#0c0e17] border-r border-[#191e2e] flex flex-col justify-between shrink-0 h-screen sticky top-0 overflow-y-auto z-20" data-purpose="sidebar">
+<div>
+<!-- DEVHUB Brand Header -->
+<div class="px-6 py-5">
+<div class="flex items-center space-x-2.5">
+<div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30">
+<i class="fa-solid fa-bolt text-base"></i>
+</div>
+<span class="text-white font-extrabold text-xl tracking-wider">DEVHUB</span>
+</div>
+<p class="text-[11px] font-medium text-slate-500 tracking-wide mt-1">Build · Learn · Manage · Grow</p>
+</div>
+<!-- Navigation Links -->
+<nav class="px-3 space-y-6 mt-1">
+<!-- Main primary navigation -->
+<div class="space-y-1">
+<a class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl bg-[#5243d4] text-white font-semibold text-sm shadow-md shadow-indigo-600/20" href="#">
+<i class="fa-solid fa-house text-[15px] w-5 text-center"></i>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-[#161a28] transition font-medium text-sm" href="#">
+<i class="fa-regular fa-sun text-[16px] w-5 text-center"></i>
+<span>My Day</span>
+</a>
+</div>
+<!-- Section: WORKSPACE -->
+<div>
+<h3 class="px-3 text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-2">WORKSPACE</h3>
+<div class="space-y-0.5">
+<a class="flex items-center space-x-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#161a28] transition font-medium text-[13.5px]" href="#">
+<i class="fa-regular fa-folder text-[15px] w-5 text-center"></i>
+<span>Projects</span>
+</a>
+<a class="flex items-center space-x-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#161a28] transition font-medium text-[13.5px]" href="#">
+<i class="fa-regular fa-square-check text-[15px] w-5 text-center"></i>
+<span>Tasks</span>
+</a>
+<a class="flex items-center space-x-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#161a28] transition font-medium text-[13.5px]" href="#">
+<i class="fa-solid fa-shield-check text-[15px] w-5 text-center"></i>
+<span>QA / Testing</span>
+</a>
+<a class="flex items-center space-x-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#161a28] transition font-medium text-[13.5px]" href="#">
+<i class="fa-regular fa-calendar text-[15px] w-5 text-center"></i>
+<span>Calendar</span>
+</a>
+<a class="flex items-center space-x-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#161a28] transition font-medium text-[13.5px]" href="#">
+<i class="fa-solid fa-user-group text-[14px] w-5 text-center"></i>
+<span>Team</span>
+</a>
+<a class="flex items-center space-x-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#161a28] transition font-medium text-[13.5px]" href="#">
+<i class="fa-regular fa-file text-[15px] w-5 text-center"></i>
+<span>Files</span>
+</a>
+</div>
+</div>
+<!-- Section: DEVELOPMENT -->
+<div>
+<h3 class="px-3 text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-2">DEVELOPMENT</h3>
+<div class="space-y-0.5">
+<a class="flex items-center space-x-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#161a28] transition font-medium text-[13.5px]" href="#">
+<i class="fa-brands fa-github text-[16px] w-5 text-center"></i>
+<span>GitHub</span>
+</a>
+<a class="flex items-center space-x-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#161a28] transition font-medium text-[13.5px]" href="#">
+<i class="fa-solid fa-code-pull-request text-[15px] w-5 text-center"></i>
+<span>Pull Requests</span>
+</a>
+<a class="flex items-center space-x-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#161a28] transition font-medium text-[13.5px]" href="#">
+<i class="fa-solid fa-rocket text-[14px] w-5 text-center"></i>
+<span>Deployments</span>
+</a>
+</div>
+</div>
+<!-- Section: COLLEGE -->
+<div>
+<h3 class="px-3 text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-2">COLLEGE</h3>
+<div class="space-y-0.5">
+<a class="flex items-center space-x-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#161a28] transition font-medium text-[13.5px]" href="#">
+<i class="fa-solid fa-trophy text-[14px] w-5 text-center"></i>
+<span>Activities</span>
+</a>
+<a class="flex items-center space-x-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#161a28] transition font-medium text-[13.5px]" href="#">
+<i class="fa-regular fa-clipboard text-[15px] w-5 text-center"></i>
+<span>Assignments</span>
+</a>
+<a class="flex items-center space-x-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#161a28] transition font-medium text-[13.5px]" href="#">
+<i class="fa-regular fa-note-sticky text-[15px] w-5 text-center"></i>
+<span>Notes</span>
+</a>
+</div>
+</div>
+<!-- Section: ANALYTICS -->
+<div>
+<h3 class="px-3 text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-2">ANALYTICS</h3>
+<div class="space-y-0.5">
+<a class="flex items-center space-x-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#161a28] transition font-medium text-[13.5px]" href="#">
+<i class="fa-solid fa-chart-simple text-[14px] w-5 text-center"></i>
+<span>Reports</span>
+</a>
+<a class="flex items-center space-x-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#161a28] transition font-medium text-[13.5px]" href="#">
+<i class="fa-solid fa-gear text-[14px] w-5 text-center"></i>
+<span>Settings</span>
+</a>
+</div>
+</div>
+</nav>
+</div>
+<!-- User Profile Footer -->
+<div class="p-3 border-t border-[#191e2e]">
+<div class="flex items-center justify-between p-2 rounded-xl hover:bg-[#151a29] transition cursor-pointer">
+<div class="flex items-center space-x-3">
+<div class="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center font-bold text-white text-xs border border-slate-600">
+            PK
+          </div>
+<div>
+<h4 class="text-sm font-semibold text-white leading-tight">Paarth Kadam</h4>
+<p class="text-[11px] text-slate-500 leading-tight">Team Member</p>
+</div>
+</div>
+<i class="fa-solid fa-chevron-down text-slate-500 text-xs"></i>
+</div>
+</div>
+</aside>
+<!-- END: LeftSidebar -->
+<!-- BEGIN: MainContentArea -->
+<main class="flex-1 flex flex-col min-w-0 bg-[#090c13] overflow-x-hidden">
+<!-- Top Bar & Search -->
+<div class="hero-banner px-8 pt-6 pb-8 border-b border-[#161b2b]">
+<!-- Header search + notifications + avatar -->
+<div class="flex items-center justify-between pb-6">
+<div class="relative w-96">
+<span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-500">
+<i class="fa-solid fa-magnifying-glass text-xs"></i>
+</span>
+<input class="w-full bg-[#131722]/80 border border-[#232a3f] rounded-xl pl-9 pr-12 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 backdrop-blur-md" placeholder="Search projects, tasks, people..." type="text">
+<div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+<span class="text-[10px] font-semibold bg-[#1f2638] text-slate-400 px-1.5 py-0.5 rounded border border-[#2d364f]">⌘ K</span>
+</div>
+</div>
+<div class="flex items-center space-x-4">
+<!-- Notification Bell -->
+<div class="relative cursor-pointer w-9 h-9 rounded-full bg-[#131722] border border-[#232a3f] flex items-center justify-center text-slate-400 hover:text-white transition">
+<i class="fa-regular fa-bell text-sm"></i>
+<span class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
+</div>
+<!-- Top Avatar -->
+<div class="w-9 h-9 rounded-full ring-2 ring-indigo-500/40 bg-slate-800 flex items-center justify-center text-white text-xs font-bold">
+            PK
+          </div>
+</div>
+</div>
+<!-- Hero Greeting & Inspirational Quote -->
+<div class="flex items-end justify-between mt-1">
+<div>
+<h1 class="text-3xl font-extrabold text-white flex items-center gap-2">
+            Good afternoon, Paarth <span>👋</span>
+</h1>
+<p class="text-sm text-slate-400 mt-1">Let's make progress today.</p>
+</div>
+<div class="text-right pb-1">
+<p class="text-indigo-200/90 italic font-medium text-sm">"Discipline today,</p>
+<p class="text-indigo-200/90 italic font-medium text-sm">Big results tomorrow."</p>
+</div>
+</div>
+</div>
+<!-- Dashboard Body -->
+<div class="p-8 space-y-6">
+<!-- BEGIN: StatCardsRow -->
+<section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-purpose="stat-metrics">
+<!-- Total Tasks -->
+<div class="bg-[#121623] border border-[#1b2234] rounded-2xl p-4 flex items-center space-x-4">
+<div class="w-12 h-12 rounded-xl bg-purple-950/40 border border-purple-500/20 text-purple-400 flex items-center justify-center text-lg">
+<i class="fa-regular fa-clipboard-check"></i>
+</div>
+<div>
+<p class="text-xs font-semibold text-slate-400">Total Tasks</p>
+<div class="flex items-baseline space-x-2 mt-0.5">
+<span class="text-2xl font-bold text-white tracking-tight">24</span>
+<span class="text-emerald-400 text-xs font-semibold flex items-center gap-0.5">
+<i class="fa-solid fa-arrow-up text-[10px]"></i> 12%
+              </span>
+</div>
+</div>
+</div>
+<!-- Due Today -->
+<div class="bg-[#121623] border border-[#1b2234] rounded-2xl p-4 flex items-center space-x-4">
+<div class="w-12 h-12 rounded-xl bg-red-950/30 border border-rose-500/20 text-rose-400 flex items-center justify-center text-lg">
+<i class="fa-regular fa-calendar-xmark"></i>
+</div>
+<div>
+<p class="text-xs font-semibold text-slate-400">Due Today</p>
+<div class="flex items-baseline space-x-2 mt-0.5">
+<span class="text-2xl font-bold text-white tracking-tight">4</span>
+<span class="text-rose-400 text-xs font-semibold flex items-center gap-0.5">
+<i class="fa-solid fa-arrow-down text-[10px]"></i> 2
+              </span>
+</div>
+</div>
+</div>
+<!-- In Progress -->
+<div class="bg-[#121623] border border-[#1b2234] rounded-2xl p-4 flex items-center space-x-4">
+<div class="w-12 h-12 rounded-xl bg-blue-950/40 border border-blue-500/20 text-blue-400 flex items-center justify-center text-lg">
+<i class="fa-solid fa-rotate"></i>
+</div>
+<div>
+<p class="text-xs font-semibold text-slate-400">In Progress</p>
+<div class="flex items-baseline space-x-2 mt-0.5">
+<span class="text-2xl font-bold text-white tracking-tight">8</span>
+</div>
+</div>
+</div>
+<!-- Completed -->
+<div class="bg-[#121623] border border-[#1b2234] rounded-2xl p-4 flex items-center space-x-4">
+<div class="w-12 h-12 rounded-xl bg-emerald-950/30 border border-emerald-500/20 text-emerald-400 flex items-center justify-center text-lg">
+<i class="fa-regular fa-circle-check"></i>
+</div>
+<div>
+<p class="text-xs font-semibold text-slate-400">Completed</p>
+<div class="flex items-baseline space-x-2 mt-0.5">
+<span class="text-2xl font-bold text-white tracking-tight">12</span>
+<span class="text-emerald-400 text-xs font-semibold flex items-center gap-0.5">
+<i class="fa-solid fa-arrow-up text-[10px]"></i> 20%
+              </span>
+</div>
+</div>
+</div>
+</section>
+<!-- END: StatCardsRow -->
+<!-- BEGIN: MidSection (Project Overview + Calendar) -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<!-- Project Overview (2 Columns Wide) -->
+<section class="lg:col-span-2 bg-[#121623] border border-[#1b2234] rounded-2xl p-6 flex flex-col justify-between" data-purpose="project-overview">
+<div>
+<!-- Header with Title and Tabs -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#1a2133]">
+<div>
+<div class="flex items-center space-x-2.5">
+<i class="fa-regular fa-folder-open text-slate-400"></i>
+<h3 class="text-white font-bold text-base">Project Overview</h3>
+</div>
+<p class="text-xs text-slate-500 mt-1">Track progress across all your projects.</p>
+</div>
+<!-- Filter tabs & View All -->
+<div class="flex items-center space-x-2">
+<div class="bg-[#0b0e17] p-1 rounded-xl flex items-center space-x-1 border border-[#1c2233]">
+<button class="px-3 py-1 text-xs font-medium rounded-lg bg-[#5344d5] text-white">All</button>
+<button class="px-3 py-1 text-xs font-medium rounded-lg text-slate-400 hover:text-white">College</button>
+<button class="px-3 py-1 text-xs font-medium rounded-lg text-slate-400 hover:text-white">Side Hustle</button>
+<button class="px-3 py-1 text-xs font-medium rounded-lg text-slate-400 hover:text-white">Personal</button>
+</div>
+<button class="text-xs font-medium text-slate-400 hover:text-white px-2 py-1 rounded-lg flex items-center gap-1">
+<span>View All</span>
+<i class="fa-solid fa-arrow-right text-[10px]"></i>
+</button>
+</div>
+</div>
+<!-- Project Items Table/List -->
+<div class="divide-y divide-[#171d2c] mt-2">
+<!-- Item 1: AG Solar Solutions -->
+<div class="py-4 flex items-center justify-between">
+<div class="flex items-center space-x-3.5 w-64">
+<div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+<i class="fa-regular fa-sun"></i>
+</div>
+<div>
+<h4 class="text-sm font-semibold text-white">AG Solar Solutions</h4>
+<p class="text-xs text-slate-500">Side Hustle • Website</p>
+</div>
+</div>
+<!-- Progress Bar -->
+<div class="flex-1 max-w-xs mx-6 flex items-center space-x-3">
+<div class="w-full bg-[#1b2234] rounded-full h-2 overflow-hidden">
+<div class="bg-[#6366f1] h-2 rounded-full" style="width: 78%"></div>
+</div>
+<span class="text-xs font-semibold text-slate-300 w-8">78%</span>
+</div>
+<!-- Team avatars -->
+<div class="flex items-center -space-x-2">
+<div class="w-7 h-7 rounded-full bg-indigo-700 text-[10px] font-bold text-white flex items-center justify-center ring-2 ring-[#121623]">RK</div>
+<div class="w-7 h-7 rounded-full bg-teal-700 text-[10px] font-bold text-white flex items-center justify-center ring-2 ring-[#121623]">AD</div>
+<div class="w-7 h-7 rounded-full bg-slate-700 text-[10px] font-bold text-white flex items-center justify-center ring-2 ring-[#121623]">+2</div>
+</div>
+<!-- Due date -->
+<div class="text-right w-24">
+<span class="text-xs text-slate-400">Due 25 Sep</span>
+</div>
+</div>
+<!-- Item 2: WaterTech Brochure -->
+<div class="py-4 flex items-center justify-between">
+<div class="flex items-center space-x-3.5 w-64">
+<div class="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
+<i class="fa-solid fa-droplet"></i>
+</div>
+<div>
+<h4 class="text-sm font-semibold text-white">WaterTech Brochure</h4>
+<p class="text-xs text-slate-500">Client Project • Website</p>
+</div>
+</div>
+<div class="flex-1 max-w-xs mx-6 flex items-center space-x-3">
+<div class="w-full bg-[#1b2234] rounded-full h-2 overflow-hidden">
+<div class="bg-[#6366f1] h-2 rounded-full" style="width: 54%"></div>
+</div>
+<span class="text-xs font-semibold text-slate-300 w-8">54%</span>
+</div>
+<div class="flex items-center -space-x-2">
+<div class="w-7 h-7 rounded-full bg-pink-700 text-[10px] font-bold text-white flex items-center justify-center ring-2 ring-[#121623]">PS</div>
+<div class="w-7 h-7 rounded-full bg-slate-700 text-[10px] font-bold text-white flex items-center justify-center ring-2 ring-[#121623]">+1</div>
+</div>
+<div class="text-right w-24">
+<span class="text-xs text-slate-400">Due 30 Sep</span>
+</div>
+</div>
+<!-- Item 3: College Fest 2026 -->
+<div class="py-4 flex items-center justify-between">
+<div class="flex items-center space-x-3.5 w-64">
+<div class="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center shrink-0">
+<i class="fa-solid fa-graduation-cap"></i>
+</div>
+<div>
+<h4 class="text-sm font-semibold text-white">College Fest 2026</h4>
+<p class="text-xs text-slate-500">College • Event</p>
+</div>
+</div>
+<div class="flex-1 max-w-xs mx-6 flex items-center space-x-3">
+<div class="w-full bg-[#1b2234] rounded-full h-2 overflow-hidden">
+<div class="bg-[#6366f1] h-2 rounded-full" style="width: 91%"></div>
+</div>
+<span class="text-xs font-semibold text-slate-300 w-8">91%</span>
+</div>
+<div class="flex items-center -space-x-2">
+<div class="w-7 h-7 rounded-full bg-emerald-700 text-[10px] font-bold text-white flex items-center justify-center ring-2 ring-[#121623]">VM</div>
+<div class="w-7 h-7 rounded-full bg-amber-700 text-[10px] font-bold text-white flex items-center justify-center ring-2 ring-[#121623]">OM</div>
+</div>
+<div class="text-right w-24">
+<span class="text-xs text-slate-400">Due 10 Oct</span>
+</div>
+</div>
+<!-- Item 4: Personal Portfolio -->
+<div class="py-4 flex items-center justify-between">
+<div class="flex items-center space-x-3.5 w-64">
+<div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+<i class="fa-solid fa-code"></i>
+</div>
+<div>
+<h4 class="text-sm font-semibold text-white">Personal Portfolio</h4>
+<p class="text-xs text-slate-500">Personal • Website</p>
+</div>
+</div>
+<div class="flex-1 max-w-xs mx-6 flex items-center space-x-3">
+<div class="w-full bg-[#1b2234] rounded-full h-2 overflow-hidden">
+<div class="bg-[#6366f1] h-2 rounded-full" style="width: 32%"></div>
+</div>
+<span class="text-xs font-semibold text-slate-300 w-8">32%</span>
+</div>
+<div class="flex items-center -space-x-2">
+<div class="w-7 h-7 rounded-full bg-indigo-800 text-[10px] font-bold text-white flex items-center justify-center ring-2 ring-[#121623]">PK</div>
+<div class="w-7 h-7 rounded-full bg-rose-800 text-[10px] font-bold text-white flex items-center justify-center ring-2 ring-[#121623]">AT</div>
+</div>
+<div class="text-right w-24">
+<span class="text-xs text-slate-400">Due 15 Oct</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Calendar Widget -->
+<section class="bg-[#121623] border border-[#1b2234] rounded-2xl p-6 flex flex-col justify-between" data-purpose="calendar-agenda">
+<div>
+<!-- Top bar -->
+<div class="flex items-center justify-between pb-3 border-b border-[#1a2133]">
+<div class="flex items-center space-x-2">
+<i class="fa-regular fa-calendar-days text-slate-400"></i>
+<h3 class="text-white font-bold text-base">Calendar</h3>
+</div>
+<button class="text-xs font-medium text-slate-400 hover:text-white flex items-center gap-1">
+<span>View All</span>
+<i class="fa-solid fa-arrow-right text-[10px]"></i>
+</button>
+</div>
+<!-- Month navigation -->
+<div class="flex items-center justify-between py-3">
+<span class="text-sm font-bold text-white">September 2026</span>
+<div class="flex items-center space-x-2">
+<button class="text-slate-400 hover:text-white text-xs px-1"><i class="fa-solid fa-chevron-left"></i></button>
+<button class="text-slate-400 hover:text-white text-xs px-1"><i class="fa-solid fa-chevron-right"></i></button>
+</div>
+</div>
+<!-- 7-day mini row view -->
+<div class="grid grid-cols-7 gap-1 text-center py-2">
+<span class="text-[11px] font-semibold text-slate-500">Mon</span>
+<span class="text-[11px] font-semibold text-slate-500">Tue</span>
+<span class="text-[11px] font-semibold text-slate-500">Wed</span>
+<span class="text-[11px] font-semibold text-slate-500">Thu</span>
+<span class="text-[11px] font-semibold text-slate-500">Fri</span>
+<span class="text-[11px] font-semibold text-slate-500">Sat</span>
+<span class="text-[11px] font-semibold text-slate-500">Sun</span>
+<div class="text-xs py-1.5 font-medium text-slate-400">21</div>
+<div class="text-xs py-1.5 font-semibold bg-[#5243d4] text-white rounded-lg">22</div>
+<div class="text-xs py-1.5 font-medium text-slate-400">23</div>
+<div class="text-xs py-1.5 font-medium text-slate-400">24</div>
+<div class="text-xs py-1.5 font-medium text-slate-400">25</div>
+<div class="text-xs py-1.5 font-medium text-slate-400">26</div>
+<div class="text-xs py-1.5 font-medium text-slate-400">27</div>
+</div>
+<!-- Events / Agenda List -->
+<div class="mt-4 space-y-3.5">
+<!-- Event 1 -->
+<div class="flex items-start space-x-3">
+<span class="w-2.5 h-2.5 rounded-full bg-indigo-500 mt-1 shrink-0"></span>
+<div>
+<h5 class="text-xs font-semibold text-white leading-tight">Team Standup</h5>
+<p class="text-[11px] text-slate-500 mt-0.5">10:00 AM – 10:30 AM</p>
+</div>
+</div>
+<!-- Event 2 -->
+<div class="flex items-start space-x-3">
+<span class="w-2.5 h-2.5 rounded-full bg-blue-500 mt-1 shrink-0"></span>
+<div>
+<h5 class="text-xs font-semibold text-white leading-tight">Work on AG Solar UI</h5>
+<p class="text-[11px] text-slate-500 mt-0.5">11:00 AM – 1:00 PM</p>
+</div>
+</div>
+<!-- Event 3 -->
+<div class="flex items-start space-x-3">
+<span class="w-2.5 h-2.5 rounded-full bg-emerald-500 mt-1 shrink-0"></span>
+<div>
+<h5 class="text-xs font-semibold text-white leading-tight">College Assignment (DE)</h5>
+<p class="text-[11px] text-slate-500 mt-0.5">2:00 PM – 4:00 PM</p>
+</div>
+</div>
+<!-- Event 4 -->
+<div class="flex items-start space-x-3">
+<span class="w-2.5 h-2.5 rounded-full bg-amber-500 mt-1 shrink-0"></span>
+<div>
+<h5 class="text-xs font-semibold text-white leading-tight">QA Review Meeting</h5>
+<p class="text-[11px] text-slate-500 mt-0.5">6:00 PM – 7:00 PM</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- END: MidSection -->
+<!-- BEGIN: BottomSection (Task Breakdown, QA Status, Recent Activity) -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<!-- Card 1: Task Breakdown -->
+<section class="bg-[#121623] border border-[#1b2234] rounded-2xl p-6" data-purpose="task-breakdown">
+<div class="flex items-center justify-between pb-4 border-b border-[#1a2133]">
+<div class="flex items-center space-x-2">
+<i class="fa-regular fa-rectangle-list text-slate-400"></i>
+<h3 class="text-white font-bold text-base">Task Breakdown</h3>
+</div>
+</div>
+<div class="flex items-center justify-between pt-6">
+<!-- Donut Chart representation -->
+<div class="relative w-36 h-36 flex items-center justify-center shrink-0">
+<svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+<!-- Background track -->
+<circle cx="50" cy="50" fill="transparent" r="38" stroke="#1c2336" stroke-width="12"></circle>
+<!-- Completed (50% = 12/24) -->
+<circle cx="50" cy="50" fill="transparent" r="38" stroke="#10b981" stroke-dasharray="119.38 238.76" stroke-dashoffset="0" stroke-width="12"></circle>
+<!-- In Progress (33% = 8/24) -->
+<circle cx="50" cy="50" fill="transparent" r="38" stroke="#6366f1" stroke-dasharray="79.58 238.76" stroke-dashoffset="-119.38" stroke-width="12"></circle>
+<!-- To Do (25% = 6/24) -->
+<circle cx="50" cy="50" fill="transparent" r="38" stroke="#94a3b8" stroke-dasharray="29.84 238.76" stroke-dashoffset="-198.96" stroke-width="12"></circle>
+<!-- Blocked (8% = 2/24) -->
+<circle cx="50" cy="50" fill="transparent" r="38" stroke="#f87171" stroke-dasharray="9.94 238.76" stroke-dashoffset="-228.8" stroke-width="12"></circle>
+</svg>
+<!-- Center Text -->
+<div class="absolute inset-0 flex flex-col items-center justify-center text-center">
+<span class="text-xl font-bold text-white leading-none">24</span>
+<span class="text-[11px] text-slate-400 font-medium">Tasks</span>
+</div>
+</div>
+<!-- Legend breakdown -->
+<div class="space-y-3 pl-4 flex-1">
+<div class="flex items-center justify-between text-xs">
+<div class="flex items-center space-x-2">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+<span class="text-slate-300">Completed</span>
+</div>
+<span class="font-bold text-white">12</span>
+</div>
+<div class="flex items-center justify-between text-xs">
+<div class="flex items-center space-x-2">
+<span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+<span class="text-slate-300">In Progress</span>
+</div>
+<span class="font-bold text-white">8</span>
+</div>
+<div class="flex items-center justify-between text-xs">
+<div class="flex items-center space-x-2">
+<span class="w-2 h-2 rounded-full bg-slate-400"></span>
+<span class="text-slate-300">To Do</span>
+</div>
+<span class="font-bold text-white">6</span>
+</div>
+<div class="flex items-center justify-between text-xs">
+<div class="flex items-center space-x-2">
+<span class="w-2 h-2 rounded-full bg-red-400"></span>
+<span class="text-slate-300">Blocked</span>
+</div>
+<span class="font-bold text-white">2</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Card 2: QA Status -->
+<section class="bg-[#121623] border border-[#1b2234] rounded-2xl p-6" data-purpose="qa-status">
+<div class="flex items-center justify-between pb-4 border-b border-[#1a2133]">
+<div class="flex items-center space-x-2">
+<i class="fa-solid fa-flask text-slate-400"></i>
+<h3 class="text-white font-bold text-base">QA Status</h3>
+</div>
+<button class="text-xs font-medium text-slate-400 hover:text-white flex items-center gap-1">
+<span>View All</span>
+<i class="fa-solid fa-arrow-right text-[10px]"></i>
+</button>
+</div>
+<div class="flex items-center justify-between pt-6">
+<!-- Donut Chart representation -->
+<div class="relative w-36 h-36 flex items-center justify-center shrink-0">
+<svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+<circle cx="50" cy="50" fill="transparent" r="38" stroke="#1c2336" stroke-width="12"></circle>
+<!-- Passed (28/42 = ~66%) -->
+<circle cx="50" cy="50" fill="transparent" r="38" stroke="#10b981" stroke-dasharray="159 238.76" stroke-dashoffset="0" stroke-width="12"></circle>
+<!-- Failed (6/42 = ~14%) -->
+<circle cx="50" cy="50" fill="transparent" r="38" stroke="#ef4444" stroke-dasharray="34 238.76" stroke-dashoffset="-159" stroke-width="12"></circle>
+<!-- Testing (5/42 = ~12%) -->
+<circle cx="50" cy="50" fill="transparent" r="38" stroke="#f59e0b" stroke-dasharray="28 238.76" stroke-dashoffset="-193" stroke-width="12"></circle>
+<!-- Not Tested (3/42 = ~7%) -->
+<circle cx="50" cy="50" fill="transparent" r="38" stroke="#94a3b8" stroke-dasharray="17 238.76" stroke-dashoffset="-221" stroke-width="12"></circle>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center text-center">
+<span class="text-xl font-bold text-white leading-none">42</span>
+<span class="text-[11px] text-slate-400 font-medium">Test Cases</span>
+</div>
+</div>
+<!-- Legend breakdown -->
+<div class="space-y-3 pl-4 flex-1">
+<div class="flex items-center justify-between text-xs">
+<div class="flex items-center space-x-2">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+<span class="text-slate-300">Passed</span>
+</div>
+<span class="font-bold text-white">28</span>
+</div>
+<div class="flex items-center justify-between text-xs">
+<div class="flex items-center space-x-2">
+<span class="w-2 h-2 rounded-full bg-rose-500"></span>
+<span class="text-slate-300">Failed</span>
+</div>
+<span class="font-bold text-white">6</span>
+</div>
+<div class="flex items-center justify-between text-xs">
+<div class="flex items-center space-x-2">
+<span class="w-2 h-2 rounded-full bg-amber-500"></span>
+<span class="text-slate-300">Testing</span>
+</div>
+<span class="font-bold text-white">5</span>
+</div>
+<div class="flex items-center justify-between text-xs">
+<div class="flex items-center space-x-2">
+<span class="w-2 h-2 rounded-full bg-slate-400"></span>
+<span class="text-slate-300">Not Tested</span>
+</div>
+<span class="font-bold text-white">3</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Card 3: Recent Activity -->
+<section class="bg-[#121623] border border-[#1b2234] rounded-2xl p-6" data-purpose="recent-activity">
+<div class="flex items-center justify-between pb-4 border-b border-[#1a2133]">
+<div class="flex items-center space-x-2">
+<i class="fa-solid fa-clock-rotate-left text-slate-400"></i>
+<h3 class="text-white font-bold text-base">Recent Activity</h3>
+</div>
+<button class="text-xs font-medium text-slate-400 hover:text-white flex items-center gap-1">
+<span>View All</span>
+<i class="fa-solid fa-arrow-right text-[10px]"></i>
+</button>
+</div>
+<div class="pt-4 space-y-4">
+<!-- Activity 1 -->
+<div class="flex items-center justify-between">
+<div class="flex items-center space-x-3">
+<div class="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center shrink-0">
+<i class="fa-solid fa-code-commit text-xs"></i>
+</div>
+<p class="text-xs text-slate-300">
+<strong class="text-white font-semibold">Rahul</strong> pushed 3 commits
+                </p>
+</div>
+<span class="text-[11px] text-slate-500 whitespace-nowrap">2 mins ago</span>
+</div>
+<!-- Activity 2 -->
+<div class="flex items-center justify-between">
+<div class="flex items-center space-x-3">
+<div class="w-8 h-8 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
+<i class="fa-solid fa-code-pull-request text-xs"></i>
+</div>
+<p class="text-xs text-slate-300">
+<strong class="text-white font-semibold">Aditya</strong> opened a PR #24
+                </p>
+</div>
+<span class="text-[11px] text-slate-500 whitespace-nowrap">15 mins ago</span>
+</div>
+<!-- Activity 3 -->
+<div class="flex items-center justify-between">
+<div class="flex items-center space-x-3">
+<div class="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
+<i class="fa-solid fa-vial text-xs"></i>
+</div>
+<p class="text-xs text-slate-300">
+<strong class="text-white font-semibold">Om</strong> updated test case TC-012
+                </p>
+</div>
+<span class="text-[11px] text-slate-500 whitespace-nowrap">1 hour ago</span>
+</div>
+<!-- Activity 4 -->
+<div class="flex items-center justify-between">
+<div class="flex items-center space-x-3">
+<div class="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+<i class="fa-solid fa-check text-xs"></i>
+</div>
+<p class="text-xs text-slate-300">
+<strong class="text-white font-semibold">You</strong> completed a task "Landing Page UI"
+                </p>
+</div>
+<span class="text-[11px] text-slate-500 whitespace-nowrap">2 hours ago</span>
+</div>
+</div>
+</section>
+</div>
+<!-- END: BottomSection -->
+</div>
+</main>
+<!-- END: MainContentArea -->
+</body></html>
