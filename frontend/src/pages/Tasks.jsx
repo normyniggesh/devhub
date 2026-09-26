@@ -17,7 +17,7 @@ export default function Tasks() {
   
   const [filterProjectId, setFilterProjectId] = useState('');
 
-  const [newTask, setNewTask] = useState({ 
+  const defaultTask = { 
     title: '', 
     description: '',
     status: 'To Do', 
@@ -25,7 +25,8 @@ export default function Tasks() {
     assigneeId: '',
     startDate: '',
     dueDate: ''
-  });
+  };
+  const [newTasks, setNewTasks] = useState([{ ...defaultTask }]);
 
   const [editingTask, setEditingTask] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -90,29 +91,54 @@ export default function Tasks() {
     setIsSubmitting(true);
     
     try {
-      await apiClient('/tasks', {
-        body: {
-          projectId: selectedProjectId,
-          title: newTask.title,
-          description: newTask.description,
-          status: newTask.status,
-          priority: newTask.priority,
-          assigneeId: newTask.assigneeId || null,
-          startDate: newTask.startDate ? new Date(newTask.startDate).toISOString() : null,
-          dueDate: newTask.dueDate ? new Date(newTask.dueDate).toISOString() : null
-        }
-      });
+      let successCount = 0;
+      let failedRows = [];
       
-      setNewTask({ title: '', description: '', status: 'To Do', priority: 'Medium', assigneeId: '', startDate: '', dueDate: '' });
-      setSelectedProjectId('');
-      setShowModal(false);
-      fetchTasks();
+      await Promise.all(newTasks.map(async (task, index) => {
+        if (!task.title.trim()) return;
+        try {
+          await apiClient('/tasks', {
+            body: {
+              projectId: selectedProjectId,
+              title: task.title,
+              description: task.description,
+              status: task.status,
+              priority: task.priority,
+              assigneeId: task.assigneeId || null,
+              startDate: task.startDate ? new Date(task.startDate).toISOString() : null,
+              dueDate: task.dueDate ? new Date(task.dueDate).toISOString() : null
+            }
+          });
+          successCount++;
+        } catch (err) {
+          failedRows.push(`Row ${index + 1}: ${err.message}`);
+        }
+      }));
+      
+      if (failedRows.length > 0) {
+        setModalError(`Created ${successCount} tasks. Failed: ${failedRows.join(' | ')}`);
+        if (successCount > 0) fetchTasks();
+      } else {
+        setNewTasks([{ ...defaultTask }]);
+        setSelectedProjectId('');
+        setShowModal(false);
+        fetchTasks();
+      }
     } catch (err) {
-      setModalError(err.message || 'Failed to create task');
+      setModalError(err.message || 'Failed to create tasks');
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const updateNewTask = (index, field, value) => {
+    const updated = [...newTasks];
+    updated[index][field] = value;
+    setNewTasks(updated);
+  };
+  
+  const addRow = () => setNewTasks([...newTasks, { ...defaultTask }]);
+  const removeRow = (index) => setNewTasks(newTasks.filter((_, i) => i !== index));
 
   const handleEdit = async (e) => {
     e.preventDefault();
@@ -297,15 +323,15 @@ export default function Tasks() {
 
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/60 p-4">
-          <div className="bg-[#101524] p-6 rounded-xl border border-[#192238] w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
-            <h2 className="text-lg text-white font-bold mb-4">Add Task</h2>
+          <div className="bg-[#101524] p-6 rounded-xl border border-[#192238] w-full max-w-4xl shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h2 className="text-lg text-white font-bold mb-4">Add Tasks</h2>
             {modalError && (
               <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-3 py-2 rounded-lg mb-4 text-sm">
                 {modalError}
               </div>
             )}
             <form onSubmit={handleAdd} className="flex flex-col gap-4">
-              <div>
+              <div className="w-64">
                 <label className="block text-xs font-medium text-slate-400 mb-1">Project *</label>
                 <select required value={selectedProjectId} onChange={e => setSelectedProjectId(e.target.value)} className="w-full bg-[#111728] border border-[#1e293f] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
                   <option value="" disabled>Select a project</option>
@@ -315,61 +341,70 @@ export default function Tasks() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Task Title *</label>
-                <input required value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} placeholder="E.g. Update user settings" className="w-full bg-[#111728] border border-[#1e293f] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" />
+              <div className="overflow-x-auto mt-2 border border-[#1e293f] rounded-lg">
+                <table className="w-full text-left text-sm text-slate-300">
+                  <thead className="bg-[#182030] border-b border-[#1e293f] text-xs uppercase text-slate-400">
+                    <tr>
+                      <th className="px-3 py-2 font-medium">#</th>
+                      <th className="px-3 py-2 font-medium">Task Title *</th>
+                      <th className="px-3 py-2 font-medium">Priority</th>
+                      <th className="px-3 py-2 font-medium">Start Date</th>
+                      <th className="px-3 py-2 font-medium">Due Date</th>
+                      <th className="px-3 py-2 font-medium">Assignee</th>
+                      <th className="px-3 py-2 font-medium text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#1e293f]">
+                    {newTasks.map((task, index) => (
+                      <tr key={index} className="bg-[#101524] hover:bg-[#151b2b] transition">
+                        <td className="px-3 py-2 text-center text-slate-500">{index + 1}</td>
+                        <td className="px-3 py-2">
+                          <input required value={task.title} onChange={e => updateNewTask(index, 'title', e.target.value)} placeholder="Task name" className="w-full bg-[#111728] border border-[#1e293f] rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500" />
+                        </td>
+                        <td className="px-3 py-2">
+                          <select value={task.priority} onChange={e => updateNewTask(index, 'priority', e.target.value)} className="w-full bg-[#111728] border border-[#1e293f] rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+                            <option value="Low">Low</option>
+                            <option value="Medium">Medium</option>
+                            <option value="High">High</option>
+                          </select>
+                        </td>
+                        <td className="px-3 py-2">
+                          <input type="date" value={task.startDate} onChange={e => updateNewTask(index, 'startDate', e.target.value)} className="w-full bg-[#111728] border border-[#1e293f] rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500" />
+                        </td>
+                        <td className="px-3 py-2">
+                          <input type="date" value={task.dueDate} onChange={e => updateNewTask(index, 'dueDate', e.target.value)} className="w-full bg-[#111728] border border-[#1e293f] rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500" />
+                        </td>
+                        <td className="px-3 py-2">
+                          <select value={task.assigneeId} onChange={e => updateNewTask(index, 'assigneeId', e.target.value)} disabled={!selectedProjectId} className="w-full bg-[#111728] border border-[#1e293f] rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50">
+                            <option value="">Unassigned</option>
+                            {projectMembers.map(m => (
+                              <option key={m.user.id} value={m.user.id}>{m.user.name}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          {newTasks.length > 1 && (
+                            <button type="button" onClick={() => removeRow(index)} className="text-slate-500 hover:text-red-400 transition" title="Remove row">
+                              <i className="fa-solid fa-xmark"></i>
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex justify-start">
+                <button type="button" onClick={addRow} className="text-xs text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1">
+                  <i className="fa-solid fa-plus"></i> Add Another Task
+                </button>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Description</label>
-                <textarea rows="2" value={newTask.description} onChange={e => setNewTask({...newTask, description: e.target.value})} placeholder="Task details" className="w-full bg-[#111728] border border-[#1e293f] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Status</label>
-                  <select value={newTask.status} onChange={e => setNewTask({...newTask, status: e.target.value})} className="w-full bg-[#111728] border border-[#1e293f] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
-                    <option value="To Do">To Do</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="Done">Done</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Priority</label>
-                  <select value={newTask.priority} onChange={e => setNewTask({...newTask, priority: e.target.value})} className="w-full bg-[#111728] border border-[#1e293f] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
-                    <option value="Low">Low</option>
-                    <option value="Medium">Medium</option>
-                    <option value="High">High</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Assignee</label>
-                <select value={newTask.assigneeId} onChange={e => setNewTask({...newTask, assigneeId: e.target.value})} disabled={!selectedProjectId} className="w-full bg-[#111728] border border-[#1e293f] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50">
-                  <option value="">Unassigned</option>
-                  {projectMembers.map(m => (
-                    <option key={m.user.id} value={m.user.id}>{m.user.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Start Date</label>
-                  <input type="date" value={newTask.startDate} onChange={e => setNewTask({...newTask, startDate: e.target.value})} className="w-full bg-[#111728] border border-[#1e293f] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Due Date</label>
-                  <input type="date" value={newTask.dueDate} onChange={e => setNewTask({...newTask, dueDate: e.target.value})} className="w-full bg-[#111728] border border-[#1e293f] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 mt-4">
+              <div className="flex justify-end gap-3 mt-2">
                 <button type="button" disabled={isSubmitting} onClick={() => setShowModal(false)} className="px-4 py-2 text-slate-400 text-sm hover:text-white disabled:opacity-50">Cancel</button>
                 <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-[#5922cf] hover:bg-[#682ae6] text-white rounded-lg text-sm transition disabled:opacity-50 flex items-center gap-2">
                   {isSubmitting && <i className="fa-solid fa-spinner fa-spin"></i>}
-                  {isSubmitting ? 'Creating...' : 'Create Task'}
+                  {isSubmitting ? 'Creating...' : `Create ${newTasks.length} Task${newTasks.length !== 1 ? 's' : ''}`}
                 </button>
               </div>
             </form>

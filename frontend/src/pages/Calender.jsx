@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useStore } from '../store';
 
 export default function Calender() {
+  const navigate = useNavigate();
   const { currentUser } = useStore();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState([]);
@@ -211,6 +213,10 @@ export default function Calender() {
   };
 
   const getTypeColor = (type) => {
+    if (type?.includes('Project')) return 'bg-purple-500';
+    if (type?.includes('Task')) return 'bg-blue-500';
+    if (type?.includes('QA')) return 'bg-rose-500';
+    
     switch (type) {
       case 'Project': return 'bg-purple-500';
       case 'Task': return 'bg-blue-500';
@@ -298,8 +304,21 @@ export default function Calender() {
                     {dayEvents.slice(0, 3).map(e => (
                       <div 
                         key={e.id} 
-                        onClick={(ev) => { ev.stopPropagation(); openEdit(e); }}
-                        className="text-[10px] px-1.5 py-0.5 rounded truncate text-slate-200 flex items-center gap-1 hover:bg-[#1f283c] transition border border-[#2d3b55]"
+                        onClick={(ev) => { 
+                          ev.stopPropagation(); 
+                          if (e.derived) {
+                            if (e.sourceType === 'project') navigate(`/projects`);
+                            else if (e.sourceType === 'task') navigate(`/tasks`);
+                            else if (e.sourceType === 'testRun') navigate(`/qa-testing`);
+                          } else {
+                            openEdit(e); 
+                          }
+                        }}
+                        className={`px-1.5 py-0.5 rounded truncate flex items-center gap-1 hover:bg-[#1f283c] transition border border-[#2d3b55] cursor-pointer ${
+                          e.sourceType === 'project' 
+                            ? 'text-xs text-white font-medium shadow-sm bg-[#182030]' 
+                            : 'text-[10px] text-slate-300'
+                        }`}
                       >
                         <span className={`w-1.5 h-1.5 rounded-full ${getTypeColor(e.type)}`}></span>
                         {e.title}

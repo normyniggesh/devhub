@@ -27,9 +27,14 @@ export default function QAtesting() {
   return (
     <div className="flex gap-6 flex-col">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">QA / Testing</h1>
-          <p className="text-xs text-slate-400 mt-0.5">Ensure everything is working perfectly.</p>
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30">
+            <i className="fa-solid fa-bolt text-lg"></i>
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-white tracking-tight">QA / Testing</h1>
+            <p className="text-xs text-slate-400 mt-0.5">Ensure everything is working perfectly.</p>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <select 
@@ -164,7 +169,9 @@ function TestCases({ projectId, currentUser, projects }) {
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   
-  const [form, setForm] = useState({ title: '', description: '', module: '', status: 'Active', priority: 'Medium', expectedResult: '' });
+  const defaultForm = { title: '', description: '', module: '', status: 'Active', priority: 'Medium', expectedResult: '' };
+  const [newForms, setNewForms] = useState([{ ...defaultForm }]);
+  const [editForm, setEditForm] = useState({ ...defaultForm });
 
   const role = getRole(projectId, projects, currentUser);
   const canEdit = role === 'Admin' || role === 'Editor';
@@ -186,21 +193,47 @@ function TestCases({ projectId, currentUser, projects }) {
     if (projectId) fetchItems();
   }, [projectId]);
 
-  const handleSubmit = async (e) => {
+  const handleSubmitEdit = async (e) => {
     e.preventDefault();
     try {
-      if (editingItem) {
-        await apiClient(`/test-cases/${editingItem.id}`, { method: 'PATCH', body: form });
-      } else {
-        await apiClient('/test-cases', { method: 'POST', body: { ...form, projectId } });
-      }
+      await apiClient(`/test-cases/${editingItem.id}`, { method: 'PATCH', body: editForm });
       setShowModal(false);
       setEditingItem(null);
-      setForm({ title: '', description: '', module: '', status: 'Active', priority: 'Medium', expectedResult: '' });
       fetchItems();
     } catch (err) {
-      alert(err.message || 'Failed to save test case');
+      alert(err.message || 'Failed to update test case');
     }
+  };
+
+  const handleBulkSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      let successCount = 0;
+      let failedRows = [];
+      await Promise.all(newForms.map(async (f, i) => {
+        if (!f.title.trim()) return;
+        try {
+          await apiClient('/test-cases', { method: 'POST', body: { ...f, projectId } });
+          successCount++;
+        } catch (err) {
+          failedRows.push(`Row ${i + 1}: ${err.message}`);
+        }
+      }));
+      if (failedRows.length > 0) {
+        alert(`Created ${successCount} test cases. Failed: ${failedRows.join(' | ')}`);
+      }
+      setNewForms([{ ...defaultForm }]);
+      setShowModal(false);
+      fetchItems();
+    } catch (err) {
+      alert(err.message || 'Failed to create test cases');
+    }
+  };
+
+  const updateNewForm = (index, field, value) => {
+    const updated = [...newForms];
+    updated[index][field] = value;
+    setNewForms(updated);
   };
 
   const handleDelete = async (id) => {
@@ -215,7 +248,7 @@ function TestCases({ projectId, currentUser, projects }) {
 
   const openEdit = (item) => {
     setEditingItem(item);
-    setForm({
+    setEditForm({
       title: item.title, description: item.description || '', module: item.module || '',
       status: item.status || 'Active', priority: item.priority || 'Medium', expectedResult: item.expectedResult || ''
     });
@@ -227,8 +260,8 @@ function TestCases({ projectId, currentUser, projects }) {
   return (
     <div className="flex flex-col gap-4">
       {canEdit && (
-        <button onClick={() => { setEditingItem(null); setForm({ title: '', description: '', module: '', status: 'Active', priority: 'Medium', expectedResult: '' }); setShowModal(true); }} className="self-start px-3.5 py-1.5 bg-[#5922cf] hover:bg-[#682ae6] text-white rounded-lg text-xs font-semibold">
-          New Test Case
+        <button onClick={() => { setEditingItem(null); setNewForms([{ ...defaultForm }]); setShowModal(true); }} className="self-start px-3.5 py-1.5 bg-[#5922cf] hover:bg-[#682ae6] text-white rounded-lg text-xs font-semibold">
+          New Test Cases
         </button>
       )}
 
@@ -253,26 +286,83 @@ function TestCases({ projectId, currentUser, projects }) {
 
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/60 p-4">
-          <div className="bg-[#101524] p-6 rounded-xl border border-[#192238] w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <h2 className="text-lg text-white font-bold mb-4">{editingItem ? 'Edit Test Case' : 'New Test Case'}</h2>
-            <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-              <input required value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="Title" className="bg-[#111728] border border-[#1e293f] rounded-lg px-3 py-2 text-sm text-white" />
-              <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder="Description" rows="2" className="bg-[#111728] border border-[#1e293f] rounded-lg px-3 py-2 text-sm text-white" />
-              <input value={form.module} onChange={e => setForm({...form, module: e.target.value})} placeholder="Module (e.g., Auth)" className="bg-[#111728] border border-[#1e293f] rounded-lg px-3 py-2 text-sm text-white" />
-              <textarea value={form.expectedResult} onChange={e => setForm({...form, expectedResult: e.target.value})} placeholder="Expected Result" rows="2" className="bg-[#111728] border border-[#1e293f] rounded-lg px-3 py-2 text-sm text-white" />
-              <div className="grid grid-cols-2 gap-3">
-                <select value={form.status} onChange={e => setForm({...form, status: e.target.value})} className="bg-[#111728] border border-[#1e293f] rounded-lg px-3 py-2 text-sm text-white">
-                  <option>Active</option><option>Draft</option><option>Deprecated</option>
-                </select>
-                <select value={form.priority} onChange={e => setForm({...form, priority: e.target.value})} className="bg-[#111728] border border-[#1e293f] rounded-lg px-3 py-2 text-sm text-white">
-                  <option>Low</option><option>Medium</option><option>High</option>
-                </select>
-              </div>
-              <div className="flex justify-end gap-2 mt-2">
-                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-slate-400 text-sm">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm">Save</button>
-              </div>
-            </form>
+          <div className={`bg-[#101524] p-6 rounded-xl border border-[#192238] w-full ${editingItem ? 'max-w-md' : 'max-w-5xl'} max-h-[90vh] overflow-y-auto`}>
+            <h2 className="text-lg text-white font-bold mb-4">{editingItem ? 'Edit Test Case' : 'New Test Cases'}</h2>
+            
+            {editingItem ? (
+              <form onSubmit={handleSubmitEdit} className="flex flex-col gap-3">
+                <input required value={editForm.title} onChange={e => setEditForm({...editForm, title: e.target.value})} placeholder="Title" className="bg-[#111728] border border-[#1e293f] rounded-lg px-3 py-2 text-sm text-white" />
+                <textarea value={editForm.description} onChange={e => setEditForm({...editForm, description: e.target.value})} placeholder="Description" rows="2" className="bg-[#111728] border border-[#1e293f] rounded-lg px-3 py-2 text-sm text-white" />
+                <input value={editForm.module} onChange={e => setEditForm({...editForm, module: e.target.value})} placeholder="Module (e.g., Auth)" className="bg-[#111728] border border-[#1e293f] rounded-lg px-3 py-2 text-sm text-white" />
+                <textarea value={editForm.expectedResult} onChange={e => setEditForm({...editForm, expectedResult: e.target.value})} placeholder="Expected Result" rows="2" className="bg-[#111728] border border-[#1e293f] rounded-lg px-3 py-2 text-sm text-white" />
+                <div className="grid grid-cols-2 gap-3">
+                  <select value={editForm.status} onChange={e => setEditForm({...editForm, status: e.target.value})} className="bg-[#111728] border border-[#1e293f] rounded-lg px-3 py-2 text-sm text-white">
+                    <option>Active</option><option>Draft</option><option>Deprecated</option>
+                  </select>
+                  <select value={editForm.priority} onChange={e => setEditForm({...editForm, priority: e.target.value})} className="bg-[#111728] border border-[#1e293f] rounded-lg px-3 py-2 text-sm text-white">
+                    <option>Low</option><option>Medium</option><option>High</option>
+                  </select>
+                </div>
+                <div className="flex justify-end gap-2 mt-2">
+                  <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-slate-400 text-sm">Cancel</button>
+                  <button type="submit" className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm transition">Save</button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleBulkSubmit} className="flex flex-col gap-4">
+                <div className="overflow-x-auto border border-[#1e293f] rounded-lg">
+                  <table className="w-full text-left text-sm text-slate-300">
+                    <thead className="bg-[#182030] border-b border-[#1e293f] text-xs uppercase text-slate-400">
+                      <tr>
+                        <th className="px-3 py-2 font-medium">#</th>
+                        <th className="px-3 py-2 font-medium">Title *</th>
+                        <th className="px-3 py-2 font-medium w-32">Module</th>
+                        <th className="px-3 py-2 font-medium w-28">Priority</th>
+                        <th className="px-3 py-2 font-medium w-28">Status</th>
+                        <th className="px-3 py-2 font-medium">Expected Result</th>
+                        <th className="px-3 py-2 font-medium text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#1e293f]">
+                      {newForms.map((f, index) => (
+                        <tr key={index} className="bg-[#101524] hover:bg-[#151b2b] transition">
+                          <td className="px-3 py-2 text-center text-slate-500">{index + 1}</td>
+                          <td className="px-3 py-2"><input required value={f.title} onChange={e => updateNewForm(index, 'title', e.target.value)} placeholder="Title" className="w-full bg-[#111728] border border-[#1e293f] rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500" /></td>
+                          <td className="px-3 py-2"><input value={f.module} onChange={e => updateNewForm(index, 'module', e.target.value)} placeholder="Module" className="w-full bg-[#111728] border border-[#1e293f] rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500" /></td>
+                          <td className="px-3 py-2">
+                            <select value={f.priority} onChange={e => updateNewForm(index, 'priority', e.target.value)} className="w-full bg-[#111728] border border-[#1e293f] rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+                              <option>Low</option><option>Medium</option><option>High</option>
+                            </select>
+                          </td>
+                          <td className="px-3 py-2">
+                            <select value={f.status} onChange={e => updateNewForm(index, 'status', e.target.value)} className="w-full bg-[#111728] border border-[#1e293f] rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+                              <option>Active</option><option>Draft</option><option>Deprecated</option>
+                            </select>
+                          </td>
+                          <td className="px-3 py-2"><input value={f.expectedResult} onChange={e => updateNewForm(index, 'expectedResult', e.target.value)} placeholder="Expected..." className="w-full bg-[#111728] border border-[#1e293f] rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500" /></td>
+                          <td className="px-3 py-2 text-center">
+                            {newForms.length > 1 && (
+                              <button type="button" onClick={() => setNewForms(newForms.filter((_, i) => i !== index))} className="text-slate-500 hover:text-red-400 transition" title="Remove row">
+                                <i className="fa-solid fa-xmark"></i>
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="flex justify-start">
+                  <button type="button" onClick={() => setNewForms([...newForms, { ...defaultForm }])} className="text-xs text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1">
+                    <i className="fa-solid fa-plus"></i> Add Test Case
+                  </button>
+                </div>
+                <div className="flex justify-end gap-3 mt-2">
+                  <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-slate-400 text-sm hover:text-white transition">Cancel</button>
+                  <button type="submit" className="px-4 py-2 bg-[#5922cf] hover:bg-[#682ae6] text-white rounded-lg text-sm transition">Create {newForms.length} Test Case{newForms.length !== 1 ? 's' : ''}</button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

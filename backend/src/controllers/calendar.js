@@ -6,25 +6,29 @@ exports.getEvents = async (req, res) => {
   try {
     const { projectId, start, end } = req.query;
     let whereClause = {};
+    let accessibleProjectIds = [];
 
     if (projectId) {
       const access = await checkProjectAccess(projectId, req.userId);
       if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
       whereClause.projectId = projectId;
+      accessibleProjectIds = [projectId];
     } else {
+      const userProjects = await prisma.project.findMany({
+        where: {
+          OR: [
+            { ownerId: req.userId },
+            { members: { some: { userId: req.userId } } }
+          ]
+        },
+        select: { id: true }
+      });
+      accessibleProjectIds = userProjects.map(p => p.id);
+
       whereClause = {
         OR: [
-          // Personal events (no project) created by user
           { projectId: null, creatorId: req.userId },
-          // Project events accessible by user
-          {
-            project: {
-              OR: [
-                { ownerId: req.userId },
-                { members: { some: { userId: req.userId } } }
-              ]
-            }
-          }
+          { projectId: { in: accessibleProjectIds } }
         ]
       };
     }
@@ -45,7 +49,149 @@ exports.getEvents = async (req, res) => {
       orderBy: { startDateTime: 'asc' }
     });
 
-    res.json({ success: true, events });
+    const derivedEvents = [];
+
+    if (accessibleProjectIds.length > 0) {
+      // 1. Derived Projects
+      const projects = await prisma.project.findMany({
+        where: { id: { in: accessibleProjectIds } },
+        select: { id: true, name: true, startDate: true, dueDate: true }
+      });
+
+      for (const proj of projects) {
+        if (proj.startDate) {
+          derivedEvents.push({
+            id: `derived-project-${proj.id}-start`,
+            title: `${proj.name} — Start`,
+            startDateTime: proj.startDate,
+            endDateTime: proj.startDate,
+            allDay: true,
+            projectId: proj.id,
+            project: { id: proj.id, name: proj.name },
+            type: 'Project Start',
+            derived: true,
+            readOnly: true,
+            sourceType: 'project',
+            sourceId: proj.id
+          });
+        }
+        if (proj.dueDate) {
+          derivedEvents.push({
+            id: `derived-project-${proj.id}-due`,
+            title: `${proj.name} — Deadline`,
+            startDateTime: proj.dueDate,
+            endDateTime: proj.dueDate,
+            allDay: true,
+            projectId: proj.id,
+            project: { id: proj.id, name: proj.name },
+            type: 'Project Deadline',
+            derived: true,
+            readOnly: true,
+            sourceType: 'project',
+            sourceId: proj.id
+          });
+        }
+      }
+
+      // 2. Derived Tasks
+      const tasks = await prisma.task.findMany({
+        where: { projectId: { in: accessibleProjectIds } },
+        select: { id: true, title: true, startDate: true, dueDate: true, projectId: true, project: { select: { id: true, name: true } } }
+      });
+
+      for (const task of tasks) {
+        if (task.startDate) {
+          derivedEvents.push({
+            id: `derived-task-${task.id}-start`,
+            title: `${task.title}`,
+            startDateTime: task.startDate,
+            endDateTime: task.startDate,
+            allDay: true,
+            projectId: task.projectId,
+            project: task.project,
+            type: 'Task Start',
+            derived: true,
+            readOnly: true,
+            sourceType: 'task',
+            sourceId: task.id
+          });
+        }
+        if (task.dueDate) {
+          derivedEvents.push({
+            id: `derived-task-${task.id}-due`,
+            title: `${task.title} — Due`,
+            startDateTime: task.dueDate,
+            endDateTime: task.dueDate,
+            allDay: true,
+            projectId: task.projectId,
+            project: task.project,
+            type: 'Task Due',
+            derived: true,
+            readOnly: true,
+            sourceType: 'task',
+            sourceId: task.id
+          });
+        }
+      }
+
+      // 3. Derived TestRuns
+      const testRuns = await prisma.testRun.findMany({
+        where: { projectId: { in: accessibleProjectIds } },
+        select: { id: true, name: true, startedAt: true, completedAt: true, projectId: true, project: { select: { id: true, name: true } } }
+      });
+
+      for (const run of testRuns) {
+        if (run.startedAt) {
+          derivedEvents.push({
+            id: `derived-testRun-${run.id}-start`,
+            title: `QA Run: ${run.name}`,
+            startDateTime: run.startedAt,
+            endDateTime: run.startedAt,
+            allDay: true,
+            projectId: run.projectId,
+            project: run.project,
+            type: 'QA Run Start',
+            derived: true,
+            readOnly: true,
+            sourceType: 'testRun',
+            sourceId: run.id
+          });
+        }
+        if (run.completedAt) {
+          derivedEvents.push({
+            id: `derived-testRun-${run.id}-complete`,
+            title: `QA Run: ${run.name} — Complete`,
+            startDateTime: run.completedAt,
+            endDateTime: run.completedAt,
+            allDay: true,
+            projectId: run.projectId,
+            project: run.project,
+            type: 'QA Run Complete',
+            derived: true,
+            readOnly: true,
+            sourceType: 'testRun',
+            sourceId: run.id
+          });
+        }
+      }
+    }
+
+    let allEvents = [...events, ...derivedEvents];
+
+    if (start || end) {
+      const s = start ? new Date(start) : null;
+      const e = end ? new Date(end) : null;
+      allEvents = allEvents.filter(ev => {
+        const evStart = new Date(ev.startDateTime);
+        if (s && evStart < s) return false;
+        if (e && evStart > e) return false;
+        return true;
+      });
+    }
+
+    allEvents.sort((a, b) => new Date(a.startDateTime) - new Date(b.startDateTime));
+
+    res.json({ success: true, events: allEvents });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
@@ -54,6 +200,10 @@ exports.getEvents = async (req, res) => {
 exports.getEventById = async (req, res) => {
   try {
     const { id } = req.params;
+    if (id.startsWith('derived-')) {
+      return res.status(400).json({ success: false, message: 'Cannot fetch derived calendar entries directly' });
+    }
+
     const event = await prisma.calendarEvent.findUnique({
       where: { id },
       include: {
@@ -103,31 +253,21 @@ exports.createEvent = async (req, res) => {
 
     if (projectId) {
       const access = await checkProjectAccess(projectId, req.userId);
-      if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden: Cannot access project' });
-      // Viewers cannot create events
-      if (access.role === 'Viewer') return res.status(403).json({ success: false, message: 'Viewers cannot create project events' });
+      if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
+      if (access.role === 'Viewer') return res.status(403).json({ success: false, message: 'Viewers cannot create events' });
+    }
 
-      if (taskId) {
-        const task = await prisma.task.findUnique({ where: { id: taskId } });
-        if (!task || task.projectId !== projectId) {
-          return res.status(409).json({ success: false, message: 'Task not found or belongs to a different project' });
+    if (taskId) {
+      const task = await prisma.task.findUnique({ where: { id: taskId } });
+      if (!task) return res.status(409).json({ success: false, message: 'Task not found' });
+
+      if (projectId) {
+        if (task.projectId !== projectId) {
+          return res.status(409).json({ success: false, message: 'Task belongs to a different project' });
         }
-      }
-    } else {
-      // Personal event
-      // If taskId is provided without projectId, we should verify the task exists and the user has access to its project.
-      // But typically, a task-specific event should have projectId populated.
-      // The instructions: "if taskId is supplied without projectId, determine whether the existing schema/business model safely allows this"
-      // If we allow it, we must verify user has access to task's project. Let's enforce that taskId requires projectId for simplicity and data integrity, or verify it.
-      if (taskId) {
-        const task = await prisma.task.findUnique({ where: { id: taskId } });
-        if (!task) return res.status(409).json({ success: false, message: 'Task not found' });
-        
-        const access = await checkProjectAccess(task.projectId, req.userId);
-        if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden: Cannot access task project' });
-        
-        // Let's auto-fill the projectId for consistency since the schema allows it, and logically tasks belong to projects.
-        // Actually, the requirements say: "If the current schema requires projectId whenever taskId is used, enforce that." The schema doesn't strictly require it at DB level, but logically it's better. We'll leave projectId null if client sent null, but still verify task access.
+      } else {
+        const taskAccess = await checkProjectAccess(task.projectId, req.userId);
+        if (!taskAccess.accessible) return res.status(403).json({ success: false, message: 'Forbidden: Cannot access task project' });
       }
     }
 
@@ -139,9 +279,9 @@ exports.createEvent = async (req, res) => {
         startDateTime,
         endDateTime,
         allDay: Boolean(allDay),
+        location: location?.trim() || null,
         projectId: projectId || null,
         taskId: taskId || null,
-        location: location?.trim() || null,
         creatorId: req.userId
       },
       include: {
@@ -168,6 +308,10 @@ exports.createEvent = async (req, res) => {
 exports.updateEvent = async (req, res) => {
   try {
     const { id } = req.params;
+    if (id.startsWith('derived-')) {
+      return res.status(400).json({ success: false, message: 'Cannot modify derived calendar entries' });
+    }
+
     const { title, description, type, start, end, allDay, taskId, location } = req.body;
 
     const event = await prisma.calendarEvent.findUnique({ where: { id } });
@@ -256,6 +400,9 @@ exports.updateEvent = async (req, res) => {
 exports.deleteEvent = async (req, res) => {
   try {
     const { id } = req.params;
+    if (id.startsWith('derived-')) {
+      return res.status(400).json({ success: false, message: 'Cannot modify derived calendar entries' });
+    }
 
     const event = await prisma.calendarEvent.findUnique({ where: { id } });
     if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
