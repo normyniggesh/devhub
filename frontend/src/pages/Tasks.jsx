@@ -137,7 +137,16 @@ export default function Tasks() {
     setNewTasks(updated);
   };
   
-  const addRow = () => setNewTasks([...newTasks, { ...defaultTask }]);
+  const addRow = () => {
+    const defaultVals = newTasks[0] || defaultTask;
+    setNewTasks([...newTasks, { 
+      ...defaultTask,
+      priority: defaultVals.priority,
+      startDate: defaultVals.startDate,
+      dueDate: defaultVals.dueDate,
+      assigneeId: defaultVals.assigneeId
+    }]);
+  };
   const removeRow = (index) => setNewTasks(newTasks.filter((_, i) => i !== index));
 
   const handleEdit = async (e) => {
@@ -213,6 +222,89 @@ export default function Tasks() {
     setShowEditModal(true);
   };
 
+  const renderTaskRow = (task) => {
+    const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'Done';
+    const role = getTaskRole(task.projectId);
+    const canEdit = role === 'Admin' || role === 'Editor';
+    const canDelete = role === 'Admin';
+    const isDone = task.status === 'Done';
+    const isAssignee = currentUser && task.assignee?.id === currentUser.id;
+    const canMarkDone = role === 'Admin' || (role === 'Editor' && isAssignee);
+    const canReopen = role === 'Admin';
+
+    return (
+      <div key={task.id} className={`bg-[#101524] border border-[#192238] rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition hover:border-slate-700 ${isDone ? 'opacity-60' : ''}`}>
+        <div className="flex items-start gap-3">
+          {/* Quick Mark Complete Button */}
+          {!isDone && canMarkDone && (
+            <button onClick={() => handleStatusChange(task.id, 'Done', role)} className="mt-0.5 flex-shrink-0 w-5 h-5 rounded border-2 border-slate-500 hover:border-emerald-400 hover:bg-emerald-400/10 flex items-center justify-center transition group">
+              <i className="fa-solid fa-check text-[10px] text-transparent group-hover:text-emerald-400 transition"></i>
+            </button>
+          )}
+          {isDone && (
+            <div className="mt-0.5 flex-shrink-0 w-5 h-5 rounded bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+              <i className="fa-solid fa-check text-[10px]"></i>
+            </div>
+          )}
+
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <div className={`text-sm font-bold ${isDone ? 'text-slate-400 line-through' : 'text-white'}`}>{task.title}</div>
+              {isOverdue && (
+                <span className="text-[9px] uppercase tracking-wider font-bold text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded border border-red-400/20">Overdue</span>
+              )}
+            </div>
+            {task.description && (
+              <div className="text-xs text-slate-400 mb-2 max-w-xl truncate">{task.description}</div>
+            )}
+            <div className="flex items-center gap-3 text-xs text-slate-400">
+              {task.project && (
+                <span className="flex items-center gap-1"><i className="fa-regular fa-folder text-slate-500"></i> {task.project.name}</span>
+              )}
+              {task.assignee && (
+                <span className="flex items-center gap-1"><i className="fa-regular fa-user text-slate-500"></i> {task.assignee.name}</span>
+              )}
+              {task.dueDate && (
+                <span className="flex items-center gap-1"><i className="fa-regular fa-calendar text-slate-500"></i> {new Date(task.dueDate).toLocaleDateString()}</span>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          {isDone && canReopen ? (
+             <button onClick={() => handleStatusChange(task.id, 'To Do', role)} className="text-xs px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 transition">
+               Undo Complete
+             </button>
+          ) : (
+            <select 
+              value={task.status} 
+              onChange={(e) => handleStatusChange(task.id, e.target.value, role)}
+              disabled={!canEdit || isDone}
+              className={`bg-[#1e293f] border border-[#2d3b55] text-white text-xs rounded px-2 py-1 focus:outline-none disabled:opacity-50 ${isDone ? 'hidden' : ''}`}
+            >
+              <option value="To Do">To Do</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Done">Done</option>
+            </select>
+          )}
+
+          <span className="text-[10px] px-2 py-0.5 rounded bg-[#332513] text-[#f59e0b] border border-[#523b18] font-medium">{task.priority}</span>
+          
+          {canEdit && (
+            <button onClick={() => openEditModal(task)} className="text-slate-500 hover:text-white transition" title="Edit Task">
+              <i className="fa-solid fa-pen text-xs"></i>
+            </button>
+          )}
+          {canDelete && (
+            <button onClick={() => handleDelete(task.id)} className="text-slate-500 hover:text-red-400 transition" title="Delete Task">
+              <i className="fa-solid fa-trash text-xs"></i>
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
       <div className="flex gap-6">
@@ -248,64 +340,21 @@ export default function Tasks() {
           {loading ? (
             <div className="flex justify-center p-12 text-slate-400">Loading tasks...</div>
           ) : (
-            <div className="grid grid-cols-1 gap-3">
-              {tasks.map(task => {
-                const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'Done';
-                const role = getTaskRole(task.projectId);
-                const canEdit = role === 'Admin' || role === 'Editor';
-                const canDelete = role === 'Admin';
+            <div className="flex flex-col gap-6">
+              {tasks.filter(t => t.status !== 'Done').length > 0 && (
+                <div className="grid grid-cols-1 gap-3">
+                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider pl-1 mb-1">Active Tasks</h3>
+                  {tasks.filter(t => t.status !== 'Done').map(task => renderTaskRow(task))}
+                </div>
+              )}
 
-                return (
-                  <div key={task.id} className="bg-[#101524] border border-[#192238] rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition hover:border-slate-700">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <div className="text-sm font-bold text-white">{task.title}</div>
-                        {isOverdue && (
-                          <span className="text-[9px] uppercase tracking-wider font-bold text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded border border-red-400/20">Overdue</span>
-                        )}
-                      </div>
-                      {task.description && (
-                        <div className="text-xs text-slate-400 mb-2 max-w-xl truncate">{task.description}</div>
-                      )}
-                      <div className="flex items-center gap-3 text-xs text-slate-400">
-                        {task.project && (
-                          <span className="flex items-center gap-1"><i className="fa-regular fa-folder text-slate-500"></i> {task.project.name}</span>
-                        )}
-                        {task.assignee && (
-                          <span className="flex items-center gap-1"><i className="fa-regular fa-user text-slate-500"></i> {task.assignee.name}</span>
-                        )}
-                        {task.dueDate && (
-                          <span className="flex items-center gap-1"><i className="fa-regular fa-calendar text-slate-500"></i> {new Date(task.dueDate).toLocaleDateString()}</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <select 
-                        value={task.status} 
-                        onChange={(e) => handleStatusChange(task.id, e.target.value, role)}
-                        disabled={!canEdit}
-                        className="bg-[#1e293f] border border-[#2d3b55] text-white text-xs rounded px-2 py-1 focus:outline-none disabled:opacity-50"
-                      >
-                        <option value="To Do">To Do</option>
-                        <option value="In Progress">In Progress</option>
-                        <option value="Done">Done</option>
-                      </select>
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-[#332513] text-[#f59e0b] border border-[#523b18] font-medium">{task.priority}</span>
-                      
-                      {canEdit && (
-                        <button onClick={() => openEditModal(task)} className="text-slate-500 hover:text-white transition" title="Edit Task">
-                          <i className="fa-solid fa-pen text-xs"></i>
-                        </button>
-                      )}
-                      {canDelete && (
-                        <button onClick={() => handleDelete(task.id)} className="text-slate-500 hover:text-red-400 transition" title="Delete Task">
-                          <i className="fa-solid fa-trash text-xs"></i>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+              {tasks.filter(t => t.status === 'Done').length > 0 && (
+                <div className="grid grid-cols-1 gap-3 mt-4">
+                  <h3 className="text-xs font-semibold text-emerald-500/80 uppercase tracking-wider border-t border-[#1e293f] pt-4 pl-1 mb-1">Completed</h3>
+                  {tasks.filter(t => t.status === 'Done').map(task => renderTaskRow(task))}
+                </div>
+              )}
+
               {tasks.length === 0 && !error && (
                 <div className="flex flex-col items-center justify-center p-12 bg-[#101524] border border-dashed border-[#232a3f] rounded-2xl mt-4">
                   <i className="fa-solid fa-list-check text-4xl text-slate-500 mb-4"></i>

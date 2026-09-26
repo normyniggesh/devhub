@@ -236,6 +236,15 @@ function TestCases({ projectId, currentUser, projects }) {
     setNewForms(updated);
   };
 
+  const addRow = () => {
+    const defaultVals = newForms[0] || defaultForm;
+    setNewForms([...newForms, {
+      ...defaultForm,
+      priority: defaultVals.priority,
+      status: defaultVals.status
+    }]);
+  };
+
   const handleDelete = async (id) => {
     if (!confirm('Are you sure?')) return;
     try {
@@ -353,7 +362,7 @@ function TestCases({ projectId, currentUser, projects }) {
                   </table>
                 </div>
                 <div className="flex justify-start">
-                  <button type="button" onClick={() => setNewForms([...newForms, { ...defaultForm }])} className="text-xs text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1">
+                  <button type="button" onClick={addRow} className="text-xs text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1">
                     <i className="fa-solid fa-plus"></i> Add Test Case
                   </button>
                 </div>

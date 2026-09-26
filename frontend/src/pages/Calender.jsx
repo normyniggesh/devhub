@@ -220,7 +220,6 @@ export default function Calender() {
     switch (type) {
       case 'Project': return 'bg-purple-500';
       case 'Task': return 'bg-blue-500';
-      case 'QA / Testing': return 'bg-rose-500';
       case 'College': return 'bg-emerald-500';
       case 'Meeting': return 'bg-amber-500';
       case 'Personal': return 'bg-slate-400';
@@ -309,7 +308,6 @@ export default function Calender() {
                           if (e.derived) {
                             if (e.sourceType === 'project') navigate(`/projects`);
                             else if (e.sourceType === 'task') navigate(`/tasks`);
-                            else if (e.sourceType === 'testRun') navigate(`/qa-testing`);
                           } else {
                             openEdit(e); 
                           }

@@ -134,46 +134,6 @@ exports.getEvents = async (req, res) => {
         }
       }
 
-      // 3. Derived TestRuns
-      const testRuns = await prisma.testRun.findMany({
-        where: { projectId: { in: accessibleProjectIds } },
-        select: { id: true, name: true, startedAt: true, completedAt: true, projectId: true, project: { select: { id: true, name: true } } }
-      });
-
-      for (const run of testRuns) {
-        if (run.startedAt) {
-          derivedEvents.push({
-            id: `derived-testRun-${run.id}-start`,
-            title: `QA Run: ${run.name}`,
-            startDateTime: run.startedAt,
-            endDateTime: run.startedAt,
-            allDay: true,
-            projectId: run.projectId,
-            project: run.project,
-            type: 'QA Run Start',
-            derived: true,
-            readOnly: true,
-            sourceType: 'testRun',
-            sourceId: run.id
-          });
-        }
-        if (run.completedAt) {
-          derivedEvents.push({
-            id: `derived-testRun-${run.id}-complete`,
-            title: `QA Run: ${run.name} — Complete`,
-            startDateTime: run.completedAt,
-            endDateTime: run.completedAt,
-            allDay: true,
-            projectId: run.projectId,
-            project: run.project,
-            type: 'QA Run Complete',
-            derived: true,
-            readOnly: true,
-            sourceType: 'testRun',
-            sourceId: run.id
-          });
-        }
-      }
     }
 
     let allEvents = [...events, ...derivedEvents];

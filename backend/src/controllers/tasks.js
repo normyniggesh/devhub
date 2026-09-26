@@ -179,8 +179,23 @@ exports.updateTask = async (req, res) => {
 
     if (status !== undefined) {
       const taskStatus = status?.trim() || 'To Do';
-      updateData.status = taskStatus;
       const isDone = taskStatus === 'Done' || taskStatus === 'Completed';
+      const wasDone = task.status === 'Done' || task.status === 'Completed';
+
+      if (taskStatus !== task.status) {
+        if (wasDone && !isDone) {
+          if (access.role !== 'Admin') {
+            return res.status(403).json({ success: false, message: 'Only Admins or Owners can reopen a completed task' });
+          }
+        }
+        if (!wasDone && isDone) {
+          if (access.role !== 'Admin' && req.userId !== task.assigneeId) {
+            return res.status(403).json({ success: false, message: 'Only Admins, Owners, or the assigned user can mark this task as done' });
+          }
+        }
+      }
+
+      updateData.status = taskStatus;
 
       if (isDone && !task.completedAt) {
         updateData.completedAt = new Date();
