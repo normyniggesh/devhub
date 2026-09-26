@@ -68,7 +68,7 @@ exports.getDashboard = async (req, res) => {
       }),
       // 8. Recent Activity
       prisma.auditLog.findMany({
-        where: { project: projectWhereClause }, // Get activity from accessible projects
+        where: { userId }, // Get activity from authenticated user
         orderBy: { createdAt: 'desc' },
         take: 10,
         include: { user: { select: { name: true, avatarUrl: true } } }

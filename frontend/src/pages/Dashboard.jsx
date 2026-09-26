@@ -9,34 +9,54 @@ export default function Dashboard() {
   const [data, setData] = useState(null);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [categoryFilter, setCategoryFilter] = useState('All');
 
-  useEffect(() => {
-    const fetchData = async () => {
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const dashRes = await apiClient('/dashboard');
+      if (dashRes.dashboard) setData(dashRes.dashboard);
+      
+      // Keep calendar fetching separate so it doesn't fail the whole dashboard if only calendar fails
       try {
-        const [dashRes, calRes] = await Promise.all([
-          apiClient('/dashboard'),
-          // Fetch events from today onwards
-          apiClient(`/calendar/events?start=${new Date().toISOString()}`)
-        ]);
-        if (dashRes.dashboard) setData(dashRes.dashboard);
+        const calRes = await apiClient(`/calendar/events?start=${new Date().toISOString()}`);
         if (calRes.events) {
-          // Filter to only upcoming events
           const now = new Date();
           const upcoming = calRes.events.filter(e => new Date(e.endDateTime || e.startDateTime) >= now);
-          setEvents(upcoming.slice(0, 5)); // show top 5
+          setEvents(upcoming.slice(0, 5));
         }
-      } catch (err) {
-        console.error('Failed to fetch dashboard data', err);
-      } finally {
-        setLoading(false);
+      } catch (calErr) {
+        console.error('Failed to fetch calendar events', calErr);
       }
-    };
+    } catch (err) {
+      console.error('Failed to fetch dashboard data', err);
+      setError(err.message || 'Unable to load dashboard data.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, []);
 
   if (loading) {
     return <div className="p-12 text-center text-slate-400">Loading dashboard...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 bg-[#0f1422] border border-[#192238] rounded-2xl mt-4">
+        <i className="fa-solid fa-triangle-exclamation text-4xl text-red-500/80 mb-4"></i>
+        <h2 className="text-lg font-bold text-white mb-2">Unable to load dashboard data</h2>
+        <p className="text-sm text-slate-400 mb-6 text-center max-w-md">{error}</p>
+        <button onClick={fetchData} className="px-5 py-2.5 bg-[#5922cf] hover:bg-[#682ae6] text-white rounded-lg text-sm font-semibold transition flex items-center gap-2">
+          <i className="fa-solid fa-rotate-right"></i> Please try again
+        </button>
+      </div>
+    );
   }
 
   const {
