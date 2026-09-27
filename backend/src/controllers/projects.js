@@ -15,8 +15,17 @@ exports.getProjects = async (req, res) => {
           select: { id: true, name: true, email: true, avatarUrl: true }
         },
         members: {
-          where: { userId: req.userId },
-          select: { role: true }
+          include: {
+            user: { select: { id: true, name: true, avatarUrl: true } }
+          }
+        },
+        tasks: {
+          select: { id: true, status: true }
+        },
+        _count: {
+          select: {
+            bugs: { where: { status: 'Open' } }
+          }
         }
       }
     });
