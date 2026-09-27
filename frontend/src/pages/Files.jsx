@@ -36,6 +36,7 @@ export default function Files() {
   const [editingFile, setEditingFile] = useState(null);
   const [fileForm, setFileForm] = useState({ name: '', type: 'Document', size: 1024, storagePath: '', projectId: '' });
   const [fileSubmitting, setFileSubmitting] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState(null);
 
   const [openMenuId, setOpenMenuId] = useState(null); // format: 'file_ID' or 'folder_ID'
   const menuRef = useRef(null);
@@ -233,13 +234,23 @@ export default function Files() {
       if (editingFile) {
         await apiClient(`/files/${editingFile.id}`, { method: 'PATCH', body: { name: fileForm.name } });
       } else {
-        await apiClient('/files', { 
+        if (!selectedFiles || selectedFiles.length === 0) {
+          throw new Error('Please select at least one file to upload.');
+        }
+        
+        const formData = new FormData();
+        formData.append('projectId', fileForm.projectId);
+        if (currentFolderId) {
+          formData.append('folderId', currentFolderId);
+        }
+        
+        for (let i = 0; i < selectedFiles.length; i++) {
+          formData.append('files', selectedFiles[i]);
+        }
+        
+        await apiClient('/files/upload', { 
           method: 'POST', 
-          body: { 
-            ...fileForm, 
-            projectId: fileForm.projectId, 
-            folderId: currentFolderId || null 
-          } 
+          body: formData 
         });
       }
       setShowFileModal(false);
@@ -248,6 +259,19 @@ export default function Files() {
       alert(err.message || 'Failed to save file');
     } finally {
       setFileSubmitting(false);
+    }
+  };
+
+  const handleDownloadFile = async (e, id) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      const data = await apiClient(`/files/${id}/download`);
+      if (data.url) {
+        window.open(data.url, '_blank');
+      }
+    } catch (err) {
+      alert(err.message || 'Failed to download file');
     }
   };
 
@@ -269,7 +293,8 @@ export default function Files() {
 
   const openNewFile = () => {
     setEditingFile(null);
-    setFileForm({ name: '', type: 'Document', size: 1024, storagePath: '/demo/path', projectId: currentProjectId || (projects[0]?.id || '') });
+    setFileForm({ name: '', projectId: currentProjectId || (projects[0]?.id || '') });
+    setSelectedFiles(null);
     setShowFileModal(true);
   };
 
@@ -546,7 +571,7 @@ export default function Files() {
                                  </button>
                                  {isMenuOpen && (
                                    <div className="absolute right-0 top-full mt-1 w-32 bg-[#1f2638] rounded-xl shadow-xl border border-[#2d364f] z-50 overflow-hidden py-1">
-                                     <a href={file.storagePath} target="_blank" rel="noreferrer" className="flex items-center gap-2 w-full px-4 py-2 text-xs font-semibold text-white hover:bg-[#2a344a]"><i className="fa-solid fa-download w-3"></i> Download</a>
+                                     <button onClick={(e) => handleDownloadFile(e, file.id)} className="flex items-center gap-2 w-full px-4 py-2 text-xs font-semibold text-white hover:bg-[#2a344a] text-left"><i className="fa-solid fa-download w-3"></i> Download</button>
                                      {canEdit && <button onClick={() => { setOpenMenuId(null); setEditingFile(file); setFileForm({ name: file.name, type: file.type, size: file.size, storagePath: file.storagePath, projectId: file.projectId }); setShowFileModal(true); }} className="flex items-center gap-2 w-full px-4 py-2 text-xs font-semibold text-slate-300 hover:text-white hover:bg-[#2a344a] text-left"><i className="fa-solid fa-pen w-3"></i> Rename</button>}
                                      {canDel && <button onClick={() => { setOpenMenuId(null); handleDeleteFile(file.id); }} className="flex items-center gap-2 w-full px-4 py-2 text-xs font-semibold text-red-400 hover:bg-red-500/10 text-left border-t border-[#2d364f] mt-1 pt-2"><i className="fa-solid fa-trash w-3"></i> Delete</button>}
                                    </div>
@@ -577,7 +602,7 @@ export default function Files() {
                            <span>{formatSize(file.size)}</span>
                            <span>{new Date(file.updatedAt).toLocaleDateString()}</span>
                          </div>
-                         <a href={file.storagePath} target="_blank" rel="noreferrer" className="absolute inset-0 z-0"></a>
+                         <button onClick={(e) => handleDownloadFile(e, file.id)} className="absolute inset-0 z-0"></button>
                        </div>
                      );
                    })}
@@ -751,27 +776,16 @@ export default function Files() {
                   {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">File Name <span className="text-red-500">*</span></label>
-                <input required value={fileForm.name} onChange={e => setFileForm({...fileForm, name: e.target.value})} placeholder="E.g. Logo.png" className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 transition shadow-inner" />
-              </div>
-              {!editingFile && (
-                <>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Type <span className="text-red-500">*</span></label>
-                      <input required value={fileForm.type} onChange={e => setFileForm({...fileForm, type: e.target.value})} placeholder="E.g. PNG" className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 transition shadow-inner" />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Size (bytes) <span className="text-red-500">*</span></label>
-                      <input required type="number" min="0" value={fileForm.size} onChange={e => setFileForm({...fileForm, size: parseInt(e.target.value) || 0})} className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 transition shadow-inner" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Storage URL / Path <span className="text-red-500">*</span></label>
-                    <input required value={fileForm.storagePath} onChange={e => setFileForm({...fileForm, storagePath: e.target.value})} placeholder="https://..." className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 transition shadow-inner" />
-                  </div>
-                </>
+              {editingFile ? (
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">File Name <span className="text-red-500">*</span></label>
+                  <input required value={fileForm.name} onChange={e => setFileForm({...fileForm, name: e.target.value})} placeholder="E.g. Logo.png" className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 transition shadow-inner" />
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Select Files <span className="text-red-500">*</span></label>
+                  <input required type="file" multiple onChange={e => setSelectedFiles(e.target.files)} className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl px-4 py-2.5 text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-purple-500/20 file:text-purple-400 hover:file:bg-purple-500/30 transition shadow-inner" />
+                </div>
               )}
               <div className="flex justify-end gap-3 mt-2 pt-4 border-t border-[#1f2a44]">
                 <button type="button" disabled={fileSubmitting} onClick={() => setShowFileModal(false)} className="px-4 py-2 text-slate-300 text-xs font-bold hover:text-white hover:bg-[#1a2333] rounded-lg transition disabled:opacity-50">Cancel</button>

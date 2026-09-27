@@ -19,6 +19,13 @@ export default function ProjectDetail() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
 
+  const [showMemberModal, setShowMemberModal] = useState(false);
+  const [memberSearchQuery, setMemberSearchQuery] = useState('');
+  const [memberSearchResults, setMemberSearchResults] = useState([]);
+  const [isSearchingMembers, setIsSearchingMembers] = useState(false);
+  const [memberRole, setMemberRole] = useState('Viewer');
+  const [memberError, setMemberError] = useState(null);
+
   useEffect(() => {
     const fetchProject = async () => {
       try {
@@ -78,6 +85,55 @@ export default function ProjectDetail() {
     } catch (err) {
       setDeleteError(err.message || 'Failed to delete project');
       setIsDeleting(false);
+    }
+  };
+
+  const handleSearchUsers = async (e) => {
+    const q = e.target.value;
+    setMemberSearchQuery(q);
+    if (!q || q.trim().length < 2) {
+      setMemberSearchResults([]);
+      return;
+    }
+    try {
+      setIsSearchingMembers(true);
+      const data = await apiClient(`/users/search?q=${encodeURIComponent(q)}`);
+      // Filter out existing members and owner
+      const existingIds = new Set(project.members.map(m => m.user.id));
+      existingIds.add(project.ownerId);
+      setMemberSearchResults((data.users || []).filter(u => !existingIds.has(u.id)));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSearchingMembers(false);
+    }
+  };
+
+  const handleAddMember = async (userId) => {
+    setMemberError(null);
+    try {
+      const data = await apiClient(`/projects/${id}/members`, {
+        method: 'POST',
+        body: { userId, role: memberRole }
+      });
+      setProject({ ...project, members: [...project.members, data.member] });
+      setShowMemberModal(false);
+      setMemberSearchQuery('');
+      setMemberSearchResults([]);
+    } catch (err) {
+      setMemberError(err.message || 'Failed to add member');
+    }
+  };
+
+  const handleRemoveMember = async (userId) => {
+    if (!window.confirm('Are you sure you want to remove this member?')) return;
+    try {
+      await apiClient(`/projects/${id}/members/${userId}`, {
+        method: 'DELETE'
+      });
+      setProject({ ...project, members: project.members.filter(m => m.user.id !== userId) });
+    } catch (err) {
+      alert(err.message || 'Failed to remove member');
     }
   };
 
@@ -172,7 +228,14 @@ export default function ProjectDetail() {
 
       {/* Team / Members */}
       <div className="mt-4">
-        <h2 className="text-lg font-bold text-white mb-4">Team</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-white">Team</h2>
+          {canEdit && (
+            <button onClick={() => setShowMemberModal(true)} className="px-3 py-1.5 bg-[#1e293b] hover:bg-[#273549] text-white rounded-lg text-xs font-medium transition flex items-center gap-2">
+              <i className="fa-solid fa-user-plus text-[10px]"></i> Add Member
+            </button>
+          )}
+        </div>
         <div className="bg-[#101524] border border-[#192238] rounded-xl overflow-hidden">
           {project.members && project.members.length > 0 ? (
             <div className="divide-y divide-[#192238]">
@@ -187,8 +250,15 @@ export default function ProjectDetail() {
                       <div className="text-xs text-slate-400">{member.user.email}</div>
                     </div>
                   </div>
-                  <div className="text-xs px-2.5 py-1 rounded bg-[#1e293b] text-slate-300 font-medium">
-                    {project.ownerId === member.user.id ? 'Owner' : member.role}
+                  <div className="flex items-center gap-4">
+                    <div className="text-xs px-2.5 py-1 rounded bg-[#1e293b] text-slate-300 font-medium">
+                      {project.ownerId === member.user.id ? 'Owner' : member.role}
+                    </div>
+                    {canEdit && project.ownerId !== member.user.id && (
+                      <button onClick={() => handleRemoveMember(member.user.id)} className="text-slate-500 hover:text-red-400 transition" title="Remove Member">
+                        <i className="fa-solid fa-user-minus"></i>
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -281,6 +351,75 @@ export default function ProjectDetail() {
               <button type="button" disabled={isDeleting} onClick={handleDelete} className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm transition flex items-center gap-2 disabled:opacity-50">
                 {isDeleting && <i className="fa-solid fa-spinner fa-spin"></i>}
                 {isDeleting ? 'Deleting...' : 'Yes, Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Member Modal */}
+      {showMemberModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/60 p-4">
+          <div className="bg-[#101524] p-6 rounded-xl border border-[#192238] w-full max-w-md shadow-2xl">
+            <h2 className="text-lg text-white font-bold mb-4">Add Project Member</h2>
+            {memberError && (
+              <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-3 py-2 rounded-lg mb-4 text-sm">
+                {memberError}
+              </div>
+            )}
+            
+            <div className="flex flex-col gap-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Search Users</label>
+                <input 
+                  value={memberSearchQuery} 
+                  onChange={handleSearchUsers} 
+                  placeholder="Type name or email..."
+                  className="w-full bg-[#111728] border border-[#1e293f] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" 
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Role</label>
+                <select 
+                  value={memberRole} 
+                  onChange={e => setMemberRole(e.target.value)}
+                  className="w-full bg-[#111728] border border-[#1e293f] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="Viewer">Viewer</option>
+                  <option value="Editor">Editor</option>
+                  <option value="Admin">Admin</option>
+                </select>
+              </div>
+              
+              <div className="mt-2 max-h-48 overflow-y-auto border border-[#192238] rounded-lg bg-[#0f1422]">
+                {isSearchingMembers ? (
+                  <div className="p-4 text-center text-xs text-slate-500">Searching...</div>
+                ) : memberSearchResults.length > 0 ? (
+                  memberSearchResults.map(user => (
+                    <div key={user.id} className="flex items-center justify-between p-3 border-b border-[#192238] last:border-0">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold text-white overflow-hidden">
+                          {user.avatarUrl ? <img src={user.avatarUrl} alt="" className="w-full h-full object-cover"/> : user.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="text-xs text-white">{user.name}</div>
+                      </div>
+                      <button onClick={() => handleAddMember(user.id)} className="px-2.5 py-1 bg-[#5922cf] hover:bg-[#682ae6] text-white rounded text-xs transition">
+                        Add
+                      </button>
+                    </div>
+                  ))
+                ) : memberSearchQuery.length > 1 ? (
+                  <div className="p-4 text-center text-xs text-slate-500">No available users found.</div>
+                ) : (
+                  <div className="p-4 text-center text-xs text-slate-500">Type at least 2 characters to search.</div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button type="button" onClick={() => { setShowMemberModal(false); setMemberSearchQuery(''); setMemberSearchResults([]); setMemberError(null); }} className="px-4 py-2 text-slate-400 hover:text-white text-sm font-medium transition">
+                Cancel
               </button>
             </div>
           </div>

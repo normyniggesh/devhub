@@ -214,17 +214,33 @@ exports.updateTask = async (req, res) => {
       }
     });
 
+    if (task.assigneeId !== updatedTask.assigneeId && updatedTask.assigneeId) {
+      createAuditLog({
+        userId: req.userId,
+        action: 'Assigned',
+        entityType: 'Task',
+        entityId: id,
+        metadata: { 
+          title: updatedTask.title, 
+          assigneeName: updatedTask.assignee.name,
+          assigneeId: updatedTask.assigneeId
+        }
+      });
+    }
+
     const action = (updatedTask.status === 'Done' || updatedTask.status === 'Completed') && task.status !== updatedTask.status
       ? 'Completed'
       : 'Updated';
 
-    createAuditLog({
-      userId: req.userId,
-      action,
-      entityType: 'Task',
-      entityId: id,
-      metadata: { title: updatedTask.title, status: updatedTask.status }
-    });
+    if (action === 'Completed' || task.assigneeId === updatedTask.assigneeId || !updatedTask.assigneeId) {
+      createAuditLog({
+        userId: req.userId,
+        action,
+        entityType: 'Task',
+        entityId: id,
+        metadata: { title: updatedTask.title, status: updatedTask.status }
+      });
+    }
 
     res.json({ success: true, task: updatedTask });
   } catch (error) {

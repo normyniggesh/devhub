@@ -135,7 +135,7 @@ exports.getMyDay = async (req, res) => {
       ]
     };
 
-    const [todayTasks, overdueTasks, todayEvents, upcomingTasks, upcomingMilestones, upcomingProjects, upcomingEvents, openBugs] = await Promise.all([
+    const [todayTasks, overdueTasks, completedTasks, todayEvents, upcomingTasks, upcomingMilestones, upcomingProjects, upcomingEvents, openBugs] = await Promise.all([
       // Today Tasks
       prisma.task.findMany({
         where: {
@@ -159,6 +159,17 @@ exports.getMyDay = async (req, res) => {
         },
         select: { id: true, title: true, status: true, priority: true, dueDate: true, project: { select: { id: true, name: true } } },
         orderBy: { dueDate: 'asc' }
+      }),
+
+      // Completed Tasks (Today)
+      prisma.task.findMany({
+        where: {
+          assigneeId: userId,
+          status: { in: ['Done', 'Completed'] },
+          completedAt: { gte: startOfToday }
+        },
+        select: { id: true, title: true, status: true, priority: true, completedAt: true, project: { select: { id: true, name: true } } },
+        orderBy: { completedAt: 'desc' }
       }),
 
       // Today Events
@@ -240,6 +251,7 @@ exports.getMyDay = async (req, res) => {
       myDay: {
         todayTasks,
         overdueTasks,
+        completedTasks,
         todayEvents,
         upcomingDeadlines,
         qaItems: {

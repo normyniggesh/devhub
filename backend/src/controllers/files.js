@@ -1,6 +1,7 @@
 const prisma = require('../db');
 const { checkProjectAccess } = require('../utils/projectAccess');
 const { createAuditLog } = require('../utils/audit');
+const { uploadFile, getDownloadUrl, deleteFile: deleteS3File, generateSafeKey } = require('../services/storageService');
 
 exports.getFiles = async (req, res) => {
   try {
@@ -126,6 +127,90 @@ exports.createFile = async (req, res) => {
   }
 };
 
+exports.uploadFiles = async (req, res) => {
+  try {
+    const { projectId, folderId } = req.body;
+    const files = req.files;
+
+    if (!files || files.length === 0) return res.status(400).json({ success: false, message: 'No files uploaded' });
+    if (!projectId) return res.status(400).json({ success: false, message: 'projectId is required' });
+
+    const access = await checkProjectAccess(projectId, req.userId);
+    if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
+    if (access.role === 'Viewer') return res.status(403).json({ success: false, message: 'Viewers cannot upload files' });
+
+    if (folderId && folderId !== 'null') {
+      const folder = await prisma.folder.findUnique({ where: { id: folderId } });
+      if (!folder || folder.projectId !== projectId) {
+        return res.status(409).json({ success: false, message: 'Folder not found or belongs to a different project' });
+      }
+    }
+
+    const uploadedRecords = [];
+
+    for (const file of files) {
+      const key = generateSafeKey(projectId, folderId, file.originalname);
+      
+      try {
+        await uploadFile(file.buffer, file.mimetype, key);
+      } catch (uploadErr) {
+        throw new Error(`Storage error for ${file.originalname}: ` + uploadErr.message);
+      }
+      
+      try {
+        const dbFile = await prisma.file.create({
+          data: {
+            name: file.originalname,
+            type: file.mimetype,
+            size: file.size,
+            storagePath: key,
+            projectId,
+            folderId: folderId && folderId !== 'null' ? folderId : null,
+            uploaderId: req.userId
+          },
+          include: {
+            uploader: { select: { id: true, name: true, avatarUrl: true } }
+          }
+        });
+        uploadedRecords.push(dbFile);
+
+        createAuditLog({
+          userId: req.userId,
+          action: 'Uploaded',
+          entityType: 'File',
+          entityId: dbFile.id,
+          metadata: { name: dbFile.name }
+        });
+      } catch (dbErr) {
+        await deleteS3File(key).catch(e => console.error("Failed to cleanup orphaned S3 object:", e));
+        throw dbErr;
+      }
+    }
+
+    res.status(201).json({ success: true, files: uploadedRecords });
+  } catch (error) {
+    console.error('Upload Error:', error);
+    res.status(500).json({ success: false, message: error.message || 'Internal server error' });
+  }
+};
+
+exports.downloadFile = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const file = await prisma.file.findUnique({ where: { id } });
+    if (!file) return res.status(404).json({ success: false, message: 'File not found' });
+
+    const access = await checkProjectAccess(file.projectId, req.userId);
+    if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
+
+    const downloadUrl = await getDownloadUrl(file.storagePath);
+    res.json({ success: true, url: downloadUrl });
+  } catch (error) {
+    console.error('Download Error:', error);
+    res.status(500).json({ success: false, message: error.message || 'Internal server error' });
+  }
+};
+
 exports.updateFile = async (req, res) => {
   try {
     const { id } = req.params;
@@ -145,13 +230,13 @@ exports.updateFile = async (req, res) => {
     }
 
     if (folderId !== undefined) {
-      if (folderId) {
+      if (folderId && folderId !== 'null') {
         const folder = await prisma.folder.findUnique({ where: { id: folderId } });
         if (!folder || folder.projectId !== file.projectId) {
           return res.status(409).json({ success: false, message: 'Folder not found or belongs to a different project' });
         }
       }
-      updateData.folderId = folderId || null;
+      updateData.folderId = folderId && folderId !== 'null' ? folderId : null;
     }
 
     const updatedFile = await prisma.file.update({
@@ -191,6 +276,13 @@ exports.deleteFile = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Only Admins or Owners can delete files' });
     }
 
+    try {
+      await deleteS3File(file.storagePath);
+    } catch (e) {
+      console.error('Failed to delete S3 file:', e);
+      return res.status(500).json({ success: false, message: 'Failed to delete file from storage' });
+    }
+
     await prisma.file.delete({ where: { id } });
 
     createAuditLog({
@@ -201,10 +293,9 @@ exports.deleteFile = async (req, res) => {
       metadata: { name: file.name }
     });
 
-    // Note: We are deleting DB metadata only. Real storage deletion happens here when provider is chosen.
-
     res.json({ success: true, message: 'File deleted successfully' });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    console.error('Delete Error:', error);
+    res.status(500).json({ success: false, message: error.message || 'Internal server error' });
   }
 };

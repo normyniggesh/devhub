@@ -6,33 +6,47 @@ export default function Activity2() {
   const [data, setData] = useState({
     todayTasks: [],
     overdueTasks: [],
+    completedTasks: [],
     todayEvents: [],
     upcomingDeadlines: [],
     qaItems: { openBugs: [] }
   });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchMyDay = async () => {
-      try {
-        const res = await apiClient('/my-day');
-        if (res.myDay) {
-          setData(res.myDay);
-        }
-      } catch (err) {
-        console.error('Failed to fetch my day data', err);
-      } finally {
-        setLoading(false);
+  const fetchMyDay = async () => {
+    try {
+      const res = await apiClient('/my-day');
+      if (res.myDay) {
+        setData(res.myDay);
       }
-    };
+    } catch (err) {
+      console.error('Failed to fetch my day data', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchMyDay();
   }, []);
+
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      await apiClient(`/tasks/${id}`, {
+        method: 'PATCH',
+        body: { status: newStatus }
+      });
+      fetchMyDay();
+    } catch (err) {
+      alert('Failed to update task status: ' + err.message);
+    }
+  };
 
   if (loading) {
     return <div className="p-12 text-center text-slate-400 text-sm">Loading your day...</div>;
   }
 
-  const { todayTasks, overdueTasks, todayEvents, upcomingDeadlines, qaItems } = data;
+  const { todayTasks, overdueTasks, completedTasks, todayEvents, upcomingDeadlines, qaItems } = data;
   const openBugs = qaItems?.openBugs || [];
 
   return (
@@ -76,10 +90,15 @@ export default function Activity2() {
                 {overdueTasks.map(task => (
                   <div key={task.id} className="py-3">
                     <div className="flex items-center justify-between">
-                      <div className="font-medium text-slate-200 text-sm truncate">{task.title}</div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => handleStatusChange(task.id, 'Done')} className="w-4 h-4 rounded border border-slate-500 hover:border-emerald-400 hover:bg-emerald-400/10 flex items-center justify-center transition" title="Mark Complete">
+                          <i className="fa-solid fa-check text-[8px] text-transparent hover:text-emerald-400 opacity-0 hover:opacity-100"></i>
+                        </button>
+                        <div className="font-medium text-slate-200 text-sm truncate">{task.title}</div>
+                      </div>
                       <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-red-500/10 text-red-400 border border-red-500/20 whitespace-nowrap">Overdue</span>
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-slate-400 mt-1">
+                    <div className="flex items-center gap-3 text-xs text-slate-400 mt-1 pl-6">
                       {task.project && <span>{task.project.name}</span>}
                       <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
                     </div>
@@ -104,10 +123,15 @@ export default function Activity2() {
                 {todayTasks.map(task => (
                   <div key={task.id} className="py-3">
                     <div className="flex items-center justify-between">
-                      <div className="font-medium text-slate-200 text-sm truncate">{task.title}</div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => handleStatusChange(task.id, 'Done')} className="w-4 h-4 rounded border border-slate-500 hover:border-emerald-400 hover:bg-emerald-400/10 flex items-center justify-center transition" title="Mark Complete">
+                          <i className="fa-solid fa-check text-[8px] text-transparent hover:text-emerald-400 opacity-0 hover:opacity-100"></i>
+                        </button>
+                        <div className="font-medium text-slate-200 text-sm truncate">{task.title}</div>
+                      </div>
                       <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-[#1a2031] text-slate-300 border border-[#2a334d] whitespace-nowrap">{task.status}</span>
                     </div>
-                    <div className="flex items-center gap-3 text-[10px] text-slate-400 mt-1">
+                    <div className="flex items-center gap-3 text-[10px] text-slate-400 mt-1 pl-6">
                       {task.project && <span>{task.project.name}</span>}
                       <span className={`px-1.5 py-0.5 rounded font-bold ${task.priority === 'High' || task.priority === 'Critical' ? 'bg-red-400/10 text-red-400' : 'bg-slate-800 text-slate-300'}`}>{task.priority}</span>
                     </div>
@@ -118,6 +142,37 @@ export default function Activity2() {
               <div className="text-xs text-slate-500 py-4 italic">No tasks scheduled for today.</div>
             )}
           </div>
+
+          {/* Completed Tasks */}
+          {completedTasks && completedTasks.length > 0 && (
+            <div className="bg-[#111420] border border-emerald-500/20 rounded-xl p-5 relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500/50"></div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2 text-white font-semibold text-sm">
+                  <i className="fa-solid fa-check-circle text-emerald-400"></i>
+                  <span>Recently Completed</span>
+                </div>
+              </div>
+              <div className="divide-y divide-[#181e2e]/60 opacity-70">
+                {completedTasks.map(task => (
+                  <div key={task.id} className="py-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => handleStatusChange(task.id, 'To Do')} className="w-4 h-4 rounded border border-emerald-500 bg-emerald-500/10 flex items-center justify-center transition" title="Reopen Task">
+                          <i className="fa-solid fa-check text-[8px] text-emerald-400"></i>
+                        </button>
+                        <div className="font-medium text-slate-300 text-sm truncate line-through">{task.title}</div>
+                      </div>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 whitespace-nowrap">Done</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-slate-500 mt-1 pl-6">
+                      {task.project && <span>{task.project.name}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* QA Items (Bugs) */}
           <div className="bg-[#111420] border border-[#1a2031] rounded-xl p-5">

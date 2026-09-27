@@ -244,3 +244,124 @@ exports.deleteProject = async (req, res) => {
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
+
+exports.addProjectMember = async (req, res) => {
+  try {
+    const { id: projectId } = req.params;
+    const { userId, role } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'userId is required' });
+    }
+
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: { members: { where: { userId: req.userId } } }
+    });
+
+    if (!project) {
+      return res.status(404).json({ success: false, message: 'Project not found' });
+    }
+
+    const isOwner = project.ownerId === req.userId;
+    const memberRecord = project.members[0];
+
+    if (!isOwner && (!memberRecord || memberRecord.role !== 'Admin')) {
+      return res.status(403).json({ success: false, message: 'Only Admins or Owners can add members' });
+    }
+
+    // Check if already member
+    const existingMember = await prisma.projectMember.findUnique({
+      where: { projectId_userId: { projectId, userId } }
+    });
+
+    if (existingMember) {
+      return res.status(400).json({ success: false, message: 'User is already a member of this project' });
+    }
+
+    if (project.ownerId === userId) {
+      return res.status(400).json({ success: false, message: 'User is the owner of this project' });
+    }
+
+    const newMember = await prisma.projectMember.create({
+      data: {
+        projectId,
+        userId,
+        role: role || 'Viewer'
+      },
+      include: {
+        user: { select: { id: true, name: true, email: true, avatarUrl: true } }
+      }
+    });
+
+    createAuditLog({
+      userId: req.userId,
+      action: 'Added',
+      entityType: 'ProjectMember',
+      entityId: newMember.id,
+      metadata: { projectName: project.name, addedUserName: newMember.user.name }
+    });
+
+    res.status(201).json({ success: true, member: newMember });
+  } catch (error) {
+    console.error('addProjectMember error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+exports.removeProjectMember = async (req, res) => {
+  try {
+    const { id: projectId, userId } = req.params;
+
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: { members: { where: { userId: req.userId } } }
+    });
+
+    if (!project) {
+      return res.status(404).json({ success: false, message: 'Project not found' });
+    }
+
+    const isOwner = project.ownerId === req.userId;
+    const memberRecord = project.members[0];
+
+    // Only Admin, Owner, or the user themselves can remove
+    if (!isOwner && (!memberRecord || memberRecord.role !== 'Admin') && req.userId !== userId) {
+      return res.status(403).json({ success: false, message: 'Only Admins or Owners can remove other members' });
+    }
+
+    const existingMember = await prisma.projectMember.findUnique({
+      where: { projectId_userId: { projectId, userId } },
+      include: { user: { select: { name: true } } }
+    });
+
+    if (!existingMember) {
+      return res.status(404).json({ success: false, message: 'Member not found in project' });
+    }
+
+    // Safely remove assignee from tasks
+    await prisma.$transaction(async (tx) => {
+      await tx.task.updateMany({
+        where: { projectId, assigneeId: userId },
+        data: { assigneeId: null }
+      });
+
+      await tx.projectMember.delete({
+        where: { projectId_userId: { projectId, userId } }
+      });
+    });
+
+    createAuditLog({
+      userId: req.userId,
+      action: 'Removed',
+      entityType: 'ProjectMember',
+      entityId: existingMember.id,
+      metadata: { projectName: project.name, removedUserName: existingMember.user.name }
+    });
+
+    res.json({ success: true, message: 'Member removed successfully' });
+  } catch (error) {
+    console.error('removeProjectMember error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
