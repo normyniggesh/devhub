@@ -2,6 +2,11 @@ import { useState, useEffect } from 'react';
 import { apiClient } from '../api/client';
 import { Link, useNavigate } from 'react-router-dom';
 import { useStore } from '../store';
+import StatCard from '../components/common/StatCard';
+import ProgressBar from '../components/common/ProgressBar';
+import LoadingState from '../components/common/LoadingState';
+import ErrorState from '../components/common/ErrorState';
+import ActivityFeed from '../components/activity/ActivityFeed';
 
 export default function Dashboard() {
   const { currentUser } = useStore();
@@ -43,20 +48,11 @@ export default function Dashboard() {
   }, []);
 
   if (loading) {
-    return <div className="p-12 text-center text-slate-400">Loading dashboard...</div>;
+    return <LoadingState message="Loading dashboard..." />;
   }
 
   if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center p-12 bg-[#0f1422] border border-[#192238] rounded-2xl mt-4">
-        <i className="fa-solid fa-triangle-exclamation text-4xl text-red-500/80 mb-4"></i>
-        <h2 className="text-lg font-bold text-white mb-2">Unable to load dashboard data</h2>
-        <p className="text-sm text-slate-400 mb-6 text-center max-w-md">{error}</p>
-        <button onClick={fetchData} className="px-5 py-2.5 bg-[#5922cf] hover:bg-[#682ae6] text-white rounded-lg text-sm font-semibold transition flex items-center gap-2">
-          <i className="fa-solid fa-rotate-right"></i> Please try again
-        </button>
-      </div>
-    );
+    return <ErrorState error={error} onRetry={fetchData} message="Unable to load dashboard data" />;
   }
 
   const dashboardData = data || {};
@@ -91,14 +87,6 @@ export default function Dashboard() {
   const qaPassedPct = totalQa > 0 ? (qaStatus.Passed / totalQa) * 100 : 0;
   const qaFailedPct = totalQa > 0 ? (qaStatus.Failed / totalQa) * 100 : 0;
 
-  const getActivityIcon = (action) => {
-    const actStr = String(action || '').toUpperCase();
-    if (actStr.includes('CREATE')) return 'fa-solid fa-plus text-purple-400';
-    if (actStr.includes('UPDATE') || actStr.includes('EDIT')) return 'fa-solid fa-pen text-blue-400';
-    if (actStr.includes('DELETE')) return 'fa-solid fa-trash text-red-400';
-    if (actStr.includes('RESOLVE') || actStr.includes('DONE')) return 'fa-solid fa-check text-emerald-400';
-    return 'fa-solid fa-bolt text-slate-400';
-  };
 
   const getTypeColor = (type) => {
     if (type?.includes('Project')) return 'bg-purple-500';
@@ -137,46 +125,10 @@ export default function Dashboard() {
 
       {/* 4 Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1 */}
-        <div className="bg-[#0f1422] border border-[#192238] rounded-xl p-5 flex items-center gap-4 transition hover:border-[#2d3a5a]">
-          <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center text-xl shrink-0">
-            <i className="fa-regular fa-square-check"></i>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-400 mb-1">Total Tasks</p>
-            <div className="text-2xl font-bold text-white leading-none">{totalTasks}</div>
-          </div>
-        </div>
-        {/* Card 2 */}
-        <div className="bg-[#0f1422] border border-[#192238] rounded-xl p-5 flex items-center gap-4 transition hover:border-[#2d3a5a]">
-          <div className="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center text-xl shrink-0">
-            <i className="fa-regular fa-calendar-xmark"></i>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-400 mb-1">Due Today</p>
-            <div className="text-2xl font-bold text-white leading-none">{dueToday}</div>
-          </div>
-        </div>
-        {/* Card 3 */}
-        <div className="bg-[#0f1422] border border-[#192238] rounded-xl p-5 flex items-center gap-4 transition hover:border-[#2d3a5a]">
-          <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center text-xl shrink-0">
-            <i className="fa-solid fa-spinner"></i>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-400 mb-1">In Progress</p>
-            <div className="text-2xl font-bold text-white leading-none">{inProgressTasks}</div>
-          </div>
-        </div>
-        {/* Card 4 */}
-        <div className="bg-[#0f1422] border border-[#192238] rounded-xl p-5 flex items-center gap-4 transition hover:border-[#2d3a5a]">
-          <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl shrink-0">
-            <i className="fa-regular fa-circle-check"></i>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-400 mb-1">Completed</p>
-            <div className="text-2xl font-bold text-white leading-none">{completedTasks}</div>
-          </div>
-        </div>
+        <StatCard icon="fa-square-check" label="Total Tasks" value={totalTasks} colorClass="text-purple-400" bgClass="bg-purple-500/10 border border-purple-500/20" />
+        <StatCard icon="fa-calendar-xmark" label="Due Today" value={dueToday} colorClass="text-rose-400" bgClass="bg-rose-500/10 border border-rose-500/20" />
+        <StatCard icon="fa-spinner" label="In Progress" value={inProgressTasks} colorClass="text-blue-400" bgClass="bg-blue-500/10 border border-blue-500/20" />
+        <StatCard icon="fa-circle-check" label="Completed" value={completedTasks} colorClass="text-emerald-400" bgClass="bg-emerald-500/10 border border-emerald-500/20" />
       </div>
 
       {/* Main Content Grid */}
@@ -231,12 +183,7 @@ export default function Dashboard() {
                   </div>
                   
                   <div className="flex items-center gap-4 w-full sm:w-1/2">
-                    <div className="flex-1">
-                      <div className="h-1.5 w-full bg-[#161d2f] rounded-full overflow-hidden">
-                        <div className="h-full bg-purple-500 rounded-full transition-all duration-500" style={{ width: `${p.progress}%` }}></div>
-                      </div>
-                    </div>
-                    <span className="text-xs font-bold text-slate-300 w-8 text-right shrink-0">{p.progress}%</span>
+                    <ProgressBar value={p.progress} max={100} colorClass="bg-purple-500" />
                   </div>
 
                   <div className="w-full sm:w-1/6 text-left sm:text-right shrink-0">
@@ -447,27 +394,7 @@ export default function Dashboard() {
           </div>
           
           <div className="flex-1 flex flex-col gap-3 overflow-y-auto pr-1">
-            {recentActivity.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full py-6 text-center">
-                <p className="text-xs text-slate-500">No recent activity</p>
-              </div>
-            ) : (
-              recentActivity.map(act => (
-                <div key={act.id} className="flex gap-3 p-2 hover:bg-[#151c2d] rounded-xl transition group">
-                  <div className="w-8 h-8 rounded-full bg-[#1a2333] flex flex-col items-center justify-center shrink-0">
-                     <i className={`${getActivityIcon(act.action)} text-xs`}></i>
-                  </div>
-                  <div className="flex-1 min-w-0 flex flex-col justify-center">
-                    <p className="text-xs text-slate-300 truncate">
-                      <span className="font-semibold text-white">{act.user?.name?.split(' ')[0] || 'Someone'}</span> {act.details ? act.details.toLowerCase() : `${act.action || 'acted on'} ${act.entityType || 'item'}`.toLowerCase()}
-                    </p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">
-                      {new Date(act.createdAt).toLocaleDateString()} {new Date(act.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                    </p>
-                  </div>
-                </div>
-              ))
-            )}
+            <ActivityFeed activities={recentActivity} />
           </div>
         </div>
 

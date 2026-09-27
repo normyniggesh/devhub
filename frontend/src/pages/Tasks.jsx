@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '../api/client';
 import { useStore } from '../store';
+import Tabs from '../components/common/Tabs';
+import LoadingState from '../components/common/LoadingState';
+import ErrorState from '../components/common/ErrorState';
+import EmptyState from '../components/common/EmptyState';
+import ActivityFeed from '../components/activity/ActivityFeed';
 
 export default function Tasks() {
   const { currentUser } = useStore();
@@ -672,23 +677,16 @@ export default function Tasks() {
            {/* View Tabs + Filters + Add */}
            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               
-              <div className="flex items-center gap-1 p-1 bg-[#0f1422] border border-[#192238] rounded-xl overflow-x-auto hide-scrollbar shadow-sm">
-                 {[
-                   { id: 'Kanban', icon: 'fa-table-columns' },
-                   { id: 'List', icon: 'fa-list' },
-                   { id: 'Calendar', icon: 'fa-calendar' },
-                   { id: 'Timeline', icon: 'fa-bars-staggered' }
-                 ].map(tab => (
-                   <button 
-                     key={tab.id}
-                     onClick={() => setActiveView(tab.id)}
-                     className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 ${activeView === tab.id ? 'bg-[#161d2f] text-white shadow-sm border border-[#1f2a44]' : 'text-slate-500 hover:text-slate-300'}`}
-                   >
-                     <i className={`fa-solid ${tab.icon} ${activeView === tab.id ? 'text-purple-500' : ''}`}></i>
-                     {tab.id}
-                   </button>
-                 ))}
-              </div>
+              <Tabs 
+                tabs={[
+                  { id: 'Kanban', label: 'Kanban', icon: 'fa-table-columns' },
+                  { id: 'List', label: 'List', icon: 'fa-list' },
+                  { id: 'Calendar', label: 'Calendar', icon: 'fa-calendar' },
+                  { id: 'Timeline', label: 'Timeline', icon: 'fa-bars-staggered' }
+                ]}
+                activeTab={activeView}
+                onChange={setActiveView}
+              />
 
               <div className="flex flex-wrap items-center gap-2">
                  <div className="relative">
@@ -725,25 +723,17 @@ export default function Tasks() {
 
            {/* Dynamic View Rendering */}
            {loading ? (
-             <div className="flex flex-col items-center justify-center p-20 min-h-[400px]">
-               <i className="fa-solid fa-circle-notch fa-spin text-3xl text-purple-500 mb-4"></i>
-               <span className="text-sm font-bold text-slate-400">Loading tasks...</span>
-             </div>
+             <LoadingState message="Loading tasks..." minHeight="400px" />
            ) : error ? (
-             <div className="flex flex-col items-center justify-center p-20 bg-[#0f1422] border border-[#192238] rounded-2xl">
-               <i className="fa-solid fa-circle-exclamation text-4xl text-rose-500 mb-4"></i>
-               <h3 className="text-base font-bold text-white mb-2">{error}</h3>
-               <button onClick={fetchData} className="px-4 py-2 bg-[#161d2f] hover:bg-[#1a2333] border border-[#1f2a44] rounded-lg text-xs font-bold text-white transition">Retry</button>
-             </div>
+             <ErrorState error={error} onRetry={fetchData} message="Unable to load tasks" />
            ) : tasks.length === 0 ? (
-             <div className="flex flex-col items-center justify-center p-20 bg-[#0f1422] border border-dashed border-[#1f2a44] rounded-2xl min-h-[400px]">
-               <i className="fa-solid fa-list-check text-5xl text-slate-600 mb-5"></i>
-               <h2 className="text-xl font-bold text-white mb-2">No tasks yet</h2>
-               <p className="text-sm text-slate-400 mb-6 text-center max-w-md">Create your first task to start organizing your work.</p>
-               <button onClick={() => setShowModal(true)} className="px-6 py-2.5 bg-[#5922cf] hover:bg-[#682ae6] text-white rounded-xl text-sm font-bold transition shadow-lg shadow-purple-900/30">
-                 New Task
-               </button>
-             </div>
+             <EmptyState 
+               icon="fa-list-check"
+               title="No tasks yet"
+               description="Create your first task to start organizing your work."
+               actionText="New Task"
+               onAction={() => setShowModal(true)}
+             />
            ) : (
              <>
                {activeView === 'Kanban' && renderKanban()}
@@ -761,17 +751,14 @@ export default function Tasks() {
                     <i className="fa-solid fa-clipboard-user text-purple-500"></i>
                     <h3 className="text-sm font-bold text-white">My Tasks</h3>
                   </div>
-                  <div className="flex items-center gap-1 p-1 bg-[#0f1422] border border-[#192238] rounded-lg overflow-x-auto hide-scrollbar">
-                    {['Assigned to Me', 'Created by Me'].map(tab => (
-                      <button 
-                        key={tab} 
-                        onClick={() => setActiveMyTasksTab(tab)}
-                        className={`px-4 py-1.5 rounded text-xs font-bold transition whitespace-nowrap ${activeMyTasksTab === tab ? 'bg-[#1a2333] text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
-                      >
-                        {tab}
-                      </button>
-                    ))}
-                  </div>
+                  <Tabs 
+                    tabs={[
+                      { id: 'Assigned to Me', label: 'Assigned to Me' },
+                      { id: 'Created by Me', label: 'Created by Me' }
+                    ]}
+                    activeTab={activeMyTasksTab}
+                    onChange={setActiveMyTasksTab}
+                  />
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs whitespace-nowrap">
@@ -900,31 +887,7 @@ export default function Tasks() {
                 <h2 className="text-sm font-bold text-white flex items-center gap-2"><i className="fa-solid fa-bolt text-amber-400"></i> Activity Feed</h2>
              </div>
              <div className="flex-1 overflow-y-auto hide-scrollbar">
-                {activity.length === 0 ? (
-                  <div className="text-center py-6 text-xs font-bold text-slate-500 bg-[#161d2f] rounded-xl border border-[#1f2a44] border-dashed">No task activity</div>
-                ) : (
-                  <div className="flex flex-col gap-0 relative ml-2">
-                    <div className="absolute left-[7px] top-2 bottom-2 w-px bg-[#1f2a44] z-0"></div>
-                    {activity.map((a) => {
-                      const meta = a.metadata || {};
-                      const isCompletion = a.action === 'Completed';
-                      const isCreation = a.action === 'Created';
-                      return (
-                        <div key={a.id} className="flex gap-4 relative z-10 mb-4 last:mb-0 group">
-                          <div className={`w-4 h-4 rounded-full bg-[#0f1422] border-[3px] flex shrink-0 mt-0.5 transition ${isCompletion ? 'border-emerald-500' : isCreation ? 'border-purple-500' : 'border-blue-500'}`}></div>
-                          <div className="min-w-0">
-                            <p className="text-xs text-slate-300 leading-snug">
-                              <span className="font-bold text-white">{a.user?.name || 'Someone'}</span> 
-                              {' '}{a.action.toLowerCase()} task{' '}
-                              <span className="font-bold text-slate-200">"{meta.title || 'Unknown Task'}"</span>
-                            </p>
-                            <span className="text-[9px] font-bold text-slate-500 mt-0.5 block">{new Date(a.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric' })}</span>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
+                <ActivityFeed activities={activity} variant="timeline" emptyMessage="No task activity" />
              </div>
            </div>
 

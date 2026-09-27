@@ -1,6 +1,13 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '../api/client';
 import { useStore } from '../store';
+import Tabs from '../components/common/Tabs';
+import Avatar from '../components/common/Avatar';
+import StatusBadge from '../components/common/StatusBadge';
+import PriorityBadge from '../components/common/PriorityBadge';
+import StatCard from '../components/common/StatCard';
+import ProgressBar from '../components/common/ProgressBar';
+import ActivityFeed from '../components/activity/ActivityFeed';
 
 export default function QAtesting() {
   const { currentUser } = useStore();
@@ -71,9 +78,7 @@ export default function QAtesting() {
              <button className="w-9 h-9 flex items-center justify-center bg-[#161d2f] border border-[#1f2a44] text-slate-400 hover:text-white rounded-xl transition">
                <i className="fa-solid fa-bell"></i>
              </button>
-             <div className="w-9 h-9 rounded-xl bg-[#161d2f] border border-[#1f2a44] flex items-center justify-center overflow-hidden">
-               <span className="text-xs font-bold text-purple-400">{currentUser?.name?.charAt(0).toUpperCase() || 'U'}</span>
-             </div>
+             <Avatar user={currentUser} size="md" shape="square" />
           </div>
         </div>
 
@@ -113,17 +118,11 @@ export default function QAtesting() {
         </div>
 
         {/* QA TABS */}
-        <div className="flex items-center gap-1.5 p-1 bg-[#0f1422] border border-[#192238] rounded-xl w-full sm:w-auto overflow-x-auto hide-scrollbar self-start shadow-sm">
-           {['Overview', 'Test Cases', 'Test Runs', 'Bugs', 'Reports', 'Settings'].map(tab => (
-             <button 
-               key={tab} 
-               onClick={() => setActiveTab(tab)}
-               className={`px-4 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap ${activeTab === tab || (activeTab === 'Summary' && tab === 'Overview') ? 'bg-purple-600 text-white shadow-md shadow-purple-900/20' : 'text-slate-400 hover:text-white hover:bg-[#1a2333]'}`}
-             >
-               {tab}
-             </button>
-           ))}
-        </div>
+        <Tabs 
+          tabs={['Overview', 'Test Cases', 'Test Runs', 'Bugs', 'Reports', 'Settings'].map(t => ({ id: t, label: t }))}
+          activeTab={activeTab === 'Summary' ? 'Overview' : activeTab}
+          onChange={setActiveTab}
+        />
 
         {/* Tab Content */}
         {!selectedProjectId ? (
@@ -159,26 +158,7 @@ export default function QAtesting() {
              <span className="text-[10px] text-slate-500 font-bold uppercase hover:text-white cursor-pointer transition">View All →</span>
           </div>
           <div className="flex-1 overflow-y-auto hide-scrollbar pr-2">
-            {recentActivity.length === 0 ? (
-               <div className="text-center py-10 text-xs text-slate-500 bg-[#161d2f] rounded-xl border border-[#1f2a44] border-dashed">No recent QA activity.</div>
-            ) : (
-               <div className="flex flex-col gap-4">
-                 {recentActivity.map(act => (
-                   <div key={act.id} className="flex gap-3 border-b border-[#1f2a44] pb-4 last:border-0 last:pb-0">
-                     <div className="w-8 h-8 rounded-full bg-[#1a2333] border border-[#2d3a5a] flex items-center justify-center shrink-0 overflow-hidden text-purple-400 shadow-inner">
-                       {act.user?.avatarUrl ? <img src={act.user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" /> : <span className="text-[10px] font-bold">{act.user?.name?.charAt(0).toUpperCase() || 'U'}</span>}
-                     </div>
-                     <div className="min-w-0">
-                       <p className="text-[11px] text-slate-300 leading-snug">
-                         <span className="font-bold text-white">{act.user?.name || 'Someone'}</span> {act.action.toLowerCase()} {act.entityType.toLowerCase()}
-                       </p>
-                       <p className="text-[11px] font-bold text-purple-400 truncate mt-0.5">{act.metadata?.name || 'Unknown item'}</p>
-                       <p className="text-[9px] text-slate-500 mt-1">{new Date(act.createdAt).toLocaleDateString()}</p>
-                     </div>
-                   </div>
-                 ))}
-               </div>
-            )}
+            <ActivityFeed activities={recentActivity} emptyMessage="No recent QA activity." />
           </div>
         </div>
 

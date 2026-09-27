@@ -2,6 +2,9 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useStore } from '../store';
+import { formatSize } from '../utils/formatting';
+import Tabs from '../components/common/Tabs';
+import ActivityFeed from '../components/activity/ActivityFeed';
 
 export default function Files() {
   const { currentUser } = useStore();
@@ -173,13 +176,7 @@ export default function Files() {
     return { total, images, documents, videos, others };
   }, [files]);
 
-  const formatSize = (bytes) => {
-    if (!bytes || bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-  };
+
 
   const getFileIcon = (type) => {
     const t = (type || '').toLowerCase();
@@ -321,17 +318,11 @@ export default function Files() {
 
         {/* Filter / Action Bar */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-1.5 p-1 bg-[#0f1422] border border-[#192238] rounded-xl w-full sm:w-auto overflow-x-auto hide-scrollbar">
-            {['All Files', 'Shared with Me', 'Recent', 'Starred', 'Trash'].map(tab => (
-              <button 
-                key={tab}
-                onClick={() => { setActiveTab(tab); setCurrentFolderId(null); setFolderHistory([]); }}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap ${activeTab === tab ? 'bg-purple-600 text-white shadow-md shadow-purple-900/20' : 'text-slate-400 hover:text-white hover:bg-[#1a2333]'}`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
+          <Tabs 
+            tabs={['All Files', 'Shared with Me', 'Recent', 'Starred', 'Trash'].map(t => ({ id: t, label: t }))}
+            activeTab={activeTab}
+            onChange={(tab) => { setActiveTab(tab); setCurrentFolderId(null); setFolderHistory([]); }}
+          />
 
           <div className="flex items-center gap-3 w-full sm:w-auto">
              <button onClick={openNewFile} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-[#161d2f] hover:bg-[#1a2333] text-white border border-[#1f2a44] rounded-xl text-xs font-bold transition">
@@ -655,30 +646,7 @@ export default function Files() {
              <span className="text-[10px] text-slate-500 font-bold uppercase hover:text-white cursor-pointer transition">View All →</span>
           </div>
           <div className="flex-1 overflow-y-auto hide-scrollbar pr-2">
-            {recentActivity.length === 0 ? (
-               <div className="text-center py-6 text-xs text-slate-500">No recent file activity.</div>
-            ) : (
-              <div className="flex flex-col gap-4">
-                {recentActivity.map(act => (
-                  <div key={act.id} className="flex gap-3">
-                    <div className="w-7 h-7 rounded-full bg-[#1a2333] border border-[#2d3a5a] flex items-center justify-center shrink-0 overflow-hidden text-purple-400">
-                      {act.user?.avatarUrl ? (
-                         <img src={act.user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                      ) : (
-                         <span className="text-[10px] font-bold">{act.user?.name?.charAt(0).toUpperCase() || 'U'}</span>
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[11px] text-slate-300 leading-tight">
-                        <span className="font-bold text-white">{act.user?.name || 'Someone'}</span> {act.action.toLowerCase()} {act.entityType.toLowerCase()}
-                      </p>
-                      <p className="text-[11px] font-bold text-purple-400 truncate mt-0.5">{act.metadata?.name || 'Unknown item'}</p>
-                      <p className="text-[9px] text-slate-500 mt-0.5">{new Date(act.createdAt).toLocaleDateString()}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <ActivityFeed activities={recentActivity} emptyMessage="No recent file activity." />
           </div>
         </div>
 
