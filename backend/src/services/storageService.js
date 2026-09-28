@@ -6,18 +6,31 @@ const path = require('path');
 // Safe initialization that won't crash if env vars are missing
 let s3Client = null;
 
+const cleanEnv = (val) => val ? val.replace(/^['"]+|['"]+$/g, '').trim() : '';
+
+const getS3Config = () => {
+  const region = cleanEnv(process.env.AWS_REGION);
+  const accessKeyId = cleanEnv(process.env.AWS_ACCESS_KEY_ID);
+  const secretAccessKey = cleanEnv(process.env.AWS_SECRET_ACCESS_KEY);
+  const bucket = cleanEnv(process.env.AWS_S3_BUCKET);
+
+  if (!region || !accessKeyId || !secretAccessKey || !bucket) {
+    throw new Error('AWS S3 credentials or bucket are not fully configured.');
+  }
+
+  return { region, accessKeyId, secretAccessKey, bucket };
+};
+
 const getS3Client = () => {
   if (s3Client) return s3Client;
   
-  if (!process.env.AWS_REGION || !process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
-    throw new Error('AWS S3 credentials are not configured.');
-  }
+  const { region, accessKeyId, secretAccessKey } = getS3Config();
 
   s3Client = new S3Client({
-    region: process.env.AWS_REGION,
+    region,
     credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      accessKeyId,
+      secretAccessKey,
     },
   });
 
@@ -25,8 +38,7 @@ const getS3Client = () => {
 };
 
 const getBucketName = () => {
-  const bucket = process.env.AWS_S3_BUCKET;
-  if (!bucket) throw new Error('AWS_S3_BUCKET is not configured.');
+  const { bucket } = getS3Config();
   return bucket;
 };
 
