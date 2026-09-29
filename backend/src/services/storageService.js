@@ -14,9 +14,17 @@ const getS3Config = () => {
   const secretAccessKey = cleanEnv(process.env.AWS_SECRET_ACCESS_KEY);
   const bucket = cleanEnv(process.env.AWS_S3_BUCKET);
 
-  if (!region || !accessKeyId || !secretAccessKey || !bucket) {
-    throw new Error('AWS S3 credentials or bucket are not fully configured.');
-  }
+  const hasAccessKey = !!accessKeyId;
+  const hasSecretKey = !!secretAccessKey;
+
+  // SAFE diagnostic log requested by user
+  console.log(`S3 config: region=${region || 'MISSING'} bucket=${bucket || 'MISSING'} accessKey=${hasAccessKey} secretKey=${hasSecretKey}`);
+
+  // Validation
+  if (!region) throw new Error('AWS S3 configuration failed: AWS_REGION is missing.');
+  if (!bucket) throw new Error('AWS S3 configuration failed: AWS_S3_BUCKET is missing.');
+  if (!accessKeyId) throw new Error('AWS S3 configuration failed: AWS_ACCESS_KEY_ID is missing.');
+  if (!secretAccessKey) throw new Error('AWS S3 configuration failed: AWS_SECRET_ACCESS_KEY is missing.');
 
   return { region, accessKeyId, secretAccessKey, bucket };
 };

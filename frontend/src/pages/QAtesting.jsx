@@ -8,6 +8,7 @@ import PriorityBadge from '../components/common/PriorityBadge';
 import StatCard from '../components/common/StatCard';
 import ProgressBar from '../components/common/ProgressBar';
 import ActivityFeed from '../components/activity/ActivityFeed';
+import Modal from '../components/common/Modal';
 
 export default function QAtesting() {
   const { currentUser } = useStore();
@@ -620,9 +621,8 @@ function TestCases({ projectId, currentUser, projects }) {
       
       {/* Test Case Modals (Re-using original functionality) */}
       {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className={`bg-[#101524] p-6 rounded-2xl border border-[#192238] w-full ${editingItem ? 'max-w-md' : 'max-w-5xl'} shadow-2xl`}>
-            <h2 className="text-lg text-white font-bold mb-4">{editingItem ? 'Edit Test Case' : 'New Test Cases'}</h2>
+        <Modal open={showModal} onClose={() => setShowModal(false)} className={`${editingItem ? 'max-w-md' : 'max-w-5xl'} p-6`}>
+          <h2 className="text-lg text-white font-bold mb-4">{editingItem ? 'Edit Test Case' : 'New Test Cases'}</h2>
             
             {editingItem ? (
               <form onSubmit={handleSubmitEdit} className="flex flex-col gap-4">
@@ -716,8 +716,7 @@ function TestCases({ projectId, currentUser, projects }) {
                 </div>
               </form>
             )}
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );
@@ -827,9 +826,8 @@ function TestRuns({ projectId, currentUser, projects }) {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#101524] p-6 rounded-2xl border border-[#192238] w-full max-w-md shadow-2xl">
-            <h2 className="text-lg text-white font-bold mb-4">New Test Run</h2>
+        <Modal open={showModal} onClose={() => setShowModal(false)} className="max-w-md p-6">
+          <h2 className="text-lg text-white font-bold mb-4">New Test Run</h2>
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Run Name <span className="text-red-500">*</span></label>
@@ -840,8 +838,7 @@ function TestRuns({ projectId, currentUser, projects }) {
                 <button type="submit" className="px-5 py-2 bg-[#5922cf] hover:bg-[#682ae6] text-white rounded-lg text-xs font-bold shadow-lg shadow-purple-900/30 transition">Create Run</button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );
@@ -1077,9 +1074,8 @@ function Bugs({ projectId, currentUser, projects }) {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-[#101524] p-6 rounded-2xl border border-[#192238] w-full max-w-lg shadow-2xl">
-            <h2 className="text-lg text-white font-bold mb-5">{editingItem ? 'Edit Bug' : 'Report Bug'}</h2>
+        <Modal open={showModal} onClose={() => setShowModal(false)} className="max-w-lg p-6">
+          <h2 className="text-lg text-white font-bold mb-5">{editingItem ? 'Edit Bug' : 'Report Bug'}</h2>
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Bug Title <span className="text-red-500">*</span></label>
@@ -1126,8 +1122,7 @@ function Bugs({ projectId, currentUser, projects }) {
                 <button type="submit" className="px-5 py-2 bg-[#5922cf] hover:bg-[#682ae6] text-white rounded-lg text-xs font-bold shadow-lg shadow-purple-900/30 transition">Save Bug</button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

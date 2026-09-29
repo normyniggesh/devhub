@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '../api/client';
 import { useStore } from '../store';
+import Modal from '../components/common/Modal';
+import { getStatusBadgeColor } from '../utils/colors';
 
 export default function Deployments() {
   const { projects, getRole } = useStore();
@@ -125,11 +127,7 @@ export default function Deployments() {
     return role === 'Admin' || role === 'Owner';
   };
 
-  const getStatusColor = (status) => {
-    if (status === 'Success') return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-    if (status === 'Failed') return 'bg-red-500/10 text-red-400 border-red-500/20';
-    return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
-  };
+  const getStatusColor = getStatusBadgeColor;
 
   return (
     <>
@@ -230,9 +228,8 @@ export default function Deployments() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-[#121623] border border-[#1b2234] rounded-2xl w-full max-w-md shadow-2xl my-auto">
-            <div className="px-6 py-4 border-b border-[#1b2234] flex justify-between items-center bg-[#171c2a] rounded-t-2xl">
+        <Modal open={showModal} onClose={() => setShowModal(false)} className="max-w-md my-auto">
+          <div className="px-6 py-4 border-b border-[#1b2234] flex justify-between items-center bg-[#171c2a] rounded-t-2xl">
               <h3 className="text-lg font-bold text-white">
                 {modalMode === 'create' ? 'Register Deployment' : 'Edit Deployment'}
               </h3>
@@ -312,8 +309,7 @@ export default function Deployments() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
     </>
   );

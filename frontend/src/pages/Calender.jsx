@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useStore } from '../store';
+import Modal from '../components/common/Modal';
 
 export default function Calender() {
   const navigate = useNavigate();
@@ -481,12 +482,11 @@ export default function Calender() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-[#101524] p-6 rounded-2xl border border-[#192238] w-full max-w-lg shadow-2xl">
-            <h2 className="text-lg text-white font-bold mb-5 flex items-center gap-2">
-              <i className={`fa-solid ${editingEvent ? 'fa-pen' : 'fa-calendar-plus'} text-purple-500`}></i> 
-              {editingEvent ? 'Edit Event' : 'Add Event'}
-            </h2>
+        <Modal open={showModal} onClose={() => setShowModal(false)} className="max-w-lg p-6">
+          <h2 className="text-lg text-white font-bold mb-5 flex items-center gap-2">
+            <i className={`fa-solid ${editingEvent ? 'fa-pen' : 'fa-calendar-plus'} text-purple-500`}></i> 
+            {editingEvent ? 'Edit Event' : 'Add Event'}
+          </h2>
             
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div>
@@ -563,8 +563,7 @@ export default function Calender() {
                 </div>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

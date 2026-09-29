@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { apiClient } from '../api/client';
+import Avatar from '../components/common/Avatar';
+import Modal from '../components/common/Modal';
+import LoadingState from '../components/common/LoadingState';
 
 export default function ProjectDetail() {
   const { id } = useParams();
@@ -138,7 +141,7 @@ export default function ProjectDetail() {
   };
 
   if (loading) {
-    return <div className="flex justify-center p-12 text-slate-400">Loading project details...</div>;
+    return <LoadingState message="Loading project details..." />;
   }
 
   if (error || !project) {
@@ -214,9 +217,7 @@ export default function ProjectDetail() {
         <div className="bg-[#101524] border border-[#192238] rounded-xl p-4">
           <div className="text-xs text-slate-500 mb-1">Owner</div>
           <div className="flex items-center gap-2 mt-1">
-            <div className="w-5 h-5 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold text-white overflow-hidden">
-              {project.owner.avatarUrl ? <img src={project.owner.avatarUrl} alt="" className="w-full h-full object-cover"/> : project.owner.name.charAt(0).toUpperCase()}
-            </div>
+            <Avatar user={project.owner} size="sm" className="w-5 h-5 text-[10px]" />
             <div className="text-sm font-semibold text-white truncate">{project.owner.name}</div>
           </div>
         </div>
@@ -242,9 +243,7 @@ export default function ProjectDetail() {
               {project.members.map((member) => (
                 <div key={member.user.id} className="p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white overflow-hidden">
-                      {member.user.avatarUrl ? <img src={member.user.avatarUrl} alt="" className="w-full h-full object-cover"/> : member.user.name.charAt(0).toUpperCase()}
-                    </div>
+                    <Avatar user={member.user} size="md" />
                     <div>
                       <div className="text-sm font-semibold text-white">{member.user.name}</div>
                       <div className="text-xs text-slate-400">{member.user.email}</div>
@@ -271,9 +270,8 @@ export default function ProjectDetail() {
 
       {/* Edit Modal */}
       {isEditing && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/60 p-4">
-          <div className="bg-[#101524] p-6 rounded-xl border border-[#192238] w-full max-w-md shadow-2xl">
-            <h2 className="text-lg text-white font-bold mb-4">Edit Project</h2>
+        <Modal open={isEditing} onClose={() => setIsEditing(false)} className="max-w-md p-6">
+          <h2 className="text-lg text-white font-bold mb-4">Edit Project</h2>
             {updateError && (
               <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-3 py-2 rounded-lg mb-4 text-sm">
                 {updateError}
@@ -329,16 +327,14 @@ export default function ProjectDetail() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/60 p-4">
-          <div className="bg-[#101524] p-6 rounded-xl border border-[#192238] w-full max-w-sm shadow-2xl">
-            <h2 className="text-lg text-white font-bold mb-2">Delete Project?</h2>
-            <p className="text-sm text-slate-400 mb-6">Are you sure you want to delete <span className="text-white font-semibold">"{project.name}"</span>? This action cannot be undone.</p>
+        <Modal open={showDeleteConfirm} onClose={() => setShowDeleteConfirm(false)} className="max-w-sm p-6">
+          <h2 className="text-lg text-white font-bold mb-2">Delete Project?</h2>
+          <p className="text-sm text-slate-400 mb-6">Are you sure you want to delete <span className="text-white font-semibold">"{project.name}"</span>? This action cannot be undone.</p>
             
             {deleteError && (
               <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-3 py-2 rounded-lg mb-4 text-sm">
@@ -353,15 +349,13 @@ export default function ProjectDetail() {
                 {isDeleting ? 'Deleting...' : 'Yes, Delete'}
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* Add Member Modal */}
       {showMemberModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/60 p-4">
-          <div className="bg-[#101524] p-6 rounded-xl border border-[#192238] w-full max-w-md shadow-2xl">
-            <h2 className="text-lg text-white font-bold mb-4">Add Project Member</h2>
+        <Modal open={showMemberModal} onClose={() => { setShowMemberModal(false); setMemberSearchQuery(''); setMemberSearchResults([]); setMemberError(null); }} className="max-w-md p-6">
+          <h2 className="text-lg text-white font-bold mb-4">Add Project Member</h2>
             {memberError && (
               <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-3 py-2 rounded-lg mb-4 text-sm">
                 {memberError}
@@ -399,9 +393,7 @@ export default function ProjectDetail() {
                   memberSearchResults.map(user => (
                     <div key={user.id} className="flex items-center justify-between p-3 border-b border-[#192238] last:border-0">
                       <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold text-white overflow-hidden">
-                          {user.avatarUrl ? <img src={user.avatarUrl} alt="" className="w-full h-full object-cover"/> : user.name.charAt(0).toUpperCase()}
-                        </div>
+                        <Avatar user={user} size="sm" className="w-6 h-6 text-[10px]" />
                         <div className="text-xs text-white">{user.name}</div>
                       </div>
                       <button onClick={() => handleAddMember(user.id)} className="px-2.5 py-1 bg-[#5922cf] hover:bg-[#682ae6] text-white rounded text-xs transition">
@@ -422,8 +414,7 @@ export default function ProjectDetail() {
                 Cancel
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

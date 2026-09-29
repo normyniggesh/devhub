@@ -7,6 +7,7 @@
     background-color: #090c13;
     color: #94a3b8;
     font-family: 'Plus Jakarta Sans', sans-serif;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 }
 
@@ -32,4 +33,201 @@
   background-size: cover;
   background-position: right top;
   background-repeat: no-repeat;
+}
+
+/* ==========================================================
+   THEME 2: BLACK + GREEN (OLED Cyber Matrix)
+   ========================================================== */
+[data-theme="green"] body,
+[data-theme="green"] main,
+[data-theme="green"] .bg-\[\#090c13\],
+[data-theme="green"] .bg-\[\#0d1017\],
+[data-theme="green"] .bg-\[\#0a0d14\] {
+  background-color: #020403 !important;
+}
+
+[data-theme="green"] .bg-\[\#0f1422\],
+[data-theme="green"] .bg-\[\#101524\],
+[data-theme="green"] .bg-\[\#131722\],
+[data-theme="green"] .bg-\[\#131823\],
+[data-theme="green"] .bg-\[\#161c2d\],
+[data-theme="green"] .bg-\[\#171c2a\] {
+  background-color: #070e0a !important;
+  border-color: #142d1d !important;
+}
+
+[data-theme="green"] .bg-\[\#1f2638\],
+[data-theme="green"] .bg-\[\#161d2f\],
+[data-theme="green"] .bg-\[\#1c2438\],
+[data-theme="green"] .bg-\[\#0b0f19\],
+[data-theme="green"] .bg-\[\#0c101d\] {
+  background-color: #0d1a12 !important;
+  border-color: #1a3c26 !important;
+}
+
+[data-theme="green"] .border-\[\#161b2b\],
+[data-theme="green"] .border-\[\#192238\],
+[data-theme="green"] .border-\[\#1f2a44\],
+[data-theme="green"] .border-\[\#232a3f\],
+[data-theme="green"] .border-\[\#2d364f\],
+[data-theme="green"] .border-\[\#1b2234\] {
+  border-color: #142d1d !important;
+}
+
+[data-theme="green"] .bg-\[\#5922cf\],
+[data-theme="green"] .bg-\[\#5e4cfc\],
+[data-theme="green"] .bg-indigo-600,
+[data-theme="green"] .bg-purple-600 {
+  background-color: #059669 !important;
+}
+
+[data-theme="green"] .hover\:bg-\[\#682ae6\]:hover,
+[data-theme="green"] .hover\:bg-indigo-500:hover,
+[data-theme="green"] .hover\:bg-purple-500:hover {
+  background-color: #10b981 !important;
+}
+
+[data-theme="green"] .text-purple-400,
+[data-theme="green"] .text-indigo-400 {
+  color: #34d399 !important;
+}
+
+[data-theme="green"] .hero-banner {
+  background-image: 
+    radial-gradient(circle at 85% 20%, rgba(16, 185, 129, 0.15), transparent 45%),
+    linear-gradient(to bottom, rgba(2, 4, 3, 0.2) 0%, #020403 100%) !important;
+}
+
+/* ==========================================================
+   THEME 3: CLEAN LIGHT (Modern White & Slate)
+   ========================================================== */
+[data-theme="light"] body,
+[data-theme="light"] main,
+[data-theme="light"] .bg-\[\#090c13\],
+[data-theme="light"] .bg-\[\#0a0d14\] {
+  background-color: #f8fafc !important;
+  color: #475569 !important;
+}
+
+[data-theme="light"] .bg-\[\#0d1017\] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+[data-theme="light"] .bg-\[\#0f1422\],
+[data-theme="light"] .bg-\[\#101524\],
+[data-theme="light"] .bg-\[\#131722\],
+[data-theme="light"] .bg-\[\#131823\],
+[data-theme="light"] .bg-\[\#161c2d\],
+[data-theme="light"] .bg-\[\#171c2a\] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .bg-\[\#1f2638\],
+[data-theme="light"] .bg-\[\#161d2f\],
+[data-theme="light"] .bg-\[\#1c2438\],
+[data-theme="light"] .bg-\[\#0b0f19\],
+[data-theme="light"] .bg-\[\#0c101d\] {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+}
+
+[data-theme="light"] .border-\[\#161b2b\],
+[data-theme="light"] .border-\[\#192238\],
+[data-theme="light"] .border-\[\#1f2a44\],
+[data-theme="light"] .border-\[\#232a3f\],
+[data-theme="light"] .border-\[\#2d364f\],
+[data-theme="light"] .border-\[\#1b2234\] {
+  border-color: #e2e8f0 !important;
+}
+
+[data-theme="light"] .text-white {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .text-slate-200,
+[data-theme="light"] .text-slate-300 {
+  color: #334155 !important;
+}
+
+[data-theme="light"] .text-slate-400 {
+  color: #64748b !important;
+}
+
+[data-theme="light"] .hero-banner {
+  background-image: 
+    radial-gradient(circle at 85% 20%, rgba(99, 102, 241, 0.08), transparent 45%),
+    linear-gradient(to bottom, rgba(248, 250, 252, 0.9) 0%, #f8fafc 100%) !important;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+}
+
+/* ==========================================================
+   THEME 4: OCEANIC BLUE (Deep Navy & Sapphire)
+   ========================================================== */
+[data-theme="blue"] body,
+[data-theme="blue"] main,
+[data-theme="blue"] .bg-\[\#090c13\],
+[data-theme="blue"] .bg-\[\#0d1017\],
+[data-theme="blue"] .bg-\[\#0a0d14\] {
+  background-color: #060b18 !important;
+}
+
+[data-theme="blue"] .bg-\[\#0f1422\],
+[data-theme="blue"] .bg-\[\#101524\],
+[data-theme="blue"] .bg-\[\#131722\],
+[data-theme="blue"] .bg-\[\#131823\],
+[data-theme="blue"] .bg-\[\#161c2d\],
+[data-theme="blue"] .bg-\[\#171c2a\] {
+  background-color: #0a142c !important;
+  border-color: #1a2d5c !important;
+}
+
+[data-theme="blue"] .bg-\[\#1f2638\],
+[data-theme="blue"] .bg-\[\#161d2f\],
+[data-theme="blue"] .bg-\[\#1c2438\],
+[data-theme="blue"] .bg-\[\#0b0f19\],
+[data-theme="blue"] .bg-\[\#0c101d\] {
+  background-color: #101e40 !important;
+  border-color: #233c75 !important;
+}
+
+[data-theme="blue"] .border-\[\#161b2b\],
+[data-theme="blue"] .border-\[\#192238\],
+[data-theme="blue"] .border-\[\#1f2a44\],
+[data-theme="blue"] .border-\[\#232a3f\],
+[data-theme="blue"] .border-\[\#2d364f\],
+[data-theme="blue"] .border-\[\#1b2234\] {
+  border-color: #1a2d5c !important;
+}
+
+[data-theme="blue"] .bg-\[\#5922cf\],
+[data-theme="blue"] .bg-\[\#5e4cfc\],
+[data-theme="blue"] .bg-indigo-600,
+[data-theme="blue"] .bg-purple-600 {
+  background-color: #2563eb !important;
+}
+
+[data-theme="blue"] .hover\:bg-\[\#682ae6\]:hover,
+[data-theme="blue"] .hover\:bg-indigo-500:hover,
+[data-theme="blue"] .hover\:bg-purple-500:hover {
+  background-color: #3b82f6 !important;
+}
+
+[data-theme="blue"] .text-purple-400,
+[data-theme="blue"] .text-indigo-400 {
+  color: #60a5fa !important;
+}
+
+[data-theme="blue"] .hero-banner {
+  background-image: 
+    radial-gradient(circle at 85% 20%, rgba(59, 130, 246, 0.15), transparent 45%),
+    linear-gradient(to bottom, rgba(6, 11, 24, 0.2) 0%, #060b18 100%) !important;
 }

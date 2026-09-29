@@ -6,6 +6,8 @@ node_modules/
 .env
 .env.*
 !.env.example
+*serviceAccountKey*.json
+firebase-adminsdk-*.json
 
 # Build output
 dist/
@@ -24,6 +26,10 @@ pnpm-debug.log*
 .idea/
 .DS_Store
 *.local
-
 # Temporary files
 scratch/
+data-export/
+*.export.json
+firebase-debug*.log
+.firebase/
+

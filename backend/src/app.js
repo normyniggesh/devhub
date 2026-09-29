@@ -19,6 +19,8 @@ const pullRequestsRoutes = require('./routes/pullRequests');
 const deploymentsRoutes = require('./routes/deployments');
 const notificationsRoutes = require('./routes/notifications');
 const activityRoutes = require('./routes/activity');
+const integrationsRoutes = require('./routes/integrations');
+const githubRoutes = require('./routes/github');
 
 const app = express();
 
@@ -51,5 +53,7 @@ app.use('/api/pull-requests', pullRequestsRoutes);
 app.use('/api/deployments', deploymentsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/activity', activityRoutes);
+app.use('/api/integrations', integrationsRoutes);
+app.use('/api/github', githubRoutes);
 
 module.exports = app;

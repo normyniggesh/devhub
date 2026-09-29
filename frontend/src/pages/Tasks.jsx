@@ -6,6 +6,8 @@ import LoadingState from '../components/common/LoadingState';
 import ErrorState from '../components/common/ErrorState';
 import EmptyState from '../components/common/EmptyState';
 import ActivityFeed from '../components/activity/ActivityFeed';
+import Modal from '../components/common/Modal';
+import { getStatusDotColor, getPriorityColor } from '../utils/colors';
 
 export default function Tasks() {
   const { currentUser } = useStore();
@@ -321,24 +323,8 @@ export default function Tasks() {
     setShowEditModal(true);
   };
 
-  // UI Helpers
-  const getStatusColor = (status) => {
-    if (status === 'To Do') return 'bg-slate-400';
-    if (status === 'In Progress') return 'bg-blue-500';
-    if (status === 'In Review') return 'bg-purple-500';
-    if (status === 'Done' || status === 'Completed') return 'bg-emerald-500';
-    return 'bg-slate-500';
-  };
-
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'Low': return 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
-      case 'Medium': return 'text-amber-400 bg-amber-400/10 border-amber-400/20';
-      case 'High': return 'text-red-400 bg-red-400/10 border-red-400/20';
-      case 'Urgent': return 'text-rose-500 bg-rose-500/10 border-rose-500/20 shadow-[0_0_8px_rgba(244,63,94,0.4)]';
-      default: return 'text-slate-400 bg-slate-400/10 border-slate-400/20';
-    }
-  };
+  // UI Helpers — color functions imported from utils/colors.js
+  const getStatusColor = getStatusDotColor;
 
   // Rendering Components
   const renderTaskCard = (task) => {
@@ -896,8 +882,8 @@ export default function Tasks() {
 
       {/* Bulk Add Tasks Modal (Unchanged logic, restyled) */}
       {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#101524] p-6 rounded-2xl border border-[#192238] w-full max-w-5xl shadow-2xl max-h-[90vh] flex flex-col">
+        <Modal open={showModal} onClose={() => setShowModal(false)} className="max-w-5xl max-h-[90vh] flex flex-col">
+          <div className="p-6">
             <h2 className="text-lg text-white font-bold mb-4 flex items-center gap-2">
               <i className="fa-solid fa-list-check text-purple-500"></i> Bulk Add Tasks
             </h2>
@@ -990,13 +976,13 @@ export default function Tasks() {
               </div>
             </form>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Edit Task Modal */}
       {showEditModal && editingTask && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#101524] p-6 rounded-2xl border border-[#192238] w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
+        <Modal open={showEditModal} onClose={() => setShowEditModal(false)} className="max-w-md max-h-[90vh] overflow-y-auto">
+          <div className="p-6">
             <h2 className="text-lg text-white font-bold mb-5 flex items-center gap-2">
                <i className="fa-solid fa-pen text-purple-500"></i> Edit Task
             </h2>
@@ -1068,7 +1054,7 @@ export default function Tasks() {
               </div>
             </form>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

@@ -1,11 +1,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-
+import * as authService from './services/authService';
 import { apiClient } from './api/client';
 
 const initialProjects = [];
 const initialTasks = [];
 const initialQa = [];
+
+let authUnsubscribe = null;
+const USE_LEGACY_BACKEND = import.meta.env.VITE_USE_LEGACY_BACKEND === 'true';
 
 export const useStore = create(
   persist(
@@ -16,8 +19,15 @@ export const useStore = create(
 
       login: async (email, password) => {
         try {
-          const { user } = await apiClient('/auth/login', { body: { email, password } });
-          set({ currentUser: user, isAuthenticated: true });
+          if (USE_LEGACY_BACKEND) {
+            const { user } = await apiClient('/auth/login', { body: { email, password } });
+            set({ currentUser: user, isAuthenticated: true, authLoading: false });
+            return user;
+          } else {
+            const user = await authService.login(email, password);
+            set({ currentUser: user, isAuthenticated: true, authLoading: false });
+            return user;
+          }
         } catch (error) {
           throw error;
         }
@@ -25,8 +35,15 @@ export const useStore = create(
       
       register: async (name, email, password) => {
         try {
-          const { user } = await apiClient('/auth/register', { body: { name, email, password } });
-          set({ currentUser: user, isAuthenticated: true });
+          if (USE_LEGACY_BACKEND) {
+            const { user } = await apiClient('/auth/register', { body: { name, email, password } });
+            set({ currentUser: user, isAuthenticated: true, authLoading: false });
+            return user;
+          } else {
+            const user = await authService.register(name, email, password);
+            set({ currentUser: user, isAuthenticated: true, authLoading: false });
+            return user;
+          }
         } catch (error) {
           throw error;
         }
@@ -34,18 +51,33 @@ export const useStore = create(
       
       logout: async () => {
         try {
-          await apiClient('/auth/logout', { method: 'POST' });
+          if (USE_LEGACY_BACKEND) {
+            await apiClient('/auth/logout', { method: 'POST' });
+          } else {
+            await authService.logout();
+          }
         } finally {
-          set({ currentUser: null, isAuthenticated: false });
+          set({ currentUser: null, isAuthenticated: false, authLoading: false });
         }
       },
       
       checkAuth: async () => {
-        try {
-          const { user } = await apiClient('/auth/me');
-          set({ currentUser: user, isAuthenticated: true, authLoading: false });
-        } catch (error) {
-          set({ currentUser: null, isAuthenticated: false, authLoading: false });
+        if (USE_LEGACY_BACKEND) {
+          try {
+            const { user } = await apiClient('/auth/me');
+            set({ currentUser: user, isAuthenticated: true, authLoading: false });
+          } catch (error) {
+            set({ currentUser: null, isAuthenticated: false, authLoading: false });
+          }
+        } else {
+          if (authUnsubscribe) return;
+          authUnsubscribe = authService.subscribeToAuth((user) => {
+            set({
+              currentUser: user,
+              isAuthenticated: !!user,
+              authLoading: false
+            });
+          });
         }
       },
 
@@ -76,3 +108,4 @@ export const useStore = create(
     }
   )
 );
+

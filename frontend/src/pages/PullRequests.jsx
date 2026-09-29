@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '../api/client';
 import { useStore } from '../store';
+import Modal from '../components/common/Modal';
+import { getStatusBadgeColor } from '../utils/colors';
 
 export default function PullRequests() {
   const { projects, getRole } = useStore();
@@ -126,12 +128,7 @@ export default function PullRequests() {
     return role === 'Admin' || role === 'Owner';
   };
 
-  const getStatusColor = (status) => {
-    if (status === 'Open') return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-    if (status === 'Merged') return 'bg-purple-500/10 text-purple-400 border-purple-500/20';
-    if (status === 'Closed') return 'bg-red-500/10 text-red-400 border-red-500/20';
-    return 'bg-slate-500/10 text-slate-400 border-slate-500/20';
-  };
+  const getStatusColor = getStatusBadgeColor;
 
   return (
     <>
@@ -228,9 +225,8 @@ export default function PullRequests() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-[#121623] border border-[#1b2234] rounded-2xl w-full max-w-md shadow-2xl my-auto">
-            <div className="px-6 py-4 border-b border-[#1b2234] flex justify-between items-center bg-[#171c2a] rounded-t-2xl">
+        <Modal open={showModal} onClose={() => setShowModal(false)} className="max-w-md my-auto">
+          <div className="px-6 py-4 border-b border-[#1b2234] flex justify-between items-center bg-[#171c2a] rounded-t-2xl">
               <h3 className="text-lg font-bold text-white">
                 {modalMode === 'create' ? 'Register Pull Request' : 'Edit Pull Request'}
               </h3>
@@ -311,8 +307,7 @@ export default function PullRequests() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
     </>
   );

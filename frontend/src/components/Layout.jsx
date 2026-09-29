@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import ThemeToggle from './common/ThemeToggle';
 import { useStore } from '../store';
 import { apiClient } from '../api/client';
 
@@ -100,6 +101,9 @@ export default function Layout() {
             </div>
             
             <div className="flex items-center space-x-3 md:space-x-4 shrink-0">
+              {/* Theme Switcher */}
+              <ThemeToggle />
+
               {/* Notifications Dropdown */}
               <div className="relative" ref={notificationRef}>
                 <button 

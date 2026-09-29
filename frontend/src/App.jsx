@@ -16,6 +16,7 @@ import PullRequests from './pages/PullRequests';
 import Deployments from './pages/Deployments';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import { ThemeProvider } from './context/ThemeContext';
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, authLoading } = useStore();
@@ -43,39 +44,41 @@ function App() {
   }, [checkAuth]);
 
   return (
-    <Router>
-      <Routes>
-        <Route path="/login" element={
-          <AuthRoute>
-            <Login />
-          </AuthRoute>
-        } />
-        <Route path="/register" element={
-          <AuthRoute>
-            <Register />
-          </AuthRoute>
-        } />
-        
-        <Route path="/" element={
-          <ProtectedRoute>
-            <Layout />
-          </ProtectedRoute>
-        }>
-          <Route index element={<Dashboard />} />
-          <Route path="activity" element={<Activity2 />} />
-          <Route path="projects" element={<Project />} />
-          <Route path="projects/:id" element={<ProjectDetail />} />
-          <Route path="tasks" element={<Tasks />} />
-          <Route path="qa" element={<QAtesting />} />
-          <Route path="calendar" element={<Calender />} />
-          <Route path="files" element={<Files />} />
-          <Route path="github" element={<Github />} />
-          <Route path="pull-requests" element={<PullRequests />} />
-          <Route path="deployments" element={<Deployments />} />
-          <Route path="team" element={<Team />} />
-        </Route>
-      </Routes>
-    </Router>
+    <ThemeProvider>
+      <Router>
+        <Routes>
+          <Route path="/login" element={
+            <AuthRoute>
+              <Login />
+            </AuthRoute>
+          } />
+          <Route path="/register" element={
+            <AuthRoute>
+              <Register />
+            </AuthRoute>
+          } />
+          
+          <Route path="/" element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }>
+            <Route index element={<Dashboard />} />
+            <Route path="activity" element={<Activity2 />} />
+            <Route path="projects" element={<Project />} />
+            <Route path="projects/:id" element={<ProjectDetail />} />
+            <Route path="tasks" element={<Tasks />} />
+            <Route path="qa" element={<QAtesting />} />
+            <Route path="calendar" element={<Calender />} />
+            <Route path="files" element={<Files />} />
+            <Route path="github" element={<Github />} />
+            <Route path="pull-requests" element={<PullRequests />} />
+            <Route path="deployments" element={<Deployments />} />
+            <Route path="team" element={<Team />} />
+          </Route>
+        </Routes>
+      </Router>
+    </ThemeProvider>
   );
 }
 

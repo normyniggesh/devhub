@@ -75,14 +75,36 @@ async function checkEntityAccess(entityType, entityId, userId) {
 
 exports.getActivity = async (req, res) => {
   try {
-    const { entityType, entityId, userId, limit = 50 } = req.query;
+    const { entityType, entityId, userId, limit = 50, all = 'false' } = req.query;
+
+    const currentUser = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { id: true, role: true }
+    });
+
+    const isGlobalAdmin = currentUser?.role === 'Admin';
+    const showAll = (all === 'true' || all === true) && isGlobalAdmin;
+
+    // Find all projects where user is owner or member
+    const userProjects = await prisma.project.findMany({
+      where: {
+        OR: [
+          { ownerId: req.userId },
+          { members: { some: { userId: req.userId } } }
+        ]
+      },
+      select: { id: true, ownerId: true }
+    });
+    const userProjectIds = userProjects.map(p => p.id);
 
     let whereClause = {};
 
-    // If requesting specific entity, verify access
-    if (entityType && entityId) {
+    if (showAll) {
+      // Global Admin view: show all activities across the platform
+      whereClause = {};
+    } else if (entityType && entityId) {
       const hasAccess = await checkEntityAccess(entityType, entityId, req.userId);
-      if (!hasAccess) {
+      if (!hasAccess && !isGlobalAdmin) {
         return res.status(403).json({ success: false, message: 'Forbidden' });
       }
       whereClause.entityType = entityType;
@@ -91,35 +113,47 @@ exports.getActivity = async (req, res) => {
       if (userId) {
         whereClause.userId = userId;
       }
-    } else if (userId) {
-      // If querying a specific user's activity, only allow if it's the current user
-      if (userId !== req.userId) {
+    } else if (userId && userId !== req.userId) {
+      if (!isGlobalAdmin) {
         return res.status(403).json({ success: false, message: 'Forbidden to view other users activity without entity context' });
       }
-      whereClause.userId = req.userId;
+      whereClause.userId = userId;
     } else {
-      // Default: show the user's own activity
-      whereClause.userId = req.userId;
+      // Default: show the user's own activity AND all project members' activity for projects they belong to
+      whereClause = {
+        OR: [
+          { userId: req.userId },
+          { projectId: { in: userProjectIds } },
+          { entityType: 'Project', entityId: { in: userProjectIds } }
+        ]
+      };
     }
 
     const activity = await prisma.auditLog.findMany({
       where: whereClause,
       orderBy: { createdAt: 'desc' },
-      take: parseInt(limit),
+      take: parseInt(limit) || 50,
       select: {
         id: true,
         userId: true,
         action: true,
         entityType: true,
         entityId: true,
+        projectId: true,
         metadata: true,
         createdAt: true,
-        user: { select: { id: true, name: true } }
+        user: { select: { id: true, name: true, avatarUrl: true } }
       }
     });
 
-    res.json({ success: true, activity });
+    res.json({
+      success: true,
+      activity,
+      canViewAll: isGlobalAdmin,
+      isViewingAll: showAll
+    });
   } catch (error) {
+    console.error('getActivity error:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };

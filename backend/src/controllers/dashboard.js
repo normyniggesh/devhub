@@ -15,6 +15,12 @@ exports.getDashboard = async (req, res) => {
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
+    const userProjects = await prisma.project.findMany({
+      where: projectWhereClause,
+      select: { id: true }
+    });
+    const projectIds = userProjects.map(p => p.id);
+
     const [
       totalTasks,
       dueToday,
@@ -66,12 +72,18 @@ exports.getDashboard = async (req, res) => {
       prisma.bug.count({
         where: { project: projectWhereClause, status: { notIn: ['Resolved', 'Closed', 'Done'] } }
       }),
-      // 8. Recent Activity
+      // 8. Recent Activity (User's own + Project activity)
       prisma.auditLog.findMany({
-        where: { userId }, // Get activity from authenticated user
+        where: {
+          OR: [
+            { userId },
+            { projectId: { in: projectIds } },
+            { entityType: 'Project', entityId: { in: projectIds } }
+          ]
+        },
         orderBy: { createdAt: 'desc' },
-        take: 10,
-        include: { user: { select: { name: true, avatarUrl: true } } }
+        take: 25,
+        include: { user: { select: { id: true, name: true, avatarUrl: true } } }
       })
     ]);
 

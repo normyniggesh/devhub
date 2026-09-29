@@ -61,7 +61,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                 <span>Tasks</span>
               </NavLink>
               <NavLink to="/qa" onClick={handleLinkClick} className={getSecondaryClass}>
-                <i className="fa-solid fa-shield-check text-[15px] w-5 text-center"></i>
+                <i className="fa-solid fa-flask text-[15px] w-5 text-center"></i>
                 <span>QA / Testing</span>
               </NavLink>
               <NavLink to="/calendar" onClick={handleLinkClick} className={getSecondaryClass}>

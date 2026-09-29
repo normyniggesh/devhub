@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useStore } from '../store';
+import Modal from '../components/common/Modal';
+import { useClickOutside } from '../hooks/useClickOutside';
 
 export default function Project() {
   const { currentUser } = useStore();
@@ -25,13 +27,7 @@ export default function Project() {
   const [openMenuId, setOpenMenuId] = useState(null);
   const menuRef = useRef(null);
 
-  useEffect(() => {
-    const handleClick = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setOpenMenuId(null);
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
+  useClickOutside(menuRef, () => setOpenMenuId(null));
 
   const fetchProjects = async () => {
     try {
@@ -644,9 +640,8 @@ export default function Project() {
 
       {/* Create/Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-[#101524] p-6 rounded-2xl border border-[#192238] w-full max-w-lg shadow-2xl my-8">
-            <div className="flex items-center justify-between mb-5">
+        <Modal open={showModal} onClose={() => setShowModal(false)} className="max-w-lg my-8 p-6">
+          <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg text-white font-bold">{editProjectId ? 'Edit Project' : 'Add Project'}</h2>
               <button onClick={() => setShowModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#1a2333] text-slate-400 hover:text-white transition">
                 <i className="fa-solid fa-xmark"></i>
@@ -717,8 +712,7 @@ export default function Project() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

@@ -21,25 +21,44 @@ exports.getRepositories = async (req, res) => {
       if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
       whereClause.projectId = projectId;
     } else {
+      // Repositories belonging to this user, OR associated with projects the user is a member/owner of
       whereClause = {
-        project: {
-          OR: [
-            { ownerId: req.userId },
-            { members: { some: { userId: req.userId } } }
-          ]
-        }
+        OR: [
+          { userId: req.userId },
+          {
+            projectId: { not: null },
+            project: {
+              OR: [
+                { ownerId: req.userId },
+                { members: { some: { userId: req.userId } } }
+              ]
+            }
+          }
+        ]
       };
     }
 
     const repositories = await prisma.repository.findMany({
       where: whereClause,
       include: {
-        project: { select: { id: true, name: true } }
-      }
+        project: { select: { id: true, name: true } },
+        user: { select: { id: true, name: true, avatarUrl: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    }).catch(async () => {
+      // Fallback without orderBy createdAt if createdAt not in schema
+      return await prisma.repository.findMany({
+        where: whereClause,
+        include: {
+          project: { select: { id: true, name: true } },
+          user: { select: { id: true, name: true, avatarUrl: true } }
+        }
+      });
     });
 
     res.json({ success: true, repositories });
   } catch (error) {
+    console.error('Error getting repositories:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
@@ -50,44 +69,58 @@ exports.getRepositoryById = async (req, res) => {
     const repository = await prisma.repository.findUnique({
       where: { id },
       include: {
-        project: { select: { id: true, name: true } }
+        project: { select: { id: true, name: true } },
+        user: { select: { id: true, name: true, avatarUrl: true } }
       }
     });
 
     if (!repository) return res.status(404).json({ success: false, message: 'Repository not found' });
 
-    const access = await checkProjectAccess(repository.projectId, req.userId);
-    if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
+    if (repository.userId && repository.userId === req.userId) {
+      return res.json({ success: true, repository });
+    }
+
+    if (repository.projectId) {
+      const access = await checkProjectAccess(repository.projectId, req.userId);
+      if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
+    } else if (repository.userId !== req.userId) {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
 
     res.json({ success: true, repository });
   } catch (error) {
+    console.error('Error getting repository by id:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
 
 exports.createRepository = async (req, res) => {
   try {
-    const { name, owner, url, projectId, defaultBranch } = req.body;
+    const { name, owner, url, projectId, defaultBranch, description } = req.body;
 
     if (!name || typeof name !== 'string' || !name.trim()) return res.status(400).json({ success: false, message: 'Name is required' });
     if (!owner || typeof owner !== 'string' || !owner.trim()) return res.status(400).json({ success: false, message: 'Owner is required' });
     if (!url || !isValidHttpUrl(url)) return res.status(400).json({ success: false, message: 'Valid URL is required' });
-    if (!projectId) return res.status(400).json({ success: false, message: 'projectId is required' });
 
-    const access = await checkProjectAccess(projectId, req.userId);
-    if (!access.accessible) return res.status(404).json({ success: false, message: 'Project not found' });
-    if (access.role === 'Viewer') return res.status(403).json({ success: false, message: 'Viewers cannot create repositories' });
+    if (projectId) {
+      const access = await checkProjectAccess(projectId, req.userId);
+      if (!access.accessible) return res.status(404).json({ success: false, message: 'Project not found' });
+      if (access.role === 'Viewer') return res.status(403).json({ success: false, message: 'Viewers cannot create repositories' });
+    }
 
     const repository = await prisma.repository.create({
       data: {
         name: name.trim(),
         owner: owner.trim(),
         url: url.trim(),
-        projectId,
-        defaultBranch: defaultBranch?.trim() || null
+        projectId: projectId || null,
+        userId: req.userId,
+        defaultBranch: defaultBranch?.trim() || 'main',
+        description: description?.trim() || null
       },
       include: {
-        project: { select: { id: true, name: true } }
+        project: { select: { id: true, name: true } },
+        user: { select: { id: true, name: true, avatarUrl: true } }
       }
     });
 
@@ -96,11 +129,13 @@ exports.createRepository = async (req, res) => {
       action: 'Created',
       entityType: 'Repository',
       entityId: repository.id,
+      projectId: repository.projectId,
       metadata: { name: repository.name, url: repository.url }
     });
 
     res.status(201).json({ success: true, repository });
   } catch (error) {
+    console.error('Error creating repository:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
@@ -108,14 +143,22 @@ exports.createRepository = async (req, res) => {
 exports.updateRepository = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, owner, url, defaultBranch } = req.body;
+    const { name, owner, url, defaultBranch, description, projectId } = req.body;
 
     const repository = await prisma.repository.findUnique({ where: { id } });
     if (!repository) return res.status(404).json({ success: false, message: 'Repository not found' });
 
-    const access = await checkProjectAccess(repository.projectId, req.userId);
-    if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
-    if (access.role === 'Viewer') return res.status(403).json({ success: false, message: 'Viewers cannot update repositories' });
+    const isOwner = repository.userId === req.userId;
+    let hasEditAccess = isOwner;
+
+    if (!hasEditAccess && repository.projectId) {
+      const access = await checkProjectAccess(repository.projectId, req.userId);
+      if (access.accessible && access.role !== 'Viewer') {
+        hasEditAccess = true;
+      }
+    }
+
+    if (!hasEditAccess) return res.status(403).json({ success: false, message: 'Forbidden' });
 
     const updateData = {};
     if (name !== undefined) {
@@ -131,12 +174,23 @@ exports.updateRepository = async (req, res) => {
       updateData.url = url.trim();
     }
     if (defaultBranch !== undefined) updateData.defaultBranch = defaultBranch?.trim() || null;
+    if (description !== undefined) updateData.description = description?.trim() || null;
+    if (projectId !== undefined) {
+      if (projectId) {
+        const access = await checkProjectAccess(projectId, req.userId);
+        if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden project' });
+        updateData.projectId = projectId;
+      } else {
+        updateData.projectId = null;
+      }
+    }
 
     const updatedRepository = await prisma.repository.update({
       where: { id },
       data: updateData,
       include: {
-        project: { select: { id: true, name: true } }
+        project: { select: { id: true, name: true } },
+        user: { select: { id: true, name: true, avatarUrl: true } }
       }
     });
 
@@ -145,11 +199,13 @@ exports.updateRepository = async (req, res) => {
       action: 'Updated',
       entityType: 'Repository',
       entityId: id,
+      projectId: updatedRepository.projectId,
       metadata: { name: updatedRepository.name }
     });
 
     res.json({ success: true, repository: updatedRepository });
   } catch (error) {
+    console.error('Error updating repository:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
@@ -161,10 +217,18 @@ exports.deleteRepository = async (req, res) => {
     const repository = await prisma.repository.findUnique({ where: { id } });
     if (!repository) return res.status(404).json({ success: false, message: 'Repository not found' });
 
-    const access = await checkProjectAccess(repository.projectId, req.userId);
-    if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
-    if (access.role !== 'Admin' && access.role !== 'Owner') {
-      return res.status(403).json({ success: false, message: 'Only Admins or Owners can delete repositories' });
+    const isOwner = repository.userId === req.userId;
+    let isProjectAdmin = false;
+
+    if (repository.projectId) {
+      const access = await checkProjectAccess(repository.projectId, req.userId);
+      if (access.accessible && (access.role === 'Admin' || access.role === 'Owner')) {
+        isProjectAdmin = true;
+      }
+    }
+
+    if (!isOwner && !isProjectAdmin) {
+      return res.status(403).json({ success: false, message: 'Only the repository owner or project Admin can delete this repository' });
     }
 
     // Delete associated PullRequests and Deployments
@@ -178,11 +242,13 @@ exports.deleteRepository = async (req, res) => {
       action: 'Deleted',
       entityType: 'Repository',
       entityId: id,
+      projectId: repository.projectId,
       metadata: { name: repository.name }
     });
 
-    res.json({ success: true, message: 'Repository deleted successfully' });
+    res.json({ success: true, message: 'Repository disconnected and deleted successfully' });
   } catch (error) {
+    console.error('Error deleting repository:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };

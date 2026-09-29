@@ -16,6 +16,28 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [categoryFilter, setCategoryFilter] = useState('All');
+  const [isViewingAll, setIsViewingAll] = useState(false);
+  const [allActivity, setAllActivity] = useState(null);
+  const [activityLoading, setActivityLoading] = useState(false);
+
+  const handleToggleViewAll = async () => {
+    if (!isViewingAll) {
+      if (!allActivity) {
+        setActivityLoading(true);
+        try {
+          const res = await apiClient('/activity?all=true&limit=30');
+          setAllActivity(res.activity || []);
+        } catch (e) {
+          console.error('Failed to fetch all activity:', e);
+        } finally {
+          setActivityLoading(false);
+        }
+      }
+      setIsViewingAll(true);
+    } else {
+      setIsViewingAll(false);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -270,135 +292,145 @@ export default function Dashboard() {
       </div>
 
       {/* Lower Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {(() => {
+        const hasTasks = totalTasks > 0;
+        const hasQa = totalQa > 0 || qaStatus.OpenBugs > 0;
         
-        {/* Task Breakdown */}
-        <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-5">
-          <div className="flex items-center gap-2 mb-6">
-            <i className="fa-regular fa-rectangle-list text-slate-400"></i>
-            <h2 className="text-base font-bold text-white">Task Breakdown</h2>
-          </div>
-          {totalTasks === 0 ? (
-             <div className="flex items-center justify-center h-32">
-               <p className="text-xs text-slate-500">No tasks yet</p>
-             </div>
-          ) : (
-             <div className="flex items-center justify-center gap-6">
-               <div className="relative w-32 h-32">
-                 <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90">
-                   {/* Background Circle */}
-                   <path className="text-[#1a2333]" strokeWidth="3.5" stroke="currentColor" fill="none"
-                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                   {/* Done */}
-                   <path className="text-emerald-500" strokeWidth="3.5" strokeDasharray={`${donePct}, 100`} strokeLinecap="round" stroke="currentColor" fill="none"
-                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                   {/* In Progress */}
-                   <path className="text-blue-500" strokeWidth="3.5" strokeDasharray={`${inProgPct}, 100`} strokeDashoffset={`-${donePct}`} strokeLinecap="round" stroke="currentColor" fill="none"
-                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                   {/* To Do */}
-                   <path className="text-purple-500" strokeWidth="3.5" strokeDasharray={`${100 - donePct - inProgPct}, 100`} strokeDashoffset={`-${donePct + inProgPct}`} strokeLinecap="round" stroke="currentColor" fill="none"
-                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                 </svg>
-                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                   <span className="text-2xl font-bold text-white leading-none">{totalTasks}</span>
-                   <span className="text-[9px] text-slate-400 font-medium tracking-wide uppercase mt-1">Tasks</span>
-                 </div>
-               </div>
-               <div className="flex flex-col gap-3">
-                 <div className="flex items-center gap-2">
-                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
-                   <span className="text-xs text-slate-300 w-16">Completed</span>
-                   <span className="text-xs font-bold text-white">{completedTasks}</span>
-                 </div>
-                 <div className="flex items-center gap-2">
-                   <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0"></span>
-                   <span className="text-xs text-slate-300 w-16">In Progress</span>
-                   <span className="text-xs font-bold text-white">{inProgressTasks}</span>
-                 </div>
-                 <div className="flex items-center gap-2">
-                   <span className="w-2.5 h-2.5 rounded-full bg-purple-500 shrink-0"></span>
-                   <span className="text-xs text-slate-300 w-16">To Do</span>
-                   <span className="text-xs font-bold text-white">{toDoTasks}</span>
-                 </div>
-               </div>
-             </div>
-          )}
-        </div>
+        let activityColSpan = 'lg:col-span-3';
+        if (hasTasks && hasQa) {
+          activityColSpan = 'lg:col-span-1';
+        } else if (hasTasks || hasQa) {
+          activityColSpan = 'lg:col-span-2';
+        }
 
-        {/* QA Status */}
-        <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <i className="fa-solid fa-flask text-slate-400"></i>
-              <h2 className="text-base font-bold text-white">QA Status</h2>
+        return (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+            {/* Task Breakdown — only shown when it has useful content */}
+            {hasTasks && (
+              <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-5">
+                <div className="flex items-center gap-2 mb-6">
+                  <i className="fa-regular fa-rectangle-list text-slate-400"></i>
+                  <h2 className="text-base font-bold text-white">Task Breakdown</h2>
+                </div>
+                <div className="flex items-center justify-center gap-6">
+                  <div className="relative w-32 h-32">
+                    <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90">
+                      <path className="text-[#1a2333]" strokeWidth="3.5" stroke="currentColor" fill="none"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                      <path className="text-emerald-500" strokeWidth="3.5" strokeDasharray={`${donePct}, 100`} strokeLinecap="round" stroke="currentColor" fill="none"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                      <path className="text-blue-500" strokeWidth="3.5" strokeDasharray={`${inProgPct}, 100`} strokeDashoffset={`-${donePct}`} strokeLinecap="round" stroke="currentColor" fill="none"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                      <path className="text-purple-500" strokeWidth="3.5" strokeDasharray={`${100 - donePct - inProgPct}, 100`} strokeDashoffset={`-${donePct + inProgPct}`} strokeLinecap="round" stroke="currentColor" fill="none"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-2xl font-bold text-white leading-none">{totalTasks}</span>
+                      <span className="text-[9px] text-slate-400 font-medium tracking-wide uppercase mt-1">Tasks</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+                      <span className="text-xs text-slate-300 w-16">Completed</span>
+                      <span className="text-xs font-bold text-white">{completedTasks}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0"></span>
+                      <span className="text-xs text-slate-300 w-16">In Progress</span>
+                      <span className="text-xs font-bold text-white">{inProgressTasks}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-purple-500 shrink-0"></span>
+                      <span className="text-xs text-slate-300 w-16">To Do</span>
+                      <span className="text-xs font-bold text-white">{toDoTasks}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* QA Status — only shown when it has useful content */}
+            {hasQa && (
+              <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-2">
+                    <i className="fa-solid fa-flask text-slate-400"></i>
+                    <h2 className="text-base font-bold text-white">QA Status</h2>
+                  </div>
+                  <Link to="/qa" className="text-[10px] font-semibold text-slate-400 hover:text-white transition flex items-center gap-1">
+                    View All <i className="fa-solid fa-arrow-right"></i>
+                  </Link>
+                </div>
+                <div className="flex items-center justify-center gap-6">
+                  <div className="relative w-32 h-32">
+                    <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90">
+                      <path className="text-[#1a2333]" strokeWidth="3.5" stroke="currentColor" fill="none"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                      <path className="text-emerald-500" strokeWidth="3.5" strokeDasharray={`${qaPassedPct}, 100`} strokeLinecap="round" stroke="currentColor" fill="none"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                      <path className="text-rose-500" strokeWidth="3.5" strokeDasharray={`${qaFailedPct}, 100`} strokeDashoffset={`-${qaPassedPct}`} strokeLinecap="round" stroke="currentColor" fill="none"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                      <path className="text-amber-500" strokeWidth="3.5" strokeDasharray={`${100 - qaPassedPct - qaFailedPct}, 100`} strokeDashoffset={`-${qaPassedPct + qaFailedPct}`} strokeLinecap="round" stroke="currentColor" fill="none"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-2xl font-bold text-white leading-none">{totalQa}</span>
+                      <span className="text-[9px] text-slate-400 font-medium tracking-wide uppercase mt-1">Tests</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                      <span className="text-[11px] text-slate-300 w-16">Passed</span>
+                      <span className="text-[11px] font-bold text-white">{qaStatus.Passed}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
+                      <span className="text-[11px] text-slate-300 w-16">Failed</span>
+                      <span className="text-[11px] font-bold text-white">{qaStatus.Failed}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+                      <span className="text-[11px] text-slate-300 w-16">Testing</span>
+                      <span className="text-[11px] font-bold text-white">{qaStatus.Blocked + qaStatus.Skipped}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-red-600 shrink-0"></span>
+                      <span className="text-[11px] text-slate-300 w-16">Open Bugs</span>
+                      <span className="text-[11px] font-bold text-white">{qaStatus.OpenBugs}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Recent Activity — expands naturally to fill space */}
+            <div className={`${activityColSpan} bg-[#0f1422] border border-[#192238] rounded-2xl p-5 flex flex-col min-h-[360px]`}>
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2">
+                  <i className="fa-regular fa-clock text-slate-400"></i>
+                  <h2 className="text-base font-bold text-white">Recent Activity</h2>
+                </div>
+                <Link to="/activity" className="text-[10px] font-semibold text-slate-400 hover:text-white transition flex items-center gap-1">
+                  My Day <i className="fa-solid fa-arrow-right"></i>
+                </Link>
+              </div>
+              
+              <div className="flex-1 flex flex-col">
+                <ActivityFeed
+                  activities={isViewingAll ? (allActivity || []) : recentActivity}
+                  loading={activityLoading}
+                  canViewAll={currentUser?.role === 'Admin'}
+                  isViewingAll={isViewingAll}
+                  onToggleViewAll={currentUser?.role === 'Admin' ? handleToggleViewAll : null}
+                  maxHeight="440px"
+                />
+              </div>
             </div>
-            <Link to="/qa" className="text-[10px] font-semibold text-slate-400 hover:text-white transition flex items-center gap-1">
-              View All <i className="fa-solid fa-arrow-right"></i>
-            </Link>
           </div>
-          {totalQa === 0 && qaStatus.OpenBugs === 0 ? (
-             <div className="flex items-center justify-center h-32">
-               <p className="text-xs text-slate-500">No QA data yet</p>
-             </div>
-          ) : (
-             <div className="flex items-center justify-center gap-6">
-               <div className="relative w-32 h-32">
-                 <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90">
-                   <path className="text-[#1a2333]" strokeWidth="3.5" stroke="currentColor" fill="none"
-                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                   <path className="text-emerald-500" strokeWidth="3.5" strokeDasharray={`${qaPassedPct}, 100`} strokeLinecap="round" stroke="currentColor" fill="none"
-                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                   <path className="text-rose-500" strokeWidth="3.5" strokeDasharray={`${qaFailedPct}, 100`} strokeDashoffset={`-${qaPassedPct}`} strokeLinecap="round" stroke="currentColor" fill="none"
-                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                   <path className="text-amber-500" strokeWidth="3.5" strokeDasharray={`${100 - qaPassedPct - qaFailedPct}, 100`} strokeDashoffset={`-${qaPassedPct + qaFailedPct}`} strokeLinecap="round" stroke="currentColor" fill="none"
-                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                 </svg>
-                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                   <span className="text-2xl font-bold text-white leading-none">{totalQa}</span>
-                   <span className="text-[9px] text-slate-400 font-medium tracking-wide uppercase mt-1">Tests</span>
-                 </div>
-               </div>
-               <div className="flex flex-col gap-2.5">
-                 <div className="flex items-center gap-2">
-                   <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
-                   <span className="text-[11px] text-slate-300 w-16">Passed</span>
-                   <span className="text-[11px] font-bold text-white">{qaStatus.Passed}</span>
-                 </div>
-                 <div className="flex items-center gap-2">
-                   <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
-                   <span className="text-[11px] text-slate-300 w-16">Failed</span>
-                   <span className="text-[11px] font-bold text-white">{qaStatus.Failed}</span>
-                 </div>
-                 <div className="flex items-center gap-2">
-                   <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
-                   <span className="text-[11px] text-slate-300 w-16">Testing</span>
-                   <span className="text-[11px] font-bold text-white">{qaStatus.Blocked + qaStatus.Skipped}</span>
-                 </div>
-                 <div className="flex items-center gap-2">
-                   <span className="w-2 h-2 rounded-full bg-red-600 shrink-0"></span>
-                   <span className="text-[11px] text-slate-300 w-16">Open Bugs</span>
-                   <span className="text-[11px] font-bold text-white">{qaStatus.OpenBugs}</span>
-                 </div>
-               </div>
-             </div>
-          )}
-        </div>
-
-        {/* Recent Activity */}
-        <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-5 flex flex-col">
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-2">
-              <i className="fa-regular fa-clock text-slate-400"></i>
-              <h2 className="text-base font-bold text-white">Recent Activity</h2>
-            </div>
-          </div>
-          
-          <div className="flex-1 flex flex-col gap-3 overflow-y-auto pr-1">
-            <ActivityFeed activities={recentActivity} />
-          </div>
-        </div>
-
-      </div>
+        );
+      })()}
     </div>
   );
 }

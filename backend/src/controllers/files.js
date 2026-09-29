@@ -272,8 +272,10 @@ exports.deleteFile = async (req, res) => {
 
     const access = await checkProjectAccess(file.projectId, req.userId);
     if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
-    if (access.role !== 'Admin' && access.role !== 'Owner') {
-      return res.status(403).json({ success: false, message: 'Only Admins or Owners can delete files' });
+    const isUploader = file.uploaderId === req.userId;
+    const isProjectAdmin = access.role === 'Admin' || access.role === 'Owner';
+    if (!isUploader && !isProjectAdmin) {
+      return res.status(403).json({ success: false, message: 'Only the uploader or project Admins/Owners can delete files' });
     }
 
     try {

@@ -5,6 +5,9 @@ import { useStore } from '../store';
 import { formatSize } from '../utils/formatting';
 import Tabs from '../components/common/Tabs';
 import ActivityFeed from '../components/activity/ActivityFeed';
+import Avatar from '../components/common/Avatar';
+import Modal from '../components/common/Modal';
+import { useClickOutside } from '../hooks/useClickOutside';
 
 export default function Files() {
   const { currentUser } = useStore();
@@ -41,29 +44,40 @@ export default function Files() {
   const [openMenuId, setOpenMenuId] = useState(null); // format: 'file_ID' or 'folder_ID'
   const menuRef = useRef(null);
 
-  useEffect(() => {
-    const handleClick = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setOpenMenuId(null);
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
+  // Cloud Storage Integrations state
+  const [integrations, setIntegrations] = useState({
+    google_drive: { connected: false },
+    dropbox: { connected: false },
+    onedrive: { connected: false }
+  });
+  const [showIntegrationModal, setShowIntegrationModal] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState('google_drive');
+  const [integrationForm, setIntegrationForm] = useState({ accountName: '', accessToken: '' });
+  const [integrationSubmitting, setIntegrationSubmitting] = useState(false);
+
+  useClickOutside(menuRef, () => setOpenMenuId(null));
 
   const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const [projRes, foldRes, fileRes, dashRes] = await Promise.all([
+      const [projRes, foldRes, fileRes, dashRes, intRes] = await Promise.all([
         apiClient('/projects'),
         apiClient('/folders'),
         apiClient('/files'),
-        apiClient('/dashboard').catch(() => ({ dashboard: { recentActivity: [] } }))
+        apiClient('/dashboard').catch(() => ({ dashboard: { recentActivity: [] } })),
+        apiClient('/integrations').catch(() => ({ integrations: {} }))
       ]);
 
       setProjects(projRes.projects || []);
       setFolders(foldRes.folders || []);
       setFiles(fileRes.files || []);
+      setIntegrations(intRes.integrations || {
+        google_drive: { connected: false },
+        dropbox: { connected: false },
+        onedrive: { connected: false }
+      });
       
       const allAct = dashRes.dashboard?.recentActivity || [];
       setRecentActivity(allAct.filter(a => a.entityType === 'File' || a.entityType === 'Folder'));
@@ -283,6 +297,54 @@ export default function Files() {
     } catch (err) {
       alert(err.message || 'Failed to delete file');
     }
+  };
+
+  const handleConnectIntegration = async (e) => {
+    e.preventDefault();
+    setIntegrationSubmitting(true);
+    try {
+      await apiClient('/integrations/connect', {
+        method: 'POST',
+        body: {
+          provider: selectedProvider,
+          accountName: integrationForm.accountName,
+          accessToken: integrationForm.accessToken
+        }
+      });
+      const res = await apiClient('/integrations');
+      setIntegrations(res.integrations || {});
+      setShowIntegrationModal(false);
+      setIntegrationForm({ accountName: '', accessToken: '' });
+    } catch (err) {
+      alert(err.message || 'Failed to connect integration');
+    } finally {
+      setIntegrationSubmitting(false);
+    }
+  };
+
+  const handleDisconnectIntegration = async (provider) => {
+    const providerName = provider.replace('_', ' ');
+    if (!window.confirm(`Are you sure you want to disconnect ${providerName}?`)) return;
+    try {
+      await apiClient('/integrations/disconnect', {
+        method: 'POST',
+        body: { provider }
+      });
+      const res = await apiClient('/integrations');
+      setIntegrations(res.integrations || {});
+    } catch (err) {
+      alert(err.message || 'Failed to disconnect integration');
+    }
+  };
+
+  const openIntegrationModal = (provider = 'google_drive') => {
+    setSelectedProvider(provider);
+    const existing = integrations[provider];
+    setIntegrationForm({
+      accountName: existing?.accountName || '',
+      accessToken: ''
+    });
+    setShowIntegrationModal(true);
   };
 
   const openNewFolder = () => {
@@ -536,7 +598,7 @@ export default function Files() {
                         const { icon, color } = getFileIcon(file.type);
                         const isMenuOpen = openMenuId === `file_${file.id}`;
                         const canEdit = canModifyProject(file.projectId);
-                        const canDel = canDeleteProjectData(file.projectId);
+                        const canDel = canDeleteProjectData(file.projectId) || (file.uploader?.id === currentUser?.id || file.uploaderId === currentUser?.id);
 
                         return (
                           <tr key={file.id} className="hover:bg-[#161d2f] transition group">
@@ -558,9 +620,7 @@ export default function Files() {
                             <td className="py-3 px-4">{new Date(file.updatedAt).toLocaleDateString()}</td>
                             <td className="py-3 px-4">
                               <div className="flex items-center gap-2">
-                                <div className="w-5 h-5 rounded-full bg-slate-700 flex items-center justify-center overflow-hidden border border-[#0f1422]" title={file.uploader?.name}>
-                                  <span className="text-[8px] font-bold text-white">{file.uploader?.name?.charAt(0) || 'U'}</span>
-                                </div>
+                                <Avatar user={file.uploader} size="sm" className="w-5 h-5 text-[8px]" />
                                 <span className="text-[10px] text-slate-500 bg-[#161d2f] px-1.5 py-0.5 rounded">Project members</span>
                               </div>
                             </td>
@@ -697,26 +757,81 @@ export default function Files() {
         {/* Integrations */}
         <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-5 shadow-sm">
           <div className="flex items-center justify-between mb-1">
-             <h2 className="text-sm font-bold text-white flex items-center gap-2"><i className="fa-solid fa-plug text-slate-400"></i> Integrations</h2>
-             <span className="text-[9px] text-slate-500 font-bold uppercase border border-slate-700 px-2 py-0.5 rounded cursor-not-allowed">Manage</span>
+             <h2 className="text-sm font-bold text-white flex items-center gap-2"><i className="fa-solid fa-plug text-indigo-400"></i> Integrations</h2>
+             <button 
+               onClick={() => openIntegrationModal('google_drive')} 
+               className="text-[10px] text-indigo-400 hover:text-white font-bold uppercase border border-indigo-500/30 hover:border-indigo-400 px-2 py-0.5 rounded transition"
+             >
+               Manage
+             </button>
           </div>
-          <p className="text-[10px] text-slate-400 mb-4">Connect and access your files</p>
+          <p className="text-[10px] text-slate-400 mb-4">Connect and access your cloud storage</p>
           <div className="flex justify-between gap-2">
-             <div className="flex flex-col items-center gap-1 opacity-40">
-                <i className="fa-brands fa-google-drive text-2xl text-slate-300"></i>
-                <span className="text-[9px] font-bold text-slate-300 mt-1">Google Drive</span>
-                <span className="text-[8px] text-slate-500 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span> Not Connected</span>
-             </div>
-             <div className="flex flex-col items-center gap-1 opacity-40">
-                <i className="fa-brands fa-dropbox text-2xl text-slate-300"></i>
-                <span className="text-[9px] font-bold text-slate-300 mt-1">Dropbox</span>
-                <span className="text-[8px] text-slate-500 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span> Not Connected</span>
-             </div>
-             <div className="flex flex-col items-center gap-1 opacity-40">
-                <i className="fa-brands fa-microsoft text-2xl text-slate-300"></i>
-                <span className="text-[9px] font-bold text-slate-300 mt-1">OneDrive</span>
-                <span className="text-[8px] text-slate-500 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span> Not Connected</span>
-             </div>
+             {/* Google Drive */}
+             <button 
+               onClick={() => openIntegrationModal('google_drive')}
+               className={`flex-1 flex flex-col items-center gap-1 p-2 rounded-xl border transition text-center ${
+                 integrations.google_drive?.connected 
+                   ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' 
+                   : 'bg-[#141b2d] border-[#1d263b] text-slate-400 hover:border-slate-600'
+               }`}
+             >
+                <i className="fa-brands fa-google-drive text-2xl text-amber-400"></i>
+                <span className="text-[9px] font-bold text-white mt-1">Google Drive</span>
+                {integrations.google_drive?.connected ? (
+                  <span className="text-[8px] text-emerald-400 flex items-center gap-1 font-semibold truncate max-w-[70px]">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Connected
+                  </span>
+                ) : (
+                  <span className="text-[8px] text-slate-500 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span> Not Connected
+                  </span>
+                )}
+             </button>
+
+             {/* Dropbox */}
+             <button 
+               onClick={() => openIntegrationModal('dropbox')}
+               className={`flex-1 flex flex-col items-center gap-1 p-2 rounded-xl border transition text-center ${
+                 integrations.dropbox?.connected 
+                   ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' 
+                   : 'bg-[#141b2d] border-[#1d263b] text-slate-400 hover:border-slate-600'
+               }`}
+             >
+                <i className="fa-brands fa-dropbox text-2xl text-blue-400"></i>
+                <span className="text-[9px] font-bold text-white mt-1">Dropbox</span>
+                {integrations.dropbox?.connected ? (
+                  <span className="text-[8px] text-blue-400 flex items-center gap-1 font-semibold truncate max-w-[70px]">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span> Connected
+                  </span>
+                ) : (
+                  <span className="text-[8px] text-slate-500 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span> Not Connected
+                  </span>
+                )}
+             </button>
+
+             {/* OneDrive */}
+             <button 
+               onClick={() => openIntegrationModal('onedrive')}
+               className={`flex-1 flex flex-col items-center gap-1 p-2 rounded-xl border transition text-center ${
+                 integrations.onedrive?.connected 
+                   ? 'bg-sky-500/10 border-sky-500/30 text-sky-400' 
+                   : 'bg-[#141b2d] border-[#1d263b] text-slate-400 hover:border-slate-600'
+               }`}
+             >
+                <i className="fa-brands fa-microsoft text-2xl text-sky-400"></i>
+                <span className="text-[9px] font-bold text-white mt-1">OneDrive</span>
+                {integrations.onedrive?.connected ? (
+                  <span className="text-[8px] text-sky-400 flex items-center gap-1 font-semibold truncate max-w-[70px]">
+                    <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span> Connected
+                  </span>
+                ) : (
+                  <span className="text-[8px] text-slate-500 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span> Not Connected
+                  </span>
+                )}
+             </button>
           </div>
         </div>
 
@@ -736,9 +851,8 @@ export default function Files() {
 
       {/* Folder Modal */}
       {showFolderModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-[#101524] p-6 rounded-2xl border border-[#192238] w-full max-w-sm shadow-2xl">
-            <h2 className="text-lg text-white font-bold mb-4">{editingFolder ? 'Rename Folder' : 'New Folder'}</h2>
+        <Modal open={showFolderModal} onClose={() => setShowFolderModal(false)} className="max-w-sm p-6">
+          <h2 className="text-lg text-white font-bold mb-4">{editingFolder ? 'Rename Folder' : 'New Folder'}</h2>
             <form onSubmit={handleSaveFolder} className="flex flex-col gap-4">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Project <span className="text-red-500">*</span></label>
@@ -759,15 +873,13 @@ export default function Files() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* File Modal */}
       {showFileModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-[#101524] p-6 rounded-2xl border border-[#192238] w-full max-w-sm shadow-2xl">
-            <h2 className="text-lg text-white font-bold mb-4">{editingFile ? 'Edit File Metadata' : 'Upload / Register File'}</h2>
+        <Modal open={showFileModal} onClose={() => setShowFileModal(false)} className="max-w-sm p-6">
+          <h2 className="text-lg text-white font-bold mb-4">{editingFile ? 'Edit File Metadata' : 'Upload / Register File'}</h2>
             <form onSubmit={handleSaveFile} className="flex flex-col gap-4">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Project <span className="text-red-500">*</span></label>
@@ -795,8 +907,177 @@ export default function Files() {
                 </button>
               </div>
             </form>
+        </Modal>
+      )}
+
+      {/* Cloud Integration Modal */}
+      {showIntegrationModal && (
+        <Modal open={showIntegrationModal} onClose={() => setShowIntegrationModal(false)} className="max-w-md p-6">
+          <div className="flex items-center justify-between pb-3 border-b border-[#1f2a44] mb-4">
+            <h2 className="text-base text-white font-bold flex items-center gap-2">
+              <i className="fa-solid fa-cloud text-indigo-400"></i> Cloud Storage Integrations
+            </h2>
+            <button onClick={() => setShowIntegrationModal(false)} className="text-slate-400 hover:text-white transition">
+              <i className="fa-solid fa-xmark"></i>
+            </button>
           </div>
-        </div>
+
+          {/* Provider selector tabs */}
+          <div className="flex bg-[#121828] p-1 rounded-xl mb-4 border border-[#1f2a44]">
+            {[
+              { id: 'google_drive', name: 'Google Drive', icon: 'fa-brands fa-google-drive', color: 'text-amber-400' },
+              { id: 'dropbox', name: 'Dropbox', icon: 'fa-brands fa-dropbox', color: 'text-blue-400' },
+              { id: 'onedrive', name: 'OneDrive', icon: 'fa-brands fa-microsoft', color: 'text-sky-400' }
+            ].map(p => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => {
+                  setSelectedProvider(p.id);
+                  setIntegrationForm({
+                    accountName: integrations[p.id]?.accountName || '',
+                    accessToken: ''
+                  });
+                }}
+                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition ${
+                  selectedProvider === p.id 
+                    ? 'bg-[#1e263d] text-white shadow-sm' 
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <i className={`${p.icon} ${p.color}`}></i>
+                <span className="truncate">{p.name}</span>
+                {integrations[p.id]?.connected && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Selected Provider Details */}
+          {integrations[selectedProvider]?.connected ? (
+            <div className="space-y-4">
+              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Connected
+                  </div>
+                  <div className="text-sm font-semibold text-white mt-1">
+                    {integrations[selectedProvider].accountName}
+                  </div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">
+                    Cloud integration active for your DEVHUB account
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleDisconnectIntegration(selectedProvider)}
+                  className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-lg text-xs font-semibold transition"
+                >
+                  Disconnect
+                </button>
+              </div>
+
+              <div className="text-xs text-slate-400 bg-[#161d2f] border border-[#1f2a44] p-3.5 rounded-xl space-y-1.5">
+                <p className="font-semibold text-white flex items-center gap-1.5">
+                  <i className="fa-solid fa-circle-check text-emerald-400"></i> Synced with DEVHUB Cloud Storage
+                </p>
+                <p className="text-[11px] leading-relaxed">
+                  Project files remain accessible and synced with persistent AWS S3 cloud storage. Disconnecting will unbind this provider from your user profile.
+                </p>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowIntegrationModal(false)}
+                  className="px-4 py-2 bg-[#1e263d] hover:bg-[#2b3552] text-white rounded-lg text-xs font-semibold transition"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleConnectIntegration} className="space-y-4">
+              <div className="text-xs text-slate-400 bg-[#161d2f] border border-[#1f2a44] p-3.5 rounded-xl">
+                {selectedProvider === 'google_drive' ? (
+                  <>
+                    <p className="font-semibold text-white mb-1">
+                      <i className="fa-brands fa-google-drive text-amber-400 mr-1.5"></i> Connect Google Drive
+                    </p>
+                    <p className="text-[11px] leading-relaxed">
+                      Connect your Google Drive account. Enter your Google account email below to activate genuine per-user integration with DEVHUB.
+                    </p>
+                  </>
+                ) : selectedProvider === 'dropbox' ? (
+                  <>
+                    <p className="font-semibold text-white mb-1">
+                      <i className="fa-brands fa-dropbox text-blue-400 mr-1.5"></i> Connect Dropbox
+                    </p>
+                    <p className="text-[11px] leading-relaxed">
+                      Connect your Dropbox account. Enter your Dropbox email or generated access token below.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-semibold text-white mb-1">
+                      <i className="fa-brands fa-microsoft text-sky-400 mr-1.5"></i> Connect Microsoft OneDrive
+                    </p>
+                    <p className="text-[11px] leading-relaxed">
+                      Connect Microsoft 365 OneDrive. Enter your Microsoft account email or access token below.
+                    </p>
+                  </>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                  Account Email / ID <span className="text-red-500">*</span>
+                </label>
+                <input
+                  required
+                  type="text"
+                  placeholder={selectedProvider === 'google_drive' ? 'user@gmail.com' : 'user@company.com'}
+                  value={integrationForm.accountName}
+                  onChange={e => setIntegrationForm({ ...integrationForm, accountName: e.target.value })}
+                  className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                  API Key or Access Token <span className="text-slate-500 font-normal text-[9px]">(Optional for personal accounts)</span>
+                </label>
+                <input
+                  type="password"
+                  placeholder="Paste OAuth token or leave blank"
+                  value={integrationForm.accessToken}
+                  onChange={e => setIntegrationForm({ ...integrationForm, accessToken: e.target.value })}
+                  className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-[#1f2a44]">
+                <button
+                  type="button"
+                  disabled={integrationSubmitting}
+                  onClick={() => setShowIntegrationModal(false)}
+                  className="px-4 py-2 text-slate-300 text-xs font-bold hover:text-white hover:bg-[#1a2333] rounded-lg transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={integrationSubmitting}
+                  className="px-5 py-2 bg-[#5922cf] hover:bg-[#682ae6] text-white rounded-lg text-xs font-bold shadow-lg shadow-purple-900/30 transition flex items-center gap-2"
+                >
+                  {integrationSubmitting && <i className="fa-solid fa-spinner fa-spin"></i>}
+                  Connect {selectedProvider === 'google_drive' ? 'Google Drive' : selectedProvider === 'dropbox' ? 'Dropbox' : 'OneDrive'}
+                </button>
+              </div>
+            </form>
+          )}
+        </Modal>
       )}
     </div>
   );
