@@ -1,15 +1,4 @@
-import * as authService from '../services/authService';
-import * as projectService from '../services/projectService';
-import * as taskService from '../services/taskService';
-import * as fileService from '../services/fileService';
-import * as calendarService from '../services/calendarService';
-import * as qaService from '../services/qaService';
-import * as dashboardService from '../services/dashboardService';
-import * as notificationService from '../services/notificationService';
-import * as activityService from '../services/activityService';
-import * as githubService from '../services/githubService';
-
-const USE_LEGACY_BACKEND = import.meta.env.VITE_USE_LEGACY_BACKEND === 'true';
+const USE_LEGACY_BACKEND = import.meta.env.VITE_USE_LEGACY_BACKEND !== 'false';
 const BASE_URL = (
   import.meta.env.VITE_API_URL ||
   'http://localhost:3001/api'
@@ -70,9 +59,34 @@ const legacyApiClient = async (endpoint, { body, ...customConfig } = {}) => {
  * fulfilling 100% of the DEVHUB API contracts with zero UI changes.
  */
 export const apiClient = async (endpoint, { body, method, ...customConfig } = {}) => {
-  if (USE_LEGACY_BACKEND) {
+  if (USE_LEGACY_BACKEND || endpoint.startsWith('/auth') || endpoint.startsWith('/api/auth')) {
     return legacyApiClient(endpoint, { body, method, ...customConfig });
   }
+
+  // Lazy-load Firebase services only when legacy backend is explicitly disabled
+  const [
+    authService,
+    projectService,
+    taskService,
+    fileService,
+    calendarService,
+    qaService,
+    dashboardService,
+    notificationService,
+    activityService,
+    githubService
+  ] = await Promise.all([
+    import('../services/authService'),
+    import('../services/projectService'),
+    import('../services/taskService'),
+    import('../services/fileService'),
+    import('../services/calendarService'),
+    import('../services/qaService'),
+    import('../services/dashboardService'),
+    import('../services/notificationService'),
+    import('../services/activityService'),
+    import('../services/githubService')
+  ]);
 
   // Parse path and query parameters
   const [pathname, search] = endpoint.split('?');
