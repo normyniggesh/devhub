@@ -9,10 +9,11 @@ const BASE_URL = (
  */
 const legacyApiClient = async (endpoint, { body, ...customConfig } = {}) => {
   const headers = { 'Content-Type': 'application/json' };
+  const httpMethod = customConfig.method || (body ? 'POST' : 'GET');
   
   const config = {
-    method: body ? 'POST' : 'GET',
     ...customConfig,
+    method: httpMethod,
     headers: {
       ...headers,
       ...customConfig.headers,
@@ -35,6 +36,7 @@ const legacyApiClient = async (endpoint, { body, ...customConfig } = {}) => {
   try {
     response = await fetch(`${BASE_URL}${endpoint}`, config);
   } catch (error) {
+    console.error('Network request failed:', error);
     throw new Error('Network error. Please try again.');
   }
 
@@ -60,7 +62,9 @@ const legacyApiClient = async (endpoint, { body, ...customConfig } = {}) => {
  */
 export const apiClient = async (endpoint, { body, method, ...customConfig } = {}) => {
   if (USE_LEGACY_BACKEND || endpoint.startsWith('/auth') || endpoint.startsWith('/api/auth')) {
-    return legacyApiClient(endpoint, { body, method, ...customConfig });
+    const opts = { body, ...customConfig };
+    if (method) opts.method = method;
+    return legacyApiClient(endpoint, opts);
   }
 
   // Lazy-load Firebase services only when legacy backend is explicitly disabled

@@ -15,7 +15,7 @@ export const useStore = create(
 
       login: async (email, password) => {
         try {
-          const { user } = await apiClient('/auth/login', { body: { email, password } });
+          const { user } = await apiClient('/auth/login', { method: 'POST', body: { email, password } });
           set({ currentUser: user, isAuthenticated: true, authLoading: false });
           return user;
         } catch (error) {
@@ -25,7 +25,7 @@ export const useStore = create(
       
       register: async (name, email, password) => {
         try {
-          const { user } = await apiClient('/auth/register', { body: { name, email, password } });
+          const { user } = await apiClient('/auth/register', { method: 'POST', body: { name, email, password } });
           set({ currentUser: user, isAuthenticated: true, authLoading: false });
           return user;
         } catch (error) {
