@@ -34,6 +34,21 @@ async function ensureSchema() {
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
+
+      -- Deduplicate if any duplicate entries were created before unique constraint was applied
+      DELETE FROM "UserIntegration" a
+      USING "UserIntegration" b
+      WHERE a.ctid < b.ctid
+        AND a."userId" = b."userId"
+        AND a."provider" = b."provider";
+
+      -- Ensure unique constraint on (userId, provider) required by Prisma upsert ON CONFLICT
+      CREATE UNIQUE INDEX IF NOT EXISTS "UserIntegration_userId_provider_key"
+      ON "UserIntegration"("userId", "provider");
+
+      -- Index on userId for fast lookups
+      CREATE INDEX IF NOT EXISTS "UserIntegration_userId_idx"
+      ON "UserIntegration"("userId");
     `);
     console.log('[DB] Schema verified successfully.');
   } catch (err) {

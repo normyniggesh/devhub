@@ -151,29 +151,64 @@ exports.connectIntegration = async (req, res) => {
       });
     }
 
-    const integration = await prisma.userIntegration.upsert({
-      where: {
-        userId_provider: {
+    let integration;
+    try {
+      integration = await prisma.userIntegration.upsert({
+        where: {
+          userId_provider: {
+            userId: req.userId,
+            provider
+          }
+        },
+        update: {
+          status: 'connected',
+          accountName: cleanAccountName,
+          accessToken: cleanToken,
+          metadata: providerMetadata,
+          updatedAt: new Date()
+        },
+        create: {
+          userId: req.userId,
+          provider,
+          status: 'connected',
+          accountName: cleanAccountName,
+          accessToken: cleanToken,
+          metadata: providerMetadata
+        }
+      });
+    } catch (upsertErr) {
+      console.warn(`[Integrations] Upsert fallback triggered for ${provider}:`, upsertErr.message);
+      const existing = await prisma.userIntegration.findFirst({
+        where: {
           userId: req.userId,
           provider
         }
-      },
-      update: {
-        status: 'connected',
-        accountName: cleanAccountName,
-        accessToken: cleanToken,
-        metadata: providerMetadata,
-        updatedAt: new Date()
-      },
-      create: {
-        userId: req.userId,
-        provider,
-        status: 'connected',
-        accountName: cleanAccountName,
-        accessToken: cleanToken,
-        metadata: providerMetadata
+      });
+
+      if (existing) {
+        integration = await prisma.userIntegration.update({
+          where: { id: existing.id },
+          data: {
+            status: 'connected',
+            accountName: cleanAccountName,
+            accessToken: cleanToken,
+            metadata: providerMetadata,
+            updatedAt: new Date()
+          }
+        });
+      } else {
+        integration = await prisma.userIntegration.create({
+          data: {
+            userId: req.userId,
+            provider,
+            status: 'connected',
+            accountName: cleanAccountName,
+            accessToken: cleanToken,
+            metadata: providerMetadata
+          }
+        });
       }
-    });
+    }
 
     createAuditLog({
       userId: req.userId,
@@ -211,12 +246,10 @@ exports.disconnectIntegration = async (req, res) => {
       });
     }
 
-    const existing = await prisma.userIntegration.findUnique({
+    const existing = await prisma.userIntegration.findFirst({
       where: {
-        userId_provider: {
-          userId: req.userId,
-          provider
-        }
+        userId: req.userId,
+        provider
       }
     });
 
@@ -224,12 +257,10 @@ exports.disconnectIntegration = async (req, res) => {
       return res.json({ success: true, message: 'Integration already disconnected' });
     }
 
-    await prisma.userIntegration.delete({
+    await prisma.userIntegration.deleteMany({
       where: {
-        userId_provider: {
-          userId: req.userId,
-          provider
-        }
+        userId: req.userId,
+        provider
       }
     });
 
@@ -262,12 +293,10 @@ exports.listProviderFiles = async (req, res) => {
       return res.status(400).json({ success: false, message: `Unsupported provider: ${provider}` });
     }
 
-    const integration = await prisma.userIntegration.findUnique({
+    const integration = await prisma.userIntegration.findFirst({
       where: {
-        userId_provider: {
-          userId: req.userId,
-          provider
-        }
+        userId: req.userId,
+        provider
       }
     });
 
@@ -409,12 +438,10 @@ exports.importProviderFile = async (req, res) => {
     }
 
     // Retrieve integration token
-    const integration = await prisma.userIntegration.findUnique({
+    const integration = await prisma.userIntegration.findFirst({
       where: {
-        userId_provider: {
-          userId: req.userId,
-          provider
-        }
+        userId: req.userId,
+        provider
       }
     });
 

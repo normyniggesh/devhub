@@ -16,12 +16,10 @@ function getGitHubHeaders(token) {
 
 exports.getStatus = async (req, res) => {
   try {
-    const integration = await prisma.userIntegration.findUnique({
+    const integration = await prisma.userIntegration.findFirst({
       where: {
-        userId_provider: {
-          userId: req.userId,
-          provider: 'github'
-        }
+        userId: req.userId,
+        provider: 'github'
       }
     });
 
@@ -98,29 +96,64 @@ exports.connect = async (req, res) => {
       followers: ghUser.followers
     };
 
-    const integration = await prisma.userIntegration.upsert({
-      where: {
-        userId_provider: {
+    let integration;
+    try {
+      integration = await prisma.userIntegration.upsert({
+        where: {
+          userId_provider: {
+            userId: req.userId,
+            provider: 'github'
+          }
+        },
+        update: {
+          status: 'connected',
+          accountName: ghUser.login,
+          accessToken: cleanToken,
+          metadata,
+          updatedAt: new Date()
+        },
+        create: {
+          userId: req.userId,
+          provider: 'github',
+          status: 'connected',
+          accountName: ghUser.login,
+          accessToken: cleanToken,
+          metadata
+        }
+      });
+    } catch (upsertErr) {
+      console.warn('[GitHub] Upsert constraint mismatch, applying findFirst fallback:', upsertErr.message);
+      const existing = await prisma.userIntegration.findFirst({
+        where: {
           userId: req.userId,
           provider: 'github'
         }
-      },
-      update: {
-        status: 'connected',
-        accountName: ghUser.login,
-        accessToken: cleanToken,
-        metadata,
-        updatedAt: new Date()
-      },
-      create: {
-        userId: req.userId,
-        provider: 'github',
-        status: 'connected',
-        accountName: ghUser.login,
-        accessToken: cleanToken,
-        metadata
+      });
+
+      if (existing) {
+        integration = await prisma.userIntegration.update({
+          where: { id: existing.id },
+          data: {
+            status: 'connected',
+            accountName: ghUser.login,
+            accessToken: cleanToken,
+            metadata,
+            updatedAt: new Date()
+          }
+        });
+      } else {
+        integration = await prisma.userIntegration.create({
+          data: {
+            userId: req.userId,
+            provider: 'github',
+            status: 'connected',
+            accountName: ghUser.login,
+            accessToken: cleanToken,
+            metadata
+          }
+        });
       }
-    });
+    }
 
     createAuditLog({
       userId: req.userId,
@@ -146,12 +179,10 @@ exports.connect = async (req, res) => {
 
 exports.disconnect = async (req, res) => {
   try {
-    const existing = await prisma.userIntegration.findUnique({
+    const existing = await prisma.userIntegration.findFirst({
       where: {
-        userId_provider: {
-          userId: req.userId,
-          provider: 'github'
-        }
+        userId: req.userId,
+        provider: 'github'
       }
     });
 
@@ -159,12 +190,10 @@ exports.disconnect = async (req, res) => {
       return res.json({ success: true, message: 'GitHub already disconnected' });
     }
 
-    await prisma.userIntegration.delete({
+    await prisma.userIntegration.deleteMany({
       where: {
-        userId_provider: {
-          userId: req.userId,
-          provider: 'github'
-        }
+        userId: req.userId,
+        provider: 'github'
       }
     });
 
@@ -185,12 +214,10 @@ exports.disconnect = async (req, res) => {
 
 exports.getUserRepositories = async (req, res) => {
   try {
-    const integration = await prisma.userIntegration.findUnique({
+    const integration = await prisma.userIntegration.findFirst({
       where: {
-        userId_provider: {
-          userId: req.userId,
-          provider: 'github'
-        }
+        userId: req.userId,
+        provider: 'github'
       }
     });
 
@@ -367,12 +394,10 @@ exports.syncRepository = async (req, res) => {
     }
 
     // Get user's integration token if available
-    const integration = await prisma.userIntegration.findUnique({
+    const integration = await prisma.userIntegration.findFirst({
       where: {
-        userId_provider: {
-          userId: req.userId,
-          provider: 'github'
-        }
+        userId: req.userId,
+        provider: 'github'
       }
     });
 
