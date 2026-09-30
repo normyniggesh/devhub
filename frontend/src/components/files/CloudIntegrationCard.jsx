@@ -71,7 +71,7 @@ export default function CloudIntegrationCard({
             type="button"
             onClick={onConnect}
             disabled={connecting}
-            className="w-full py-2 px-3 bg-[#182238] hover:bg-[#202c48] text-slate-200 hover:text-white rounded-lg text-xs font-medium transition border border-[#2b395c] flex items-center justify-center gap-1.5 disabled:opacity-50"
+            className="cloud-connect-btn w-full py-2 px-3 bg-[#182238] hover:bg-[#202c48] text-slate-200 hover:text-white rounded-lg text-xs font-semibold transition border border-[#2b395c] flex items-center justify-center gap-1.5 disabled:opacity-50 shadow-sm"
           >
             {connecting ? (
               <>
