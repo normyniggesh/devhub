@@ -61,17 +61,17 @@ export default function ActivityFeed({
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2.5 h-full min-h-0">
       {/* Admin View All Controls */}
       {isAdmin && onToggleViewAll && (
-        <div className="flex items-center justify-between pb-3 mb-2 border-b border-[#1f2a44]">
+        <div className="flex items-center justify-between pb-2 mb-1 border-b border-[#1f2a44] shrink-0">
           <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400">
             <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
             {isViewingAll ? 'Viewing All Activity (Admin Mode)' : 'Viewing Project Activity'}
           </div>
           <button
             onClick={onToggleViewAll}
-            className={`text-[10px] font-bold px-2.5 py-1 rounded-md transition flex items-center gap-1.5 border ${
+            className={`text-[10px] font-bold px-2 py-0.5 rounded-md transition flex items-center gap-1.5 border ${
               isViewingAll
                 ? 'bg-purple-600 text-white border-purple-500 shadow-sm'
                 : 'bg-[#161d2f] text-slate-300 border-[#232d47] hover:text-white hover:bg-[#1a2333]'
@@ -84,13 +84,13 @@ export default function ActivityFeed({
       )}
 
       {(!activities || activities.length === 0) ? (
-        <div className="flex flex-col items-center justify-center py-12 text-center bg-[#101524]/60 border border-dashed border-[#1f2a44] rounded-xl p-6">
-          <i className="fa-solid fa-clock-rotate-left text-2xl text-slate-600 mb-2"></i>
-          <p className="text-xs font-semibold text-slate-400 mb-1">{emptyMessage}</p>
+        <div className="flex flex-col items-center justify-center flex-1 py-8 text-center bg-[#101524]/60 border border-dashed border-[#1f2a44] rounded-xl p-4">
+          <i className="fa-solid fa-clock-rotate-left text-xl text-slate-600 mb-1.5"></i>
+          <p className="text-xs font-semibold text-slate-400 mb-0.5">{emptyMessage}</p>
           <p className="text-[10px] text-slate-500">Major project updates, task completions, and files will show up here.</p>
         </div>
       ) : variant === 'timeline' ? (
-        <div className="flex flex-col gap-0 relative ml-2">
+        <div className={`flex flex-col gap-0 relative ml-2 ${maxHeight ? 'overflow-y-auto pr-1' : ''}`} style={maxHeight ? { maxHeight } : {}}>
           <div className="absolute left-[7px] top-2 bottom-2 w-px bg-[#1f2a44] z-0"></div>
           {activities.map((a) => {
             const meta = a.metadata || {};
@@ -116,7 +116,7 @@ export default function ActivityFeed({
           })}
         </div>
       ) : (
-        <div className={`flex flex-col gap-3 ${maxHeight ? `overflow-y-auto pr-1` : ''}`} style={maxHeight ? { maxHeight } : {}}>
+        <div className="flex flex-col gap-2 overflow-y-auto pr-1 flex-1 min-h-0" style={maxHeight ? { maxHeight } : {}}>
           {activities.map((act) => {
             const meta = act.metadata || {};
             const actionStyle = getActionIcon(act.action);

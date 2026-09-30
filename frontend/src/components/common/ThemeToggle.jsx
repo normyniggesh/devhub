@@ -31,7 +31,7 @@ export default function ThemeToggle() {
             <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
               <i className="fa-solid fa-palette text-indigo-400"></i> Appearance
             </span>
-            <span className="text-[10px] text-slate-400 font-medium">4 Themes</span>
+            <span className="text-[10px] text-slate-400 font-medium">{themes.length} Themes</span>
           </div>
 
           <div className="p-1.5 space-y-1">

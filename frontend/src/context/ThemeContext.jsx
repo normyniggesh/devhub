@@ -12,9 +12,9 @@ export const THEMES = [
   {
     id: 'green',
     name: 'Black + Green',
-    description: 'OLED Black & Neon Green',
+    description: 'Deep Black & Cyber Green',
     accent: '#10b981',
-    bg: '#030504',
+    bg: '#040805',
     icon: 'fa-solid fa-terminal'
   },
   {
@@ -26,9 +26,17 @@ export const THEMES = [
     icon: 'fa-solid fa-sun'
   },
   {
+    id: 'warm',
+    name: 'Warm Light',
+    description: 'Cream White & Warm Amber',
+    accent: '#d97706',
+    bg: '#f7f4ed',
+    icon: 'fa-solid fa-mug-saucer'
+  },
+  {
     id: 'blue',
     name: 'Oceanic Blue',
-    description: 'Deep Midnight Navy & Sapphire',
+    description: 'Deep Navy & Sapphire',
     accent: '#3b82f6',
     bg: '#060b18',
     icon: 'fa-solid fa-water'

@@ -4,10 +4,10 @@ import { useStore } from '../store';
 export default function Sidebar({ isOpen, setIsOpen }) {
   const { currentUser } = useStore();
   const getPrimaryClass = ({ isActive }) => 
-    `flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition font-semibold text-sm ${isActive ? 'bg-[#5243d4] text-white shadow-md shadow-indigo-600/20' : 'text-slate-400 hover:text-white hover:bg-[#161a28]'}`;
+    `sidebar-link flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition font-semibold text-sm ${isActive ? 'sidebar-link-active bg-[#5243d4] text-white shadow-md shadow-indigo-600/20' : 'text-slate-400 hover:text-white hover:bg-[#161a28]'}`;
 
   const getSecondaryClass = ({ isActive }) => 
-    `flex items-center space-x-3 px-3.5 py-2 rounded-lg transition font-medium text-[13.5px] ${isActive ? 'bg-[#5243d4] text-white' : 'text-slate-400 hover:text-white hover:bg-[#161a28]'}`;
+    `sidebar-link flex items-center space-x-3 px-3.5 py-2 rounded-lg transition font-medium text-[13.5px] ${isActive ? 'sidebar-link-active bg-[#5243d4] text-white' : 'text-slate-400 hover:text-white hover:bg-[#161a28]'}`;
 
   const handleLinkClick = () => {
     if (setIsOpen) setIsOpen(false);
@@ -21,17 +21,17 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           onClick={() => setIsOpen(false)}
         />
       )}
-      <aside className={`fixed md:sticky top-0 left-0 h-screen w-64 bg-[#0c0e17] border-r border-[#191e2e] flex flex-col justify-between shrink-0 overflow-y-auto z-40 transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+      <aside className={`fixed md:sticky top-0 left-0 h-screen w-64 bg-[#0c0e17] border-r border-[#191e2e] sidebar-container flex flex-col justify-between shrink-0 overflow-y-auto z-40 transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
       <div>
         {/* DEVHUB Brand Header */}
         <div className="px-6 py-5">
           <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30">
-              <i className="fa-solid fa-bolt text-base"></i>
+            <div className="w-8 h-8 rounded-lg devhub-logo-box bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30">
+              <i className="fa-solid fa-bolt text-base devhub-logo-icon"></i>
             </div>
-            <span className="text-white font-extrabold text-xl tracking-wider">DEVHUB</span>
+            <span className="devhub-brand-title text-white font-extrabold text-xl tracking-wider">DEVHUB</span>
           </div>
-          <p className="text-[11px] font-medium text-slate-500 tracking-wide mt-1">Build &middot; Learn &middot; Manage &middot; Grow</p>
+          <p className="devhub-tagline text-[11px] font-medium text-slate-500 tracking-wide mt-1">Build &middot; Learn &middot; Manage &middot; Grow</p>
         </div>
         
         {/* Navigation Links */}
@@ -50,7 +50,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           
           {/* Section: WORKSPACE */}
           <div>
-            <h3 className="px-3 text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-2">WORKSPACE</h3>
+            <h3 className="px-3 text-[11px] font-bold text-slate-500 sidebar-heading tracking-wider uppercase mb-2">WORKSPACE</h3>
             <div className="space-y-0.5">
               <NavLink to="/projects" onClick={handleLinkClick} className={getSecondaryClass}>
                 <i className="fa-regular fa-folder text-[15px] w-5 text-center"></i>
@@ -81,7 +81,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           
           {/* Section: DEVELOPMENT */}
           <div>
-            <h3 className="px-3 text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-2">DEVELOPMENT</h3>
+            <h3 className="px-3 text-[11px] font-bold text-slate-500 sidebar-heading tracking-wider uppercase mb-2">DEVELOPMENT</h3>
             <div className="space-y-0.5">
               <NavLink to="/github" onClick={handleLinkClick} className={getSecondaryClass}>
                 <i className="fa-brands fa-github text-[16px] w-5 text-center"></i>
@@ -101,8 +101,8 @@ export default function Sidebar({ isOpen, setIsOpen }) {
       </div>
       
       {/* User Profile Footer */}
-      <div className="p-3 border-t border-[#191e2e]">
-        <div className="flex items-center justify-between p-2 rounded-xl hover:bg-[#151a29] transition cursor-pointer">
+      <div className="p-3 border-t border-[#191e2e] sidebar-footer">
+        <div className="flex items-center justify-between p-2 rounded-xl sidebar-user-card hover:bg-[#151a29] transition cursor-pointer">
           <div className="flex items-center space-x-3">
             <div className="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center font-bold text-white text-xs border border-slate-600 overflow-hidden">
               {currentUser?.avatarUrl ? (
@@ -112,8 +112,8 @@ export default function Sidebar({ isOpen, setIsOpen }) {
               )}
             </div>
             <div>
-              <h4 className="text-sm font-semibold text-white leading-tight">{currentUser?.name || 'User Name'}</h4>
-              <p className="text-[11px] text-slate-500 leading-tight">{currentUser?.role || 'Team Member'}</p>
+              <h4 className="text-sm font-semibold text-white sidebar-user-name leading-tight">{currentUser?.name || 'User Name'}</h4>
+              <p className="text-[11px] text-slate-500 sidebar-user-role leading-tight">{currentUser?.role || 'Team Member'}</p>
             </div>
           </div>
           <i className="fa-solid fa-chevron-down text-slate-500 text-xs"></i>

@@ -304,16 +304,16 @@ export default function Dashboard() {
         }
 
         return (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Task Breakdown — only shown when it has useful content */}
             {hasTasks && (
-              <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-5">
-                <div className="flex items-center gap-2 mb-6">
+              <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-5 flex flex-col justify-between h-[270px]">
+                <div className="flex items-center gap-2 mb-2 shrink-0">
                   <i className="fa-regular fa-rectangle-list text-slate-400"></i>
                   <h2 className="text-base font-bold text-white">Task Breakdown</h2>
                 </div>
-                <div className="flex items-center justify-center gap-6">
-                  <div className="relative w-32 h-32">
+                <div className="flex items-center justify-center gap-6 my-auto">
+                  <div className="relative w-28 h-28 sm:w-32 sm:h-32 shrink-0">
                     <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90">
                       <path className="text-[#1a2333]" strokeWidth="3.5" stroke="currentColor" fill="none"
                         d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
@@ -329,7 +329,7 @@ export default function Dashboard() {
                       <span className="text-[9px] text-slate-400 font-medium tracking-wide uppercase mt-1">Tasks</span>
                     </div>
                   </div>
-                  <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-2.5">
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
                       <span className="text-xs text-slate-300 w-16">Completed</span>
@@ -352,8 +352,8 @@ export default function Dashboard() {
 
             {/* QA Status — only shown when it has useful content */}
             {hasQa && (
-              <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-5">
-                <div className="flex items-center justify-between mb-6">
+              <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-5 flex flex-col justify-between h-[270px]">
+                <div className="flex items-center justify-between mb-2 shrink-0">
                   <div className="flex items-center gap-2">
                     <i className="fa-solid fa-flask text-slate-400"></i>
                     <h2 className="text-base font-bold text-white">QA Status</h2>
@@ -362,8 +362,8 @@ export default function Dashboard() {
                     View All <i className="fa-solid fa-arrow-right"></i>
                   </Link>
                 </div>
-                <div className="flex items-center justify-center gap-6">
-                  <div className="relative w-32 h-32">
+                <div className="flex items-center justify-center gap-6 my-auto">
+                  <div className="relative w-28 h-28 sm:w-32 sm:h-32 shrink-0">
                     <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90">
                       <path className="text-[#1a2333]" strokeWidth="3.5" stroke="currentColor" fill="none"
                         d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
@@ -379,7 +379,7 @@ export default function Dashboard() {
                       <span className="text-[9px] text-slate-400 font-medium tracking-wide uppercase mt-1">Tests</span>
                     </div>
                   </div>
-                  <div className="flex flex-col gap-2.5">
+                  <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
                       <span className="text-[11px] text-slate-300 w-16">Passed</span>
@@ -405,26 +405,25 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* Recent Activity — expands naturally to fill space */}
-            <div className={`${activityColSpan} bg-[#0f1422] border border-[#192238] rounded-2xl p-5 flex flex-col min-h-[360px]`}>
-              <div className="flex items-center justify-between mb-5">
+            {/* Recent Activity — matches height of Task/QA on desktop */}
+            <div className={`${activityColSpan} bg-[#0f1422] border border-[#192238] rounded-2xl p-5 flex flex-col h-[270px]`}>
+              <div className="flex items-center justify-between mb-3 shrink-0">
                 <div className="flex items-center gap-2">
                   <i className="fa-regular fa-clock text-slate-400"></i>
                   <h2 className="text-base font-bold text-white">Recent Activity</h2>
                 </div>
                 <Link to="/activity" className="text-[10px] font-semibold text-slate-400 hover:text-white transition flex items-center gap-1">
-                  My Day <i className="fa-solid fa-arrow-right"></i>
+                  View All <i className="fa-solid fa-arrow-right"></i>
                 </Link>
               </div>
               
-              <div className="flex-1 flex flex-col">
+              <div className="flex-1 min-h-0 flex flex-col">
                 <ActivityFeed
                   activities={isViewingAll ? (allActivity || []) : recentActivity}
                   loading={activityLoading}
                   canViewAll={currentUser?.role === 'Admin'}
                   isViewingAll={isViewingAll}
                   onToggleViewAll={currentUser?.role === 'Admin' ? handleToggleViewAll : null}
-                  maxHeight="440px"
                 />
               </div>
             </div>
