@@ -3,18 +3,24 @@ const router = express.Router();
 const authMiddleware = require('../middleware/auth');
 const {
   getUserIntegrations,
+  getGoogleAuthUrl,
+  handleGoogleCallback,
   connectIntegration,
   disconnectIntegration,
   listProviderFiles,
+  downloadProviderFile,
   importProviderFile
 } = require('../controllers/integrations');
 
 router.use(authMiddleware);
 
 router.get('/', getUserIntegrations);
+router.get('/google/auth-url', getGoogleAuthUrl);
+router.post('/google/callback', handleGoogleCallback);
 router.post('/connect', connectIntegration);
 router.post('/disconnect', disconnectIntegration);
 router.get('/:provider/files', listProviderFiles);
+router.get('/:provider/download/:fileId', downloadProviderFile);
 router.post('/:provider/import', importProviderFile);
 
 module.exports = router;

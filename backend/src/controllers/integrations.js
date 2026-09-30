@@ -29,6 +29,23 @@ function guessMimeType(fileName, defaultMime = 'application/octet-stream') {
   }
 }
 
+function isGoogleWorkspaceDoc(mimeType) {
+  return mimeType && mimeType.startsWith('application/vnd.google-apps.') && mimeType !== 'application/vnd.google-apps.folder';
+}
+
+function getGoogleExportFormat(mimeType) {
+  switch (mimeType) {
+    case 'application/vnd.google-apps.document':
+      return { exportMime: 'application/pdf', ext: '.pdf' };
+    case 'application/vnd.google-apps.spreadsheet':
+      return { exportMime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ext: '.xlsx' };
+    case 'application/vnd.google-apps.presentation':
+      return { exportMime: 'application/pdf', ext: '.pdf' };
+    default:
+      return { exportMime: 'application/pdf', ext: '.pdf' };
+  }
+}
+
 /**
  * Validates access token with external provider API.
  * Returns metadata or throws an error.
@@ -85,6 +102,56 @@ async function validateProviderToken(provider, token) {
   throw new Error(`Unsupported provider: ${provider}`);
 }
 
+/**
+ * Check and refresh token if expired (for OAuth providers with refresh tokens)
+ */
+async function getValidToken(integration) {
+  if (!integration) return null;
+
+  if (integration.provider === 'google_drive') {
+    const metadata = integration.metadata || {};
+    const isExpired = metadata.expiresAt && Date.now() > (metadata.expiresAt - 60000);
+
+    if (isExpired && metadata.refreshToken && process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+      try {
+        console.log('[Google Drive] Access token expired, refreshing via refreshToken...');
+        const refreshRes = await fetch('https://oauth2.googleapis.com/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            client_id: process.env.GOOGLE_CLIENT_ID,
+            client_secret: process.env.GOOGLE_CLIENT_SECRET,
+            refresh_token: metadata.refreshToken,
+            grant_type: 'refresh_token'
+          })
+        });
+
+        if (refreshRes.ok) {
+          const newTokens = await refreshRes.json();
+          const updated = await prisma.userIntegration.update({
+            where: { id: integration.id },
+            data: {
+              accessToken: newTokens.access_token,
+              metadata: {
+                ...metadata,
+                expiresAt: Date.now() + (newTokens.expires_in || 3600) * 1000
+              },
+              updatedAt: new Date()
+            }
+          });
+          return updated.accessToken;
+        } else {
+          console.warn('[Google Drive] Refresh failed:', await refreshRes.text());
+        }
+      } catch (err) {
+        console.error('[Google Drive] Token refresh error:', err.message);
+      }
+    }
+  }
+
+  return integration.accessToken;
+}
+
 exports.getUserIntegrations = async (req, res) => {
   try {
     const integrations = await prisma.userIntegration.findMany({
@@ -113,6 +180,198 @@ exports.getUserIntegrations = async (req, res) => {
   } catch (error) {
     console.error('Error getting user integrations:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+/**
+ * Generate Google OAuth 2.0 Authorization URL
+ */
+exports.getGoogleAuthUrl = async (req, res) => {
+  try {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      return res.json({
+        success: true,
+        configured: false,
+        message: 'Google OAuth Client ID & Secret are not yet configured on the server.'
+      });
+    }
+
+    const frontendBase = req.headers.origin || process.env.FRONTEND_URL || 'http://localhost:5173';
+    const redirectUri = req.query.redirectUri || process.env.GOOGLE_REDIRECT_URI || `${frontendBase}/files`;
+
+    const stateObj = {
+      userId: req.userId,
+      ts: Date.now()
+    };
+    const state = Buffer.from(JSON.stringify(stateObj)).toString('base64');
+
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      response_type: 'code',
+      scope: 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
+      access_type: 'offline',
+      prompt: 'consent',
+      include_granted_scopes: 'true',
+      state
+    });
+
+    const url = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+
+    res.json({
+      success: true,
+      configured: true,
+      url,
+      redirectUri
+    });
+  } catch (error) {
+    console.error('Error creating Google auth url:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+/**
+ * Handle Google OAuth 2.0 Authorization Code callback
+ */
+exports.handleGoogleCallback = async (req, res) => {
+  try {
+    const { code, redirectUri } = req.body;
+
+    if (!code) {
+      return res.status(400).json({ success: false, message: 'Authorization code is required' });
+    }
+
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      return res.status(400).json({
+        success: false,
+        message: 'Google OAuth credentials (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET) are not configured on the backend.'
+      });
+    }
+
+    const frontendBase = req.headers.origin || process.env.FRONTEND_URL || 'http://localhost:5173';
+    const finalRedirectUri = redirectUri || process.env.GOOGLE_REDIRECT_URI || `${frontendBase}/files`;
+
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: finalRedirectUri,
+        grant_type: 'authorization_code'
+      })
+    });
+
+    if (!tokenResponse.ok) {
+      const errData = await tokenResponse.json().catch(() => ({}));
+      return res.status(400).json({
+        success: false,
+        message: errData.error_description || errData.error || 'Failed to exchange authorization code with Google'
+      });
+    }
+
+    const tokenData = await tokenResponse.json();
+
+    // Fetch user profile info to identify the connected account
+    const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` }
+    });
+    const userInfo = userRes.ok ? await userRes.json() : {};
+
+    const accountEmail = userInfo.email || 'Google Drive User';
+    const existing = await prisma.userIntegration.findFirst({
+      where: { userId: req.userId, provider: 'google_drive' }
+    });
+
+    const metadata = {
+      email: accountEmail,
+      displayName: userInfo.name || accountEmail,
+      picture: userInfo.picture,
+      refreshToken: tokenData.refresh_token || existing?.metadata?.refreshToken,
+      expiresAt: Date.now() + (tokenData.expires_in || 3600) * 1000,
+      scope: tokenData.scope
+    };
+
+    let integration;
+    try {
+      integration = await prisma.userIntegration.upsert({
+        where: {
+          userId_provider: {
+            userId: req.userId,
+            provider: 'google_drive'
+          }
+        },
+        update: {
+          status: 'connected',
+          accountName: accountEmail,
+          accessToken: tokenData.access_token,
+          metadata,
+          updatedAt: new Date()
+        },
+        create: {
+          userId: req.userId,
+          provider: 'google_drive',
+          status: 'connected',
+          accountName: accountEmail,
+          accessToken: tokenData.access_token,
+          metadata
+        }
+      });
+    } catch (upsertErr) {
+      if (existing) {
+        integration = await prisma.userIntegration.update({
+          where: { id: existing.id },
+          data: {
+            status: 'connected',
+            accountName: accountEmail,
+            accessToken: tokenData.access_token,
+            metadata,
+            updatedAt: new Date()
+          }
+        });
+      } else {
+        integration = await prisma.userIntegration.create({
+          data: {
+            userId: req.userId,
+            provider: 'google_drive',
+            status: 'connected',
+            accountName: accountEmail,
+            accessToken: tokenData.access_token,
+            metadata
+          }
+        });
+      }
+    }
+
+    createAuditLog({
+      userId: req.userId,
+      action: 'Connected',
+      entityType: 'Integration',
+      entityId: integration.id,
+      metadata: { provider: 'google_drive', accountName: accountEmail }
+    });
+
+    res.json({
+      success: true,
+      message: 'Google Drive connected successfully',
+      integration: {
+        provider: 'google_drive',
+        status: 'connected',
+        accountName: accountEmail,
+        connectedAt: integration.updatedAt,
+        metadata
+      }
+    });
+  } catch (error) {
+    console.error('Error exchanging Google OAuth code:', error);
+    res.status(500).json({ success: false, message: error.message || 'Internal server error' });
   }
 };
 
@@ -283,11 +542,12 @@ exports.disconnectIntegration = async (req, res) => {
 };
 
 /**
- * List files from a connected cloud provider
+ * List files and folders from a connected cloud provider
  */
 exports.listProviderFiles = async (req, res) => {
   try {
     const { provider } = req.params;
+    const { folderId, search } = req.query;
 
     if (!VALID_PROVIDERS.includes(provider)) {
       return res.status(400).json({ success: false, message: `Unsupported provider: ${provider}` });
@@ -303,15 +563,28 @@ exports.listProviderFiles = async (req, res) => {
     if (!integration || integration.status !== 'connected' || !integration.accessToken) {
       return res.status(400).json({
         success: false,
-        message: `${provider.replace('_', ' ')} is not connected. Connect your account with an access token first.`
+        message: `${provider.replace('_', ' ')} is not connected. Connect your account first.`
       });
     }
 
-    const token = integration.accessToken;
+    const token = await getValidToken(integration);
     let files = [];
+    let currentFolder = { id: folderId || 'root', name: 'My Drive' };
 
     if (provider === 'google_drive') {
-      const gRes = await fetch('https://www.googleapis.com/drive/v3/files?pageSize=50&fields=files(id,name,mimeType,size,modifiedTime)&q=trashed%3Dfalse+and+mimeType!%3D%27application%2Fvnd.google-apps.folder%27', {
+      const targetFolderId = folderId || 'root';
+
+      let q = 'trashed = false';
+      if (search && search.trim()) {
+        const cleanSearch = search.trim().replace(/'/g, "\\'");
+        q += ` and name contains '${cleanSearch}'`;
+      } else {
+        q += ` and '${targetFolderId}' in parents`;
+      }
+
+      const gUrl = `https://www.googleapis.com/drive/v3/files?pageSize=100&fields=files(id,name,mimeType,size,modifiedTime,webViewLink,iconLink,thumbnailLink,parents)&orderBy=folder,name&q=${encodeURIComponent(q)}`;
+
+      const gRes = await fetch(gUrl, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -324,22 +597,44 @@ exports.listProviderFiles = async (req, res) => {
       }
 
       const data = await gRes.json();
-      files = (data.files || []).map(f => ({
-        id: f.id,
-        name: f.name,
-        mimeType: guessMimeType(f.name, f.mimeType),
-        size: f.size ? parseInt(f.size, 10) : 0,
-        lastModified: f.modifiedTime,
-        provider: 'google_drive'
-      }));
+
+      files = (data.files || []).map(f => {
+        const isFolder = f.mimeType === 'application/vnd.google-apps.folder';
+        return {
+          id: f.id,
+          name: f.name,
+          isFolder,
+          mimeType: f.mimeType,
+          size: f.size ? parseInt(f.size, 10) : 0,
+          lastModified: f.modifiedTime,
+          webViewLink: f.webViewLink,
+          iconLink: f.iconLink,
+          thumbnailLink: f.thumbnailLink,
+          provider: 'google_drive'
+        };
+      });
+
+      // If we are in a subfolder, fetch its name for breadcrumb display
+      if (targetFolderId !== 'root') {
+        try {
+          const folderRes = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(targetFolderId)}?fields=id,name`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (folderRes.ok) {
+            const folderData = await folderRes.json();
+            currentFolder.name = folderData.name || 'Folder';
+          }
+        } catch (_) {}
+      }
     } else if (provider === 'dropbox') {
+      const targetPath = folderId || '';
       const dRes = await fetch('https://api.dropboxapi.com/2/files/list_folder', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ path: '', recursive: false, limit: 50 })
+        body: JSON.stringify({ path: targetPath, recursive: false, limit: 100 })
       });
 
       if (!dRes.ok) {
@@ -351,19 +646,22 @@ exports.listProviderFiles = async (req, res) => {
       }
 
       const data = await dRes.json();
-      files = (data.entries || [])
-        .filter(e => e['.tag'] === 'file')
-        .map(f => ({
-          id: f.id,
-          name: f.name,
-          path: f.path_lower,
-          mimeType: guessMimeType(f.name),
-          size: f.size || 0,
-          lastModified: f.client_modified,
-          provider: 'dropbox'
-        }));
+      files = (data.entries || []).map(e => ({
+        id: e.id,
+        name: e.name,
+        path: e.path_lower,
+        isFolder: e['.tag'] === 'folder',
+        mimeType: e['.tag'] === 'folder' ? 'application/vnd.google-apps.folder' : guessMimeType(e.name),
+        size: e.size || 0,
+        lastModified: e.server_modified || null,
+        provider: 'dropbox'
+      }));
     } else if (provider === 'onedrive') {
-      const oRes = await fetch('https://graph.microsoft.com/v1.0/me/drive/root/children', {
+      const endpoint = folderId && folderId !== 'root'
+        ? `https://graph.microsoft.com/v1.0/me/drive/items/${encodeURIComponent(folderId)}/children`
+        : 'https://graph.microsoft.com/v1.0/me/drive/root/children';
+
+      const oRes = await fetch(endpoint, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -376,26 +674,92 @@ exports.listProviderFiles = async (req, res) => {
       }
 
       const data = await oRes.json();
-      files = (data.value || [])
-        .filter(item => !item.folder)
-        .map(f => ({
-          id: f.id,
-          name: f.name,
-          mimeType: guessMimeType(f.name, f.file?.mimeType),
-          size: f.size || 0,
-          lastModified: f.lastModifiedDateTime,
-          provider: 'onedrive'
-        }));
+      files = (data.value || []).map(item => ({
+        id: item.id,
+        name: item.name,
+        isFolder: Boolean(item.folder),
+        mimeType: item.folder ? 'application/vnd.google-apps.folder' : (item.file?.mimeType || guessMimeType(item.name)),
+        size: item.size || 0,
+        lastModified: item.lastModifiedDateTime,
+        webViewLink: item.webUrl,
+        provider: 'onedrive'
+      }));
     }
 
     res.json({
       success: true,
-      provider,
-      accountName: integration.accountName,
-      files
+      files,
+      currentFolder,
+      count: files.length
     });
   } catch (error) {
-    console.error('Error listing provider files:', error);
+    console.error('Error listing cloud files:', error);
+    res.status(500).json({ success: false, message: error.message || 'Internal server error' });
+  }
+};
+
+/**
+ * Direct file download from connected cloud provider
+ */
+exports.downloadProviderFile = async (req, res) => {
+  try {
+    const { provider, fileId } = req.params;
+
+    if (!VALID_PROVIDERS.includes(provider)) {
+      return res.status(400).json({ success: false, message: `Unsupported provider: ${provider}` });
+    }
+
+    const integration = await prisma.userIntegration.findFirst({
+      where: { userId: req.userId, provider }
+    });
+
+    if (!integration || integration.status !== 'connected' || !integration.accessToken) {
+      return res.status(400).json({ success: false, message: 'Provider is not connected' });
+    }
+
+    const token = await getValidToken(integration);
+
+    if (provider === 'google_drive') {
+      // Fetch metadata to check if it's a Google Workspace Doc
+      const metaRes = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=name,mimeType,size`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!metaRes.ok) {
+        return res.status(metaRes.status).json({ success: false, message: 'File not found on Google Drive' });
+      }
+
+      const meta = await metaRes.json();
+      let downloadUrl = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`;
+      let fileName = meta.name || 'download';
+      let contentType = meta.mimeType || 'application/octet-stream';
+
+      if (isGoogleWorkspaceDoc(meta.mimeType)) {
+        const exportFormat = getGoogleExportFormat(meta.mimeType);
+        downloadUrl = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}/export?mimeType=${encodeURIComponent(exportFormat.exportMime)}`;
+        contentType = exportFormat.exportMime;
+        if (!fileName.endsWith(exportFormat.ext)) {
+          fileName += exportFormat.ext;
+        }
+      }
+
+      const streamRes = await fetch(downloadUrl, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!streamRes.ok) {
+        return res.status(streamRes.status).json({ success: false, message: 'Failed to download from Google Drive' });
+      }
+
+      const arrayBuf = await streamRes.arrayBuffer();
+      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+      res.setHeader('Content-Type', contentType);
+      return res.send(Buffer.from(arrayBuf));
+    }
+
+    res.status(501).json({ success: false, message: `Direct download not yet supported for ${provider}` });
+  } catch (error) {
+    console.error('Error downloading provider file:', error);
     res.status(500).json({ success: false, message: error.message || 'Internal server error' });
   }
 };
@@ -452,7 +816,7 @@ exports.importProviderFile = async (req, res) => {
       });
     }
 
-    const token = integration.accessToken;
+    const token = await getValidToken(integration);
     let fileBuffer = null;
     let actualFileName = fileName ? fileName.trim() : 'cloud_file';
     let mimeType = guessMimeType(actualFileName);
@@ -463,13 +827,24 @@ exports.importProviderFile = async (req, res) => {
         headers: { Authorization: `Bearer ${token}` }
       });
 
+      let downloadUrl = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`;
+
       if (gMetaRes.ok) {
         const meta = await gMetaRes.json();
         if (meta.name && !fileName) actualFileName = meta.name;
         if (meta.mimeType) mimeType = guessMimeType(actualFileName, meta.mimeType);
+
+        if (isGoogleWorkspaceDoc(meta.mimeType)) {
+          const exportFormat = getGoogleExportFormat(meta.mimeType);
+          downloadUrl = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}/export?mimeType=${encodeURIComponent(exportFormat.exportMime)}`;
+          mimeType = exportFormat.exportMime;
+          if (!actualFileName.endsWith(exportFormat.ext)) {
+            actualFileName += exportFormat.ext;
+          }
+        }
       }
 
-      const gDownloadRes = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`, {
+      const gDownloadRes = await fetch(downloadUrl, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -523,7 +898,7 @@ exports.importProviderFile = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Downloaded file is empty' });
     }
 
-    // Generate safe key and upload to DEVHUB S3
+    // Generate safe key and upload to DEVHUB AWS S3
     const s3Key = generateSafeKey(projectId, folderId, actualFileName);
     await uploadFile(fileBuffer, mimeType, s3Key);
 

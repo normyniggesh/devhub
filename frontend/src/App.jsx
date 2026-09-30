@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useStore } from './store';
 import Layout from './components/Layout';
@@ -17,6 +17,11 @@ import Deployments from './pages/Deployments';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import { ThemeProvider } from './context/ThemeContext';
+
+const GoogleCallbackRedirect = () => {
+  const location = useLocation();
+  return <Navigate to={`/files${location.search}`} replace />;
+};
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, authLoading } = useStore();
@@ -71,6 +76,7 @@ function App() {
             <Route path="qa" element={<QAtesting />} />
             <Route path="calendar" element={<Calender />} />
             <Route path="files" element={<Files />} />
+            <Route path="integrations/google/callback" element={<GoogleCallbackRedirect />} />
             <Route path="github" element={<Github />} />
             <Route path="pull-requests" element={<PullRequests />} />
             <Route path="deployments" element={<Deployments />} />
