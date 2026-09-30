@@ -29,6 +29,9 @@ export default function Github() {
   // Syncing State
   const [syncingRepoId, setSyncingRepoId] = useState(null);
 
+  // Search filter for repositories
+  const [repoSearch, setRepoSearch] = useState('');
+
   // Manual Add/Edit Repository Modal State
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState('create');
@@ -256,6 +259,19 @@ export default function Github() {
     (r.description && r.description.toLowerCase().includes(importSearch.toLowerCase()))
   );
 
+  const filteredRepositories = repositories.filter(repo => {
+    if (!repoSearch.trim()) return true;
+    const q = repoSearch.toLowerCase();
+    const projName = getProjectName(repo.projectId).toLowerCase();
+    return (
+      repo.name.toLowerCase().includes(q) ||
+      repo.owner.toLowerCase().includes(q) ||
+      (repo.language && repo.language.toLowerCase().includes(q)) ||
+      projName.includes(q) ||
+      (repo.description && repo.description.toLowerCase().includes(q))
+    );
+  });
+
   return (
     <>
       <div className="flex flex-col gap-6">
@@ -264,10 +280,10 @@ export default function Github() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
           <div>
             <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2.5">
-              <i className="fa-brands fa-github text-purple-400"></i> Code Repositories
+              <i className="fa-brands fa-github text-purple-400"></i> GitHub & Code Repositories
             </h1>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Per-user GitHub integration. Manage personal and project repositories, PRs, and deployments.
+            <p className="text-xs text-slate-400 mt-1">
+              Connect your personal GitHub account, import repositories, and link code to DEVHUB projects.
             </p>
           </div>
           
@@ -277,7 +293,7 @@ export default function Github() {
                 onClick={openImportModal}
                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-indigo-900/30"
               >
-                <i className="fa-solid fa-cloud-arrow-down"></i> Import from GitHub
+                <i className="fa-solid fa-cloud-arrow-down"></i> Import Repositories
               </button>
             ) : (
               <button 
@@ -297,7 +313,43 @@ export default function Github() {
           </div>
         </div>
 
-        {/* GitHub Account Connection Card */}
+        {/* Beginner Guide / How it Works Card */}
+        <div className="bg-gradient-to-r from-indigo-950/40 via-[#0f1422] to-[#0f1422] border border-indigo-500/20 rounded-2xl p-5 shadow-sm">
+          <h2 className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+            <i className="fa-solid fa-circle-info"></i> How GitHub Integration Works
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-slate-300">
+            <div className="bg-[#121829] border border-[#1d273e] p-3.5 rounded-xl">
+              <div className="font-bold text-white mb-1 flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-purple-600/30 text-purple-400 text-[11px] flex items-center justify-center font-extrabold">1</span>
+                Connect Account
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Connect your personal GitHub account using a Personal Access Token (for private & public repos) or username (for public-only). One account per user.
+              </p>
+            </div>
+            <div className="bg-[#121829] border border-[#1d273e] p-3.5 rounded-xl">
+              <div className="font-bold text-white mb-1 flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-indigo-600/30 text-indigo-400 text-[11px] flex items-center justify-center font-extrabold">2</span>
+                Import Repositories
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Choose which repositories you want in DEVHUB. You can import multiple repositories and optionally assign each to a specific DEVHUB project.
+              </p>
+            </div>
+            <div className="bg-[#121829] border border-[#1d273e] p-3.5 rounded-xl">
+              <div className="font-bold text-white mb-1 flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-emerald-600/30 text-emerald-400 text-[11px] flex items-center justify-center font-extrabold">3</span>
+                Sync & Track
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Use the Refresh button to fetch latest stars, forks, and branch activity directly from GitHub. Link your code to Tasks, PRs, and Deployments.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Section 1: Connect your GitHub account */}
         <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-5 shadow-sm">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
@@ -316,7 +368,7 @@ export default function Github() {
               <div>
                 <div className="flex items-center gap-2.5">
                   <h2 className="text-sm font-bold text-white">
-                    {githubStatus.connected ? `@${githubStatus.username}` : 'GitHub Account Connection'}
+                    {githubStatus.connected ? `@${githubStatus.username}` : 'Connect your GitHub account'}
                   </h2>
                   {githubStatus.connected ? (
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
@@ -333,7 +385,7 @@ export default function Github() {
                   {githubStatus.connected ? (
                     <span>
                       {githubStatus.metadata?.name ? `${githubStatus.metadata.name} • ` : ''}
-                      {githubStatus.metadata?.publicRepos || 0} public repositories • Synced with your DEVHUB profile
+                      {githubStatus.metadata?.publicRepos || 0} public repositories • Connected to your private DEVHUB profile
                     </span>
                   ) : (
                     'Connect your personal GitHub account to import repositories and sync pull requests.'
@@ -347,9 +399,9 @@ export default function Github() {
                 <>
                   <button
                     onClick={openImportModal}
-                    className="px-3 py-1.5 bg-[#1b2336] hover:bg-[#25304a] text-slate-300 hover:text-white rounded-lg text-xs font-semibold border border-[#293552] transition flex items-center gap-1.5"
+                    className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm"
                   >
-                    <i className="fa-solid fa-download text-[11px]"></i> Import Repos
+                    <i className="fa-solid fa-cloud-arrow-down text-[11px]"></i> Import Repositories
                   </button>
                   <button
                     onClick={handleDisconnectGitHub}
@@ -361,193 +413,240 @@ export default function Github() {
               ) : (
                 <button
                   onClick={() => setShowConnectModal(true)}
-                  className="px-4 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5"
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-md shadow-purple-900/30"
                 >
-                  <i className="fa-brands fa-github"></i> Connect Now
+                  <i className="fa-brands fa-github"></i> Connect GitHub Account
                 </button>
               )}
             </div>
           </div>
         </div>
 
-        {/* Repositories Grid */}
-        {loading ? (
-          <div className="flex items-center justify-center p-12 bg-[#101524] border border-[#192238] rounded-2xl text-slate-400 text-sm">
-            <i className="fa-solid fa-spinner fa-spin mr-2"></i> Loading repositories...
-          </div>
-        ) : error ? (
-          <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-sm">
-            {error}
-          </div>
-        ) : repositories.length === 0 ? (
-          <div className="flex flex-col items-center justify-center p-12 bg-[#101524] border border-dashed border-[#232a3f] rounded-2xl text-center">
-            <div className="w-16 h-16 rounded-2xl bg-[#161c2d] border border-[#232a3f] flex items-center justify-center mb-4">
-              <i className="fa-brands fa-github text-3xl text-slate-400"></i>
+        {/* Section 2: My Repositories */}
+        <div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+            <div>
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <i className="fa-solid fa-code-fork text-indigo-400"></i> My Repositories
+                <span className="text-xs font-bold text-purple-400 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded-full ml-1">
+                  {repositories.length}
+                </span>
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Repositories imported by you or associated with your DEVHUB projects. Private repositories are strictly isolated to your account.
+              </p>
             </div>
-            <h2 className="text-base font-bold text-white mb-1.5">No repositories connected yet</h2>
-            <p className="text-xs text-slate-400 mb-6 max-w-md leading-relaxed">
-              Connect your GitHub account or add repository URLs to track pull requests, view deployment statuses, and link code to DEVHUB tasks.
-            </p>
-            <div className="flex gap-3">
-              {githubStatus.connected ? (
-                <button 
-                  onClick={openImportModal}
-                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-indigo-900/30"
-                >
-                  <i className="fa-solid fa-cloud-arrow-down"></i> Import from GitHub
-                </button>
-              ) : (
-                <button 
-                  onClick={() => setShowConnectModal(true)}
-                  className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-purple-900/30"
-                >
-                  <i className="fa-brands fa-github"></i> Connect GitHub Account
-                </button>
-              )}
-              <button 
-                onClick={() => handleOpenModal('create')}
-                className="px-4 py-2.5 bg-[#1e263d] hover:bg-[#2b3552] text-slate-300 rounded-xl text-xs font-semibold transition"
-              >
-                Add Manually
-              </button>
-            </div>
+
+            {/* Filter Search Input */}
+            {repositories.length > 0 && (
+              <div className="relative w-full sm:w-72">
+                <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                <input
+                  type="text"
+                  placeholder="Filter by name, language, project..."
+                  value={repoSearch}
+                  onChange={(e) => setRepoSearch(e.target.value)}
+                  className="w-full bg-[#0f1422] border border-[#192238] rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition"
+                />
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            {repositories.map(repo => {
-              const isSyncing = syncingRepoId === repo.id;
-              return (
-                <div 
-                  key={repo.id} 
-                  className="bg-[#101524] border border-[#192238] rounded-2xl p-5 flex flex-col justify-between gap-4 hover:border-[#2a3754] transition shadow-sm"
+
+          {/* Repositories Grid */}
+          {loading ? (
+            <div className="flex items-center justify-center p-12 bg-[#101524] border border-[#192238] rounded-2xl text-slate-400 text-sm">
+              <i className="fa-solid fa-spinner fa-spin mr-2 text-indigo-400"></i> Loading repositories...
+            </div>
+          ) : error ? (
+            <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-sm">
+              {error}
+            </div>
+          ) : repositories.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-12 bg-[#101524] border border-dashed border-[#232a3f] rounded-2xl text-center">
+              <div className="w-16 h-16 rounded-2xl bg-[#161c2d] border border-[#232a3f] flex items-center justify-center mb-4">
+                <i className="fa-brands fa-github text-3xl text-slate-400"></i>
+              </div>
+              <h3 className="text-base font-bold text-white mb-1.5">No repositories in DEVHUB yet</h3>
+              <p className="text-xs text-slate-400 mb-6 max-w-md leading-relaxed">
+                Connect your GitHub account to import repositories with one click, or add repository URLs manually to track branches, pull requests, and deployment status.
+              </p>
+              <div className="flex gap-3">
+                {githubStatus.connected ? (
+                  <button 
+                    onClick={openImportModal}
+                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-indigo-900/30"
+                  >
+                    <i className="fa-solid fa-cloud-arrow-down"></i> Import Repositories
+                  </button>
+                ) : (
+                  <button 
+                    onClick={() => setShowConnectModal(true)}
+                    className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-purple-900/30"
+                  >
+                    <i className="fa-brands fa-github"></i> Connect GitHub Account
+                  </button>
+                )}
+                <button 
+                  onClick={() => handleOpenModal('create')}
+                  className="px-4 py-2.5 bg-[#1e263d] hover:bg-[#2b3552] text-slate-300 rounded-xl text-xs font-semibold transition"
                 >
-                  <div>
-                    {/* Top Row: Owner/Name + Actions */}
-                    <div className="flex justify-between items-start gap-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-white font-bold text-base flex items-center gap-2">
-                            <i className="fa-brands fa-github text-slate-400"></i>
-                            <span>{repo.owner}/{repo.name}</span>
-                          </h3>
-                          {repo.isPrivate && (
-                            <span className="px-2 py-0.5 rounded text-[9px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                              <i className="fa-solid fa-lock text-[8px] mr-1"></i> Private
-                            </span>
+                  Add Manually
+                </button>
+              </div>
+            </div>
+          ) : filteredRepositories.length === 0 ? (
+            <div className="p-8 text-center text-xs text-slate-400 bg-[#0f1422] border border-[#192238] rounded-2xl">
+              No repositories match your search query "{repoSearch}".
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              {filteredRepositories.map(repo => {
+                const isSyncing = syncingRepoId === repo.id;
+                const projectName = getProjectName(repo.projectId);
+
+                return (
+                  <div 
+                    key={repo.id} 
+                    className="bg-[#101524] border border-[#192238] rounded-2xl p-5 flex flex-col justify-between gap-4 hover:border-[#2a3754] transition shadow-sm"
+                  >
+                    <div>
+                      {/* Top Row: Repository Name, Visibility & Action Controls */}
+                      <div className="flex justify-between items-start gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-white font-bold text-base flex items-center gap-2 truncate" title={`${repo.owner}/${repo.name}`}>
+                              <i className="fa-brands fa-github text-slate-400"></i>
+                              <span>{repo.owner}/{repo.name}</span>
+                            </h3>
+
+                            {/* Public / Private Badge */}
+                            {repo.isPrivate ? (
+                              <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1">
+                                <i className="fa-solid fa-lock text-[8px]"></i> Private
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-1">
+                                <i className="fa-solid fa-globe text-[8px]"></i> Public
+                              </span>
+                            )}
+                          </div>
+
+                          <a 
+                            href={repo.url} 
+                            target="_blank" 
+                            rel="noreferrer" 
+                            className="text-xs text-indigo-400 hover:underline mt-1 inline-flex items-center gap-1 truncate max-w-md"
+                          >
+                            {repo.url} <i className="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+                          </a>
+                        </div>
+                        
+                        {/* Action buttons: Refresh/Sync, Edit, Remove */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button 
+                            onClick={() => handleSyncRepo(repo.id)} 
+                            disabled={isSyncing}
+                            title="Refresh stats and branch from GitHub"
+                            className="text-slate-400 hover:text-white hover:bg-[#1a2336] p-1.5 rounded-lg transition disabled:opacity-50"
+                          >
+                            <i className={`fa-solid fa-rotate text-xs ${isSyncing ? 'fa-spin text-indigo-400' : ''}`}></i>
+                          </button>
+                          {canEdit(repo) && (
+                            <button 
+                              onClick={() => handleOpenModal('edit', repo)} 
+                              title="Edit repository or project association"
+                              className="text-slate-400 hover:text-white hover:bg-[#1a2336] p-1.5 rounded-lg transition"
+                            >
+                              <i className="fa-solid fa-pen text-xs"></i>
+                            </button>
+                          )}
+                          {canDelete(repo) && (
+                            <button 
+                              onClick={() => handleDelete(repo.id)} 
+                              title="Remove repository from DEVHUB"
+                              className="text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 p-1.5 rounded-lg transition"
+                            >
+                              <i className="fa-solid fa-trash text-xs"></i>
+                            </button>
                           )}
                         </div>
-
-                        <a 
-                          href={repo.url} 
-                          target="_blank" 
-                          rel="noreferrer" 
-                          className="text-xs text-indigo-400 hover:underline mt-1 inline-flex items-center gap-1"
-                        >
-                          {repo.url} <i className="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
-                        </a>
-                      </div>
-                      
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button 
-                          onClick={() => handleSyncRepo(repo.id)} 
-                          disabled={isSyncing}
-                          title="Refresh stats from GitHub"
-                          className="text-slate-400 hover:text-white hover:bg-[#1a2336] p-1.5 rounded-lg transition disabled:opacity-50"
-                        >
-                          <i className={`fa-solid fa-rotate text-xs ${isSyncing ? 'fa-spin text-indigo-400' : ''}`}></i>
-                        </button>
-                        {canEdit(repo) && (
-                          <button 
-                            onClick={() => handleOpenModal('edit', repo)} 
-                            title="Edit repository"
-                            className="text-slate-400 hover:text-white hover:bg-[#1a2336] p-1.5 rounded-lg transition"
-                          >
-                            <i className="fa-solid fa-pen text-xs"></i>
-                          </button>
-                        )}
-                        {canDelete(repo) && (
-                          <button 
-                            onClick={() => handleDelete(repo.id)} 
-                            title="Disconnect repository"
-                            className="text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 p-1.5 rounded-lg transition"
-                          >
-                            <i className="fa-solid fa-trash text-xs"></i>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Description */}
-                    {repo.description && (
-                      <p className="text-xs text-slate-400 mt-2 line-clamp-2 leading-relaxed">
-                        {repo.description}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Metadata Chips & Quick Links */}
-                  <div className="pt-3 border-t border-[#192238] flex flex-col gap-3">
-                    <div className="flex flex-wrap items-center gap-2 text-xs">
-                      {/* Project Tag */}
-                      <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#161c2d] border border-[#232a3f] text-slate-300">
-                        <i className="fa-regular fa-folder text-indigo-400 text-[10px]"></i> 
-                        <span className="text-[11px] font-medium">{getProjectName(repo.projectId)}</span>
-                      </span>
-
-                      {/* Default Branch */}
-                      <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#161c2d] border border-[#232a3f] text-slate-300">
-                        <i className="fa-solid fa-code-branch text-purple-400 text-[10px]"></i> 
-                        <span className="text-[11px] font-medium">{repo.defaultBranch || 'main'}</span>
-                      </span>
-
-                      {/* Language */}
-                      {repo.language && (
-                        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#161c2d] border border-[#232a3f] text-slate-300 text-[11px]">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                          {repo.language}
-                        </span>
-                      )}
-
-                      {/* Stars */}
-                      <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#161c2d] text-slate-400 text-[11px]">
-                        <i className="fa-solid fa-star text-amber-400 text-[10px]"></i> {repo.starsCount || 0}
-                      </span>
-
-                      {/* Forks */}
-                      <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#161c2d] text-slate-400 text-[11px]">
-                        <i className="fa-solid fa-code-fork text-slate-400 text-[10px]"></i> {repo.forksCount || 0}
-                      </span>
-                    </div>
-
-                    {/* Quick navigation to PRs & Deployments */}
-                    <div className="flex items-center justify-between text-xs pt-1 text-slate-400">
-                      <div className="flex gap-4">
-                        <Link 
-                          to="/pull-requests" 
-                          className="hover:text-indigo-400 transition flex items-center gap-1 font-medium"
-                        >
-                          <i className="fa-solid fa-code-pull-request text-[11px]"></i> Pull Requests
-                        </Link>
-                        <Link 
-                          to="/deployments" 
-                          className="hover:text-indigo-400 transition flex items-center gap-1 font-medium"
-                        >
-                          <i className="fa-solid fa-rocket text-[11px]"></i> Deployments
-                        </Link>
                       </div>
 
-                      {repo.pushedAt && (
-                        <span className="text-[10px] text-slate-500">
-                          Updated {new Date(repo.pushedAt).toLocaleDateString()}
-                        </span>
+                      {/* Description */}
+                      {repo.description && (
+                        <p className="text-xs text-slate-400 mt-2 line-clamp-2 leading-relaxed">
+                          {repo.description}
+                        </p>
                       )}
                     </div>
+
+                    {/* Metadata Chips: Project, Language, Stars, Forks, Last Updated */}
+                    <div className="pt-3 border-t border-[#192238] flex flex-col gap-3">
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        {/* Project Association */}
+                        <span 
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#161c2d] border border-[#232a3f] text-slate-300"
+                          title="DEVHUB Project Association"
+                        >
+                          <i className="fa-regular fa-folder text-indigo-400 text-[10px]"></i> 
+                          <span className="text-[11px] font-semibold">{projectName}</span>
+                        </span>
+
+                        {/* Default Branch */}
+                        <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#161c2d] border border-[#232a3f] text-slate-300">
+                          <i className="fa-solid fa-code-branch text-purple-400 text-[10px]"></i> 
+                          <span className="text-[11px] font-medium">{repo.defaultBranch || 'main'}</span>
+                        </span>
+
+                        {/* Language */}
+                        {repo.language && (
+                          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#161c2d] border border-[#232a3f] text-slate-300 text-[11px]">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                            {repo.language}
+                          </span>
+                        )}
+
+                        {/* Stars */}
+                        <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#161c2d] text-slate-400 text-[11px]" title="Stars on GitHub">
+                          <i className="fa-solid fa-star text-amber-400 text-[10px]"></i> {repo.starsCount || 0}
+                        </span>
+
+                        {/* Forks */}
+                        <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#161c2d] text-slate-400 text-[11px]" title="Forks on GitHub">
+                          <i className="fa-solid fa-code-fork text-slate-400 text-[10px]"></i> {repo.forksCount || 0}
+                        </span>
+                      </div>
+
+                      {/* Quick Links & Last Updated */}
+                      <div className="flex items-center justify-between text-xs pt-1 text-slate-400">
+                        <div className="flex gap-4">
+                          <Link 
+                            to="/pull-requests" 
+                            className="hover:text-indigo-400 transition flex items-center gap-1 font-medium"
+                          >
+                            <i className="fa-solid fa-code-pull-request text-[11px]"></i> Pull Requests
+                          </Link>
+                          <Link 
+                            to="/deployments" 
+                            className="hover:text-indigo-400 transition flex items-center gap-1 font-medium"
+                          >
+                            <i className="fa-solid fa-rocket text-[11px]"></i> Deployments
+                          </Link>
+                        </div>
+
+                        {repo.pushedAt && (
+                          <span className="text-[10px] text-slate-500">
+                            Last updated {new Date(repo.pushedAt).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Connect GitHub Account Modal */}
