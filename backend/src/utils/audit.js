@@ -97,16 +97,29 @@ exports.createAuditLog = async ({ userId, action, entityType, entityId, projectI
       ...(resolvedProjectId ? { projectId: resolvedProjectId } : {})
     };
 
-    const log = await prisma.auditLog.create({
-      data: {
-        userId,
-        action: normalizedAction,
-        entityType,
-        entityId,
-        projectId: resolvedProjectId,
-        metadata: mergedMetadata
-      }
-    });
+    let log = null;
+    try {
+      log = await prisma.auditLog.create({
+        data: {
+          userId,
+          action: normalizedAction,
+          entityType,
+          entityId,
+          projectId: resolvedProjectId,
+          metadata: mergedMetadata
+        }
+      });
+    } catch (createErr) {
+      log = await prisma.auditLog.create({
+        data: {
+          userId,
+          action: normalizedAction,
+          entityType,
+          entityId,
+          metadata: mergedMetadata
+        }
+      });
+    }
     return log;
   } catch (error) {
     console.error('Failed to create audit log:', error);

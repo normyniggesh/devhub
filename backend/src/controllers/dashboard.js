@@ -73,18 +73,37 @@ exports.getDashboard = async (req, res) => {
         where: { project: projectWhereClause, status: { notIn: ['Resolved', 'Closed', 'Done'] } }
       }),
       // 8. Recent Activity (User's own + Project activity)
-      prisma.auditLog.findMany({
-        where: {
-          OR: [
-            { userId },
-            { projectId: { in: projectIds } },
-            { entityType: 'Project', entityId: { in: projectIds } }
-          ]
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 25,
-        include: { user: { select: { id: true, name: true, avatarUrl: true } } }
-      })
+      (async () => {
+        try {
+          return await prisma.auditLog.findMany({
+            where: {
+              OR: [
+                { userId },
+                ...(projectIds.length > 0 ? [
+                  { projectId: { in: projectIds } },
+                  { entityType: 'Project', entityId: { in: projectIds } }
+                ] : [])
+              ]
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 25,
+            include: { user: { select: { id: true, name: true, avatarUrl: true } } }
+          });
+        } catch (auditErr) {
+          console.error('[Dashboard] AuditLog project query failed, falling back:', auditErr.message);
+          try {
+            return await prisma.auditLog.findMany({
+              where: { userId },
+              orderBy: { createdAt: 'desc' },
+              take: 25,
+              include: { user: { select: { id: true, name: true, avatarUrl: true } } }
+            });
+          } catch (innerErr) {
+            console.error('[Dashboard] AuditLog fallback query failed:', innerErr.message);
+            return [];
+          }
+        }
+      })()
     ]);
 
     // To Do Tasks for Breakdown

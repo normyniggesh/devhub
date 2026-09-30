@@ -123,28 +123,55 @@ exports.getActivity = async (req, res) => {
       whereClause = {
         OR: [
           { userId: req.userId },
-          { projectId: { in: userProjectIds } },
-          { entityType: 'Project', entityId: { in: userProjectIds } }
+          ...(userProjectIds.length > 0 ? [
+            { projectId: { in: userProjectIds } },
+            { entityType: 'Project', entityId: { in: userProjectIds } }
+          ] : [])
         ]
       };
     }
 
-    const activity = await prisma.auditLog.findMany({
-      where: whereClause,
-      orderBy: { createdAt: 'desc' },
-      take: parseInt(limit) || 50,
-      select: {
-        id: true,
-        userId: true,
-        action: true,
-        entityType: true,
-        entityId: true,
-        projectId: true,
-        metadata: true,
-        createdAt: true,
-        user: { select: { id: true, name: true, avatarUrl: true } }
+    let activity = [];
+    try {
+      activity = await prisma.auditLog.findMany({
+        where: whereClause,
+        orderBy: { createdAt: 'desc' },
+        take: parseInt(limit) || 50,
+        select: {
+          id: true,
+          userId: true,
+          action: true,
+          entityType: true,
+          entityId: true,
+          projectId: true,
+          metadata: true,
+          createdAt: true,
+          user: { select: { id: true, name: true, avatarUrl: true } }
+        }
+      });
+    } catch (auditErr) {
+      console.error('[Activity] AuditLog query failed, falling back:', auditErr.message);
+      try {
+        activity = await prisma.auditLog.findMany({
+          where: showAll ? {} : { userId: req.userId },
+          orderBy: { createdAt: 'desc' },
+          take: parseInt(limit) || 50,
+          select: {
+            id: true,
+            userId: true,
+            action: true,
+            entityType: true,
+            entityId: true,
+            metadata: true,
+            createdAt: true,
+            user: { select: { id: true, name: true, avatarUrl: true } }
+          }
+        });
+      } catch (innerErr) {
+        console.error('[Activity] Fallback query failed:', innerErr.message);
+        activity = [];
       }
-    });
+    }
 
     res.json({
       success: true,
