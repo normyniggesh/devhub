@@ -283,9 +283,11 @@ exports.importRepositories = async (req, res) => {
       });
     }
 
+    const cleanProjectId = projectId && typeof projectId === 'string' && projectId.trim() !== '' ? projectId.trim() : null;
+
     // Check project access if projectId is provided
-    if (projectId) {
-      const access = await checkProjectAccess(projectId, req.userId);
+    if (cleanProjectId) {
+      const access = await checkProjectAccess(cleanProjectId, req.userId);
       if (!access.accessible) {
         return res.status(403).json({ success: false, message: 'Forbidden project access' });
       }
@@ -294,14 +296,24 @@ exports.importRepositories = async (req, res) => {
     const imported = [];
 
     for (const item of repos) {
-      if (!item.name || !item.owner || !item.url) continue;
+      const rawName = item.name;
+      const rawOwner = typeof item.owner === 'object' ? item.owner?.login : item.owner;
+      const resolvedOwner = (rawOwner || (item.fullName ? item.fullName.split('/')[0] : '') || '').trim();
+      const rawUrl = item.url || item.htmlUrl || item.html_url;
+      const resolvedUrl = (rawUrl || (resolvedOwner && rawName ? `https://github.com/${resolvedOwner}/${rawName}` : '')).trim();
+      const resolvedName = (rawName || '').trim();
+
+      if (!resolvedName || !resolvedOwner || !resolvedUrl) {
+        console.warn('[GitHub Import] Skipping repository missing required fields:', item);
+        continue;
+      }
 
       // Check if already imported for this user
       const existing = await prisma.repository.findFirst({
         where: {
           userId: req.userId,
-          name: item.name,
-          owner: item.owner
+          name: resolvedName,
+          owner: resolvedOwner
         }
       });
 
@@ -309,41 +321,43 @@ exports.importRepositories = async (req, res) => {
         const updated = await prisma.repository.update({
           where: { id: existing.id },
           data: {
-            url: item.url,
-            defaultBranch: item.defaultBranch || existing.defaultBranch || 'main',
+            url: resolvedUrl,
+            defaultBranch: item.defaultBranch?.trim() || existing.defaultBranch || 'main',
             description: item.description !== undefined ? item.description : existing.description,
-            starsCount: item.starsCount !== undefined ? item.starsCount : existing.starsCount,
-            forksCount: item.forksCount !== undefined ? item.forksCount : existing.forksCount,
-            openIssuesCount: item.openIssuesCount !== undefined ? item.openIssuesCount : existing.openIssuesCount,
+            starsCount: Number.isInteger(Number(item.starsCount)) ? Number(item.starsCount) : existing.starsCount,
+            forksCount: Number.isInteger(Number(item.forksCount)) ? Number(item.forksCount) : existing.forksCount,
+            openIssuesCount: Number.isInteger(Number(item.openIssuesCount)) ? Number(item.openIssuesCount) : existing.openIssuesCount,
             language: item.language || existing.language,
-            isPrivate: item.isPrivate !== undefined ? item.isPrivate : existing.isPrivate,
-            pushedAt: item.pushedAt ? new Date(item.pushedAt) : existing.pushedAt,
-            projectId: projectId || existing.projectId
+            isPrivate: item.isPrivate !== undefined ? Boolean(item.isPrivate) : existing.isPrivate,
+            pushedAt: item.pushedAt && !isNaN(new Date(item.pushedAt).getTime()) ? new Date(item.pushedAt) : existing.pushedAt,
+            projectId: cleanProjectId || existing.projectId
           },
           include: {
-            project: { select: { id: true, name: true } }
+            project: { select: { id: true, name: true } },
+            user: { select: { id: true, name: true, avatarUrl: true } }
           }
         });
         imported.push(updated);
       } else {
         const created = await prisma.repository.create({
           data: {
-            name: item.name.trim(),
-            owner: item.owner.trim(),
-            url: item.url.trim(),
+            name: resolvedName,
+            owner: resolvedOwner,
+            url: resolvedUrl,
             defaultBranch: item.defaultBranch?.trim() || 'main',
             description: item.description || null,
-            starsCount: item.starsCount || 0,
-            forksCount: item.forksCount || 0,
-            openIssuesCount: item.openIssuesCount || 0,
+            starsCount: Number.isInteger(Number(item.starsCount)) ? Number(item.starsCount) : 0,
+            forksCount: Number.isInteger(Number(item.forksCount)) ? Number(item.forksCount) : 0,
+            openIssuesCount: Number.isInteger(Number(item.openIssuesCount)) ? Number(item.openIssuesCount) : 0,
             language: item.language || null,
             isPrivate: Boolean(item.isPrivate),
-            pushedAt: item.pushedAt ? new Date(item.pushedAt) : null,
-            projectId: projectId || null,
+            pushedAt: item.pushedAt && !isNaN(new Date(item.pushedAt).getTime()) ? new Date(item.pushedAt) : null,
+            projectId: cleanProjectId,
             userId: req.userId
           },
           include: {
-            project: { select: { id: true, name: true } }
+            project: { select: { id: true, name: true } },
+            user: { select: { id: true, name: true, avatarUrl: true } }
           }
         });
 
@@ -352,7 +366,7 @@ exports.importRepositories = async (req, res) => {
           action: 'Created',
           entityType: 'Repository',
           entityId: created.id,
-          projectId: projectId || null,
+          projectId: cleanProjectId,
           metadata: { name: created.name, owner: created.owner, url: created.url }
         });
 
@@ -427,7 +441,8 @@ exports.syncRepository = async (req, res) => {
         pushedAt: r.pushed_at ? new Date(r.pushed_at) : repository.pushedAt
       },
       include: {
-        project: { select: { id: true, name: true } }
+        project: { select: { id: true, name: true } },
+        user: { select: { id: true, name: true, avatarUrl: true } }
       }
     });
 

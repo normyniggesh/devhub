@@ -23,6 +23,22 @@ async function ensureSchema() {
       ALTER TABLE "Repository" ADD COLUMN IF NOT EXISTS "isPrivate" BOOLEAN DEFAULT false;
       ALTER TABLE "Repository" ADD COLUMN IF NOT EXISTS "pushedAt" TIMESTAMP(3);
 
+      -- Allow repositories to be personal (not attached to any project)
+      ALTER TABLE "Repository" ALTER COLUMN "projectId" DROP NOT NULL;
+      CREATE INDEX IF NOT EXISTS "Repository_userId_idx" ON "Repository"("userId");
+      CREATE INDEX IF NOT EXISTS "Repository_projectId_idx" ON "Repository"("projectId");
+
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint WHERE conname = 'Repository_userId_fkey'
+        ) THEN
+          ALTER TABLE "Repository" 
+          ADD CONSTRAINT "Repository_userId_fkey" 
+          FOREIGN KEY ("userId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE SET NULL;
+        END IF;
+      END $$;
+
       CREATE TABLE IF NOT EXISTS "UserIntegration" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "userId" TEXT NOT NULL,
