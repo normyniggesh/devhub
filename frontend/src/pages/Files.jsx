@@ -384,6 +384,21 @@ export default function Files() {
           </div>
         </div>
 
+        {/* Cloud Storage Integrations Section (Spacious 3-column row on desktop, stack on mobile) */}
+        <CloudIntegrations
+          integrations={integrations}
+          onRefreshIntegrations={async () => {
+            const res = await apiClient('/integrations').catch(() => ({ integrations: {} }));
+            setIntegrations(res.integrations || {});
+          }}
+          projects={projects}
+          currentProjectId={currentProjectId}
+          currentFolderId={currentFolderId}
+          onFileImported={() => {
+            loadData();
+          }}
+        />
+
         {/* Empty States for unsupported tabs */}
         {(activeTab === 'Starred' || activeTab === 'Trash') && (
           <div className="flex flex-col items-center justify-center py-20 bg-[#0f1422] border border-dashed border-[#1f2a44] rounded-2xl">
@@ -703,20 +718,7 @@ export default function Files() {
           </div>
         </div>
 
-        {/* Cloud Storage Integrations */}
-        <CloudIntegrations
-          integrations={integrations}
-          onRefreshIntegrations={async () => {
-            const res = await apiClient('/integrations').catch(() => ({ integrations: {} }));
-            setIntegrations(res.integrations || {});
-          }}
-          projects={projects}
-          currentProjectId={currentProjectId}
-          currentFolderId={currentFolderId}
-          onFileImported={() => {
-            loadData();
-          }}
-        />
+
 
         {/* Info Card */}
         <div className="bg-gradient-to-br from-indigo-900/40 to-[#0f1422] border border-indigo-500/20 rounded-2xl p-5 shadow-sm flex items-start gap-4">

@@ -155,14 +155,18 @@ export default function DriveBrowser({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold text-white">{providerName}</h2>
+              <h2 className="text-base font-bold text-white">
+                {provider === 'google_drive' ? 'Your Google Drive' : providerName}
+              </h2>
               {accountName && (
                 <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
                   {accountName}
                 </span>
               )}
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">Browse your personal cloud drive and import files into DEVHUB</p>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Browse your personal Google Drive and import files into DEVHUB projects (saved to AWS S3)
+            </p>
           </div>
         </div>
 
