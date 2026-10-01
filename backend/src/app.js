@@ -21,6 +21,7 @@ const notificationsRoutes = require('./routes/notifications');
 const activityRoutes = require('./routes/activity');
 const integrationsRoutes = require('./routes/integrations');
 const githubRoutes = require('./routes/github');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 
@@ -55,5 +56,6 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/integrations', integrationsRoutes);
 app.use('/api/github', githubRoutes);
+app.use('/api/admin', adminRoutes);
 
 module.exports = app;

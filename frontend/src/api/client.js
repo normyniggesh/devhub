@@ -46,13 +46,15 @@ const legacyApiClient = async (endpoint, { body, ...customConfig } = {}) => {
   }
 
   let errMessage = 'An error occurred';
+  let errData = {};
   try {
-    const errData = await response.json();
+    errData = await response.json();
     errMessage = errData.error || errData.message || errMessage;
   } catch (e) {}
 
   const error = new Error(errMessage);
   error.status = response.status;
+  error.data = errData;
   throw error;
 };
 
@@ -61,7 +63,13 @@ const legacyApiClient = async (endpoint, { body, ...customConfig } = {}) => {
  * fulfilling 100% of the DEVHUB API contracts with zero UI changes.
  */
 export const apiClient = async (endpoint, { body, method, ...customConfig } = {}) => {
-  if (USE_LEGACY_BACKEND || endpoint.startsWith('/auth') || endpoint.startsWith('/api/auth')) {
+  if (
+    USE_LEGACY_BACKEND ||
+    endpoint.startsWith('/auth') ||
+    endpoint.startsWith('/api/auth') ||
+    endpoint.startsWith('/admin') ||
+    endpoint.startsWith('/api/admin')
+  ) {
     const opts = { body, ...customConfig };
     if (method) opts.method = method;
     return legacyApiClient(endpoint, opts);

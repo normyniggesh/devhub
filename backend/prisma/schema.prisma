@@ -12,9 +12,16 @@ model User {
   email        String   @unique
   passwordHash String
   avatarUrl    String?
-  role         String   @default("User")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  role                       String    @default("User")
+  emailVerified              Boolean   @default(false)
+  verificationCodeHash       String?
+  verificationCodeExpiresAt  DateTime?
+  verificationAttempts       Int       @default(0)
+  verificationLastSentAt     DateTime?
+  status                     String    @default("Active")
+  lastSeen                   DateTime?
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
 
   projectsOwned        Project[]             @relation("ProjectOwner")
   projectMemberships   ProjectMember[]

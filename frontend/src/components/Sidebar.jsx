@@ -97,6 +97,19 @@ export default function Sidebar({ isOpen, setIsOpen }) {
               </NavLink>
             </div>
           </div>
+
+          {/* Section: ADMINISTRATION (Admin role only) */}
+          {currentUser?.role === 'Admin' && (
+            <div>
+              <h3 className="px-3 text-[11px] font-bold text-slate-500 sidebar-heading tracking-wider uppercase mb-2">ADMINISTRATION</h3>
+              <div className="space-y-0.5">
+                <NavLink to="/admin" onClick={handleLinkClick} className={getSecondaryClass}>
+                  <i className="fa-solid fa-shield-halved text-[15px] w-5 text-center"></i>
+                  <span>Admin Panel</span>
+                </NavLink>
+              </div>
+            </div>
+          )}
         </nav>
       </div>
       

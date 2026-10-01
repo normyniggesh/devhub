@@ -16,11 +16,22 @@ import PullRequests from './pages/PullRequests';
 import Deployments from './pages/Deployments';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Admin from './pages/Admin';
 import { ThemeProvider } from './context/ThemeContext';
 
 const GoogleCallbackRedirect = () => {
   const location = useLocation();
   return <Navigate to={`/files${location.search}`} replace />;
+};
+
+const AdminRoute = ({ children }) => {
+  const { isAuthenticated, authLoading, currentUser } = useStore();
+  
+  if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">Loading...</div>;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (currentUser?.role !== 'Admin') return <Navigate to="/" replace />;
+  
+  return children;
 };
 
 const ProtectedRoute = ({ children }) => {
@@ -81,6 +92,11 @@ function App() {
             <Route path="pull-requests" element={<PullRequests />} />
             <Route path="deployments" element={<Deployments />} />
             <Route path="team" element={<Team />} />
+            <Route path="admin" element={
+              <AdminRoute>
+                <Admin />
+              </AdminRoute>
+            } />
           </Route>
         </Routes>
       </Router>

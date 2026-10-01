@@ -99,6 +99,24 @@ async function ensureSchema() {
           FOREIGN KEY ("testResultId") REFERENCES "TestResult"(id) ON UPDATE CASCADE ON DELETE SET NULL;
         END IF;
       END $$;
+
+      -- Email verification and user administration columns
+      ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "emailVerified" BOOLEAN DEFAULT false;
+      ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "verificationCodeHash" TEXT;
+      ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "verificationCodeExpiresAt" TIMESTAMP(3);
+      ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "verificationAttempts" INTEGER DEFAULT 0;
+      ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "verificationLastSentAt" TIMESTAMP(3);
+      ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "status" TEXT DEFAULT 'Active';
+      ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "lastSeen" TIMESTAMP(3);
+
+      -- Preserve existing accounts: mark existing users with null/no verificationCodeHash as verified and active
+      UPDATE "User" 
+      SET "emailVerified" = true 
+      WHERE "verificationCodeHash" IS NULL AND ("emailVerified" IS NULL OR "emailVerified" = false);
+
+      UPDATE "User" 
+      SET "status" = 'Active' 
+      WHERE "status" IS NULL;
     `);
     console.log('[DB] Schema verified successfully.');
   } catch (err) {
