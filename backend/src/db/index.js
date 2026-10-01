@@ -65,6 +65,40 @@ async function ensureSchema() {
       -- Index on userId for fast lookups
       CREATE INDEX IF NOT EXISTS "UserIntegration_userId_idx"
       ON "UserIntegration"("userId");
+
+      -- QA System Enhancements: Connect TestCase, TestResult (Runs), and Bug
+      ALTER TABLE "TestCase" ADD COLUMN IF NOT EXISTS "assigneeId" TEXT;
+      ALTER TABLE "TestCase" ADD COLUMN IF NOT EXISTS "actualResult" TEXT;
+      ALTER TABLE "TestCase" ALTER COLUMN "status" SET DEFAULT 'Not Tested';
+      CREATE INDEX IF NOT EXISTS "TestCase_assigneeId_idx" ON "TestCase"("assigneeId");
+
+      ALTER TABLE "TestResult" ADD COLUMN IF NOT EXISTS "notes" TEXT;
+      ALTER TABLE "TestResult" ALTER COLUMN "testRunId" DROP NOT NULL;
+
+      ALTER TABLE "Bug" ADD COLUMN IF NOT EXISTS "testResultId" TEXT;
+      ALTER TABLE "Bug" ADD COLUMN IF NOT EXISTS "expectedResult" TEXT;
+      ALTER TABLE "Bug" ADD COLUMN IF NOT EXISTS "actualResult" TEXT;
+      CREATE INDEX IF NOT EXISTS "Bug_testResultId_idx" ON "Bug"("testResultId");
+      CREATE INDEX IF NOT EXISTS "Bug_testCaseId_idx" ON "Bug"("testCaseId");
+
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint WHERE conname = 'TestCase_assigneeId_fkey'
+        ) THEN
+          ALTER TABLE "TestCase" 
+          ADD CONSTRAINT "TestCase_assigneeId_fkey" 
+          FOREIGN KEY ("assigneeId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE SET NULL;
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint WHERE conname = 'Bug_testResultId_fkey'
+        ) THEN
+          ALTER TABLE "Bug" 
+          ADD CONSTRAINT "Bug_testResultId_fkey" 
+          FOREIGN KEY ("testResultId") REFERENCES "TestResult"(id) ON UPDATE CASCADE ON DELETE SET NULL;
+        END IF;
+      END $$;
     `);
     console.log('[DB] Schema verified successfully.');
   } catch (err) {
@@ -75,3 +109,5 @@ async function ensureSchema() {
 ensureSchema();
 
 module.exports = prisma;
+module.exports.prisma = prisma;
+module.exports.ensureSchema = ensureSchema;

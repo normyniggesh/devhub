@@ -15,48 +15,68 @@ exports.getSummary = async (req, res) => {
 
     const [
       totalTestCases,
-      activeTestCases,
-      totalTestRuns,
-      completedTestRuns,
-      passedResults,
-      failedResults,
-      blockedResults,
-      skippedResults,
+      passedTestCases,
+      failedTestCases,
+      blockedTestCases,
+      notTestedTestCases,
       openBugs,
-      resolvedBugs
+      resolvedBugs,
+      totalBugs,
+      recentlyFailedTests,
+      recentResults
     ] = await Promise.all([
       prisma.testCase.count({ where: { projectId } }),
-      prisma.testCase.count({ where: { projectId, status: 'Active' } }),
-      prisma.testRun.count({ where: { projectId } }),
-      prisma.testRun.count({ where: { projectId, status: 'Completed' } }), // Assuming Completed covers passed/failed, but we can query by 'Completed' or 'Done'
-      prisma.testResult.count({ where: { testRun: { projectId }, status: 'Passed' } }),
-      prisma.testResult.count({ where: { testRun: { projectId }, status: 'Failed' } }),
-      prisma.testResult.count({ where: { testRun: { projectId }, status: 'Blocked' } }),
-      prisma.testResult.count({ where: { testRun: { projectId }, status: 'Skipped' } }),
+      prisma.testCase.count({ where: { projectId, status: 'Passed' } }),
+      prisma.testCase.count({ where: { projectId, status: 'Failed' } }),
+      prisma.testCase.count({ where: { projectId, status: 'Blocked' } }),
+      prisma.testCase.count({ where: { projectId, status: { in: ['Not Tested', 'Draft', 'Pending'] } } }),
       prisma.bug.count({ where: { projectId, status: { notIn: ['Resolved', 'Closed', 'Done'] } } }),
-      prisma.bug.count({ where: { projectId, status: { in: ['Resolved', 'Closed', 'Done'] } } })
+      prisma.bug.count({ where: { projectId, status: { in: ['Resolved', 'Closed', 'Done'] } } }),
+      prisma.bug.count({ where: { projectId } }),
+      prisma.testResult.findMany({
+        where: { testCase: { projectId }, status: 'Failed' },
+        include: {
+          testCase: { select: { id: true, title: true, priority: true, expectedResult: true } },
+          executor: { select: { id: true, name: true, email: true } },
+          bugs: { select: { id: true, title: true, status: true, severity: true } }
+        },
+        orderBy: { executedAt: 'desc' },
+        take: 5
+      }),
+      prisma.testResult.findMany({
+        where: { testCase: { projectId } },
+        include: {
+          testCase: { select: { id: true, title: true, priority: true } },
+          executor: { select: { id: true, name: true } },
+          bugs: { select: { id: true, title: true, status: true } }
+        },
+        orderBy: { executedAt: 'desc' },
+        take: 10
+      })
     ]);
 
-    const totalResults = passedResults + failedResults + blockedResults + skippedResults;
-    const passRate = totalResults > 0 ? ((passedResults / totalResults) * 100).toFixed(2) : 0;
+    const passRate = totalTestCases > 0 ? Math.round((passedTestCases / totalTestCases) * 100) : 0;
+    const failRate = totalTestCases > 0 ? Math.round((failedTestCases / totalTestCases) * 100) : 0;
 
     res.json({
       success: true,
       summary: {
         totalTestCases,
-        activeTestCases,
-        totalTestRuns,
-        completedTestRuns,
-        passedResults,
-        failedResults,
-        blockedResults,
-        skippedResults,
-        passRate: parseFloat(passRate),
+        passedTestCases,
+        failedTestCases,
+        blockedTestCases,
+        notTestedTestCases,
+        passRate,
+        failRate,
         openBugs,
-        resolvedBugs
+        resolvedBugs,
+        totalBugs,
+        recentlyFailedTests,
+        recentResults
       }
     });
   } catch (error) {
+    console.error('getSummary error:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };

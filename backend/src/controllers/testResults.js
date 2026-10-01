@@ -2,12 +2,25 @@ const prisma = require('../db');
 const { checkProjectAccess } = require('../utils/projectAccess');
 const { createAuditLog } = require('../utils/audit');
 
+const testResultInclude = {
+  testRun: { select: { id: true, name: true, projectId: true } },
+  testCase: { select: { id: true, title: true, expectedResult: true, projectId: true } },
+  executor: { select: { id: true, name: true, email: true } },
+  bugs: { select: { id: true, title: true, status: true, severity: true } }
+};
+
 exports.getTestResults = async (req, res) => {
   try {
-    const { testRunId } = req.query;
+    const { testRunId, testCaseId } = req.query;
     let whereClause = {};
 
-    if (testRunId) {
+    if (testCaseId) {
+      const testCase = await prisma.testCase.findUnique({ where: { id: testCaseId } });
+      if (!testCase) return res.status(404).json({ success: false, message: 'Test case not found' });
+      const access = await checkProjectAccess(testCase.projectId, req.userId);
+      if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
+      whereClause.testCaseId = testCaseId;
+    } else if (testRunId) {
       const testRun = await prisma.testRun.findUnique({ where: { id: testRunId } });
       if (!testRun) return res.status(404).json({ success: false, message: 'Test run not found' });
       
@@ -17,7 +30,7 @@ exports.getTestResults = async (req, res) => {
       whereClause.testRunId = testRunId;
     } else {
       whereClause = {
-        testRun: {
+        testCase: {
           project: {
             OR: [
               { ownerId: req.userId },
@@ -30,15 +43,13 @@ exports.getTestResults = async (req, res) => {
 
     const testResults = await prisma.testResult.findMany({
       where: whereClause,
-      include: {
-        testCase: { select: { id: true, title: true } },
-        executor: { select: { id: true, name: true } }
-      },
+      include: testResultInclude,
       orderBy: { executedAt: 'desc' }
     });
 
     res.json({ success: true, testResults });
   } catch (error) {
+    console.error('getTestResults error:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
@@ -48,58 +59,69 @@ exports.getTestResultById = async (req, res) => {
     const { id } = req.params;
     const testResult = await prisma.testResult.findUnique({
       where: { id },
-      include: {
-        testRun: { select: { id: true, projectId: true } },
-        testCase: { select: { id: true, title: true } },
-        executor: { select: { id: true, name: true } }
-      }
+      include: testResultInclude
     });
 
     if (!testResult) return res.status(404).json({ success: false, message: 'Test result not found' });
 
-    const access = await checkProjectAccess(testResult.testRun.projectId, req.userId);
-    if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
+    const projectId = testResult.testCase?.projectId || testResult.testRun?.projectId;
+    if (projectId) {
+      const access = await checkProjectAccess(projectId, req.userId);
+      if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
 
     res.json({ success: true, testResult });
   } catch (error) {
+    console.error('getTestResultById error:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
 
 exports.createTestResult = async (req, res) => {
   try {
-    const { testRunId, testCaseId, status, actualResult } = req.body;
-    if (!testRunId || !testCaseId || !status || typeof status !== 'string') {
-      return res.status(400).json({ success: false, message: 'testRunId, testCaseId, and status are required' });
+    const { testRunId, testCaseId, status, actualResult, notes } = req.body;
+    if (!testCaseId || !status || typeof status !== 'string') {
+      return res.status(400).json({ success: false, message: 'testCaseId and status are required' });
     }
 
-    const testRun = await prisma.testRun.findUnique({ where: { id: testRunId } });
     const testCase = await prisma.testCase.findUnique({ where: { id: testCaseId } });
-
-    if (!testRun || !testCase) {
-      return res.status(404).json({ success: false, message: 'Test run or test case not found' });
+    if (!testCase) {
+      return res.status(404).json({ success: false, message: 'Test case not found' });
     }
 
-    if (testRun.projectId !== testCase.projectId) {
-      return res.status(409).json({ success: false, message: 'Test run and test case must belong to the same project' });
+    if (testRunId) {
+      const testRun = await prisma.testRun.findUnique({ where: { id: testRunId } });
+      if (!testRun) return res.status(404).json({ success: false, message: 'Test run not found' });
+      if (testRun.projectId !== testCase.projectId) {
+        return res.status(409).json({ success: false, message: 'Test run and test case must belong to the same project' });
+      }
     }
 
-    const access = await checkProjectAccess(testRun.projectId, req.userId);
+    const access = await checkProjectAccess(testCase.projectId, req.userId);
     if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
     if (access.role === 'Viewer') return res.status(403).json({ success: false, message: 'Viewers cannot create test results' });
 
+    const runStatus = status.trim();
+
     const testResult = await prisma.testResult.create({
       data: {
-        testRunId,
+        testRunId: testRunId || null,
         testCaseId,
-        status: status.trim(),
+        status: runStatus,
         actualResult: actualResult?.trim() || null,
+        notes: notes?.trim() || null,
         executorId: req.userId,
         executedAt: new Date()
       },
-      include: {
-        testCase: { select: { id: true, title: true } },
-        executor: { select: { id: true, name: true } }
+      include: testResultInclude
+    });
+
+    // Keep testCase status and actualResult synchronized with latest run
+    await prisma.testCase.update({
+      where: { id: testCaseId },
+      data: {
+        status: runStatus,
+        actualResult: actualResult?.trim() || testCase.actualResult
       }
     });
 
@@ -108,11 +130,12 @@ exports.createTestResult = async (req, res) => {
       action: 'Created',
       entityType: 'TestResult',
       entityId: testResult.id,
-      metadata: { status: testResult.status }
+      metadata: { status: testResult.status, testCaseId }
     });
 
     res.status(201).json({ success: true, testResult });
   } catch (error) {
+    console.error('createTestResult error:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
@@ -120,17 +143,20 @@ exports.createTestResult = async (req, res) => {
 exports.updateTestResult = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, actualResult } = req.body;
+    const { status, actualResult, notes } = req.body;
 
     const testResult = await prisma.testResult.findUnique({
       where: { id },
-      include: { testRun: true }
+      include: { testCase: true, testRun: true }
     });
     if (!testResult) return res.status(404).json({ success: false, message: 'Test result not found' });
 
-    const access = await checkProjectAccess(testResult.testRun.projectId, req.userId);
-    if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
-    if (access.role === 'Viewer') return res.status(403).json({ success: false, message: 'Viewers cannot update test results' });
+    const projectId = testResult.testCase?.projectId || testResult.testRun?.projectId;
+    if (projectId) {
+      const access = await checkProjectAccess(projectId, req.userId);
+      if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
+      if (access.role === 'Viewer') return res.status(403).json({ success: false, message: 'Viewers cannot update test results' });
+    }
 
     const updateData = {};
     if (status !== undefined) {
@@ -138,19 +164,26 @@ exports.updateTestResult = async (req, res) => {
       updateData.status = status.trim();
     }
     if (actualResult !== undefined) updateData.actualResult = actualResult?.trim() || null;
+    if (notes !== undefined) updateData.notes = notes?.trim() || null;
     
-    // Always update executedAt and executorId on modification as it represents the latest action
     updateData.executedAt = new Date();
     updateData.executorId = req.userId;
 
     const updatedTestResult = await prisma.testResult.update({
       where: { id },
       data: updateData,
-      include: {
-        testCase: { select: { id: true, title: true } },
-        executor: { select: { id: true, name: true } }
-      }
+      include: testResultInclude
     });
+
+    if (updateData.status && testResult.testCaseId) {
+      await prisma.testCase.update({
+        where: { id: testResult.testCaseId },
+        data: {
+          status: updateData.status,
+          actualResult: updateData.actualResult !== undefined ? updateData.actualResult : undefined
+        }
+      });
+    }
 
     createAuditLog({
       userId: req.userId,
@@ -162,6 +195,7 @@ exports.updateTestResult = async (req, res) => {
 
     res.json({ success: true, testResult: updatedTestResult });
   } catch (error) {
+    console.error('updateTestResult error:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
