@@ -6,7 +6,6 @@ export default function FileRow({
   isSelected = false,
   onToggleSelect,
   onPreview,
-  onOpen,
   onDownload,
   onCopy,
   onCut,
@@ -14,7 +13,6 @@ export default function FileRow({
   canDelete = true,
   provider = 'local'
 }) {
-  const handleOpen = onOpen || onPreview;
   const isGoogleDoc = file.mimeType === 'application/vnd.google-apps.document';
   const isGoogleSheet = file.mimeType === 'application/vnd.google-apps.spreadsheet';
   const isGoogleSlide = file.mimeType === 'application/vnd.google-apps.presentation';
@@ -70,7 +68,7 @@ export default function FileRow({
           ? 'bg-indigo-950/40 border-indigo-500/50 shadow-sm'
           : 'bg-[#121624]/60 hover:bg-[#161d2f] border-[#1b2236] hover:border-[#24314c]'
       }`}
-      onClick={() => handleOpen && handleOpen(file)}
+      onClick={() => onPreview && onPreview(file)}
     >
       <div className="flex items-center gap-2.5 min-w-0 flex-1">
         {/* Checkbox */}

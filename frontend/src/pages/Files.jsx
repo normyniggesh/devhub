@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useStore } from '../store';
-import FileWorkspace from '../components/files/FileWorkspace';
+import FileBrowser from '../components/files/FileBrowser';
 import FilePreviewModal from '../components/files/FilePreviewModal';
 import { useTransferManager } from '../hooks/useTransferManager';
 import Avatar from '../components/common/Avatar';
@@ -222,17 +222,43 @@ export default function Files() {
         </div>
       )}
 
-      {/* Customizable File Workspace (2 / 3 / 4 Equal-Height Panes) */}
-      <FileWorkspace
-        currentUser={currentUser}
-        projects={projects}
-        selectedProjectId={selectedProjectId}
-        onSelectProject={setSelectedProjectId}
-        integrations={integrations}
-        onConnectIntegration={handleConnectGoogleDrive}
-        transferManager={transferManager}
-        onPreviewFile={handleOpenPreview}
-      />
+      {/* Main 3-Pane File Workspace */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+        {/* PANE 1 (LEFT): THIS PC */}
+        <FileBrowser
+          provider="local"
+          title="This PC"
+          currentUser={currentUser}
+          transferManager={transferManager}
+          onPreviewFile={handleOpenPreview}
+          className="min-h-[580px]"
+        />
+
+        {/* PANE 2 (CENTER): DEVHUB */}
+        <FileBrowser
+          provider="devhub"
+          title="DEVHUB S3"
+          currentUser={currentUser}
+          projects={projects}
+          selectedProjectId={selectedProjectId}
+          onSelectProject={setSelectedProjectId}
+          transferManager={transferManager}
+          onPreviewFile={handleOpenPreview}
+          className="min-h-[580px]"
+        />
+
+        {/* PANE 3 (RIGHT): GOOGLE DRIVE */}
+        <FileBrowser
+          provider="gdrive"
+          title="Google Drive"
+          currentUser={currentUser}
+          integration={integrations.google_drive}
+          onConnectIntegration={handleConnectGoogleDrive}
+          transferManager={transferManager}
+          onPreviewFile={handleOpenPreview}
+          className="min-h-[580px]"
+        />
+      </div>
 
       {/* File Preview Modal */}
       <FilePreviewModal

@@ -5,7 +5,6 @@ export default function FolderRow({
   isSelected = false,
   onToggleSelect,
   onOpenFolder,
-  onOpen,
   onDelete,
   onCopy,
   onCut,
@@ -14,7 +13,6 @@ export default function FolderRow({
   provider = 'local'
 }) {
   const [isDragOver, setIsDragOver] = useState(false);
-  const handleOpen = onOpen || onOpenFolder;
 
   const handleDragStart = (e) => {
     e.dataTransfer.setData('application/json', JSON.stringify({
@@ -60,7 +58,7 @@ export default function FolderRow({
           ? 'bg-amber-950/40 border-amber-500 ring-2 ring-amber-500/30'
           : 'bg-[#121624]/60 hover:bg-[#161d2f] border-[#1b2236] hover:border-[#24314c]'
       }`}
-      onClick={() => handleOpen && handleOpen(folder)}
+      onClick={() => onOpenFolder(folder)}
     >
       <div className="flex items-center gap-2.5 min-w-0 flex-1">
         {/* Checkbox */}
