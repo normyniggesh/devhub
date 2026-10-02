@@ -5,8 +5,17 @@ const path = require('path');
 
 // Safe initialization that won't crash if env vars are missing
 let s3Client = null;
+const mockStorage = new Map();
 
 const cleanEnv = (val) => val ? val.replace(/^['"]+|['"]+$/g, '').trim() : '';
+
+const isS3Configured = () => {
+  const region = cleanEnv(process.env.AWS_REGION);
+  const accessKeyId = cleanEnv(process.env.AWS_ACCESS_KEY_ID);
+  const secretAccessKey = cleanEnv(process.env.AWS_SECRET_ACCESS_KEY);
+  const bucket = cleanEnv(process.env.AWS_S3_BUCKET);
+  return !!(region && accessKeyId && secretAccessKey && bucket);
+};
 
 const getS3Config = () => {
   const region = cleanEnv(process.env.AWS_REGION);
@@ -68,6 +77,10 @@ const generateSafeKey = (projectId, folderId, originalName) => {
  * Uploads a file buffer to S3.
  */
 const uploadFile = async (fileBuffer, mimeType, key) => {
+  if (!isS3Configured()) {
+    mockStorage.set(key, { buffer: fileBuffer, mimeType });
+    return key;
+  }
   const client = getS3Client();
   const bucket = getBucketName();
 
@@ -86,6 +99,9 @@ const uploadFile = async (fileBuffer, mimeType, key) => {
  * Generates a short-lived download URL.
  */
 const getDownloadUrl = async (key, expiresIn = 3600) => {
+  if (!isS3Configured()) {
+    return `https://mock-s3.devhub.local/${encodeURIComponent(key)}`;
+  }
   const client = getS3Client();
   const bucket = getBucketName();
 
@@ -103,6 +119,10 @@ const getDownloadUrl = async (key, expiresIn = 3600) => {
  * Deletes an object from S3.
  */
 const deleteFile = async (key) => {
+  if (!isS3Configured()) {
+    mockStorage.delete(key);
+    return;
+  }
   const client = getS3Client();
   const bucket = getBucketName();
 
@@ -114,9 +134,32 @@ const deleteFile = async (key) => {
   await client.send(command);
 };
 
+/**
+ * Retrieves the raw file buffer from S3.
+ */
+const getFileBuffer = async (key) => {
+  if (!isS3Configured()) {
+    const item = mockStorage.get(key);
+    if (item && item.buffer) return item.buffer;
+    return Buffer.from(`Sample file content for ${key}`);
+  }
+  const client = getS3Client();
+  const bucket = getBucketName();
+
+  const command = new GetObjectCommand({
+    Bucket: bucket,
+    Key: key
+  });
+
+  const response = await client.send(command);
+  const byteArray = await response.Body.transformToByteArray();
+  return Buffer.from(byteArray);
+};
+
 module.exports = {
   uploadFile,
   getDownloadUrl,
+  getFileBuffer,
   deleteFile,
   generateSafeKey
 };

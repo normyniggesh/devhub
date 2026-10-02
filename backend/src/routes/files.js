@@ -17,6 +17,8 @@ router.post('/upload', upload.array('files', 10), controller.uploadFiles);
 router.post('/', controller.createFile); // Keep for backward compatibility/metadata
 router.get('/:id', controller.getFileById);
 router.get('/:id/download', controller.downloadFile);
+router.get('/:id/content', controller.getFileContent);
+router.post('/:id/copy', controller.copyFile);
 router.patch('/:id', controller.updateFile);
 router.delete('/:id', controller.deleteFile);
 
