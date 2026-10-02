@@ -943,3 +943,249 @@ exports.importProviderFile = async (req, res) => {
     res.status(500).json({ success: false, message: error.message || 'Internal server error' });
   }
 };
+
+/**
+ * Fetch storage quota for a single provider
+ */
+async function fetchSingleProviderQuota(provider, userId) {
+  if (provider === 'devhub') {
+    const files = await prisma.file.findMany({
+      where: {
+        project: {
+          OR: [
+            { ownerId: userId },
+            { members: { some: { userId } } }
+          ]
+        }
+      },
+      select: { size: true, type: true }
+    });
+
+    let totalBytes = 0, documents = 0, images = 0, videos = 0, others = 0;
+    files.forEach(f => {
+      const s = f.size || 0;
+      totalBytes += s;
+      const t = (f.type || '').toLowerCase();
+      if (t.includes('pdf') || t.includes('doc') || t.includes('txt') || t.includes('csv') || t.includes('xls') || t.includes('ppt')) documents += s;
+      else if (t.includes('image') || t.includes('png') || t.includes('jpg') || t.includes('jpeg') || t.includes('svg')) images += s;
+      else if (t.includes('video') || t.includes('mp4') || t.includes('mov') || t.includes('avi')) videos += s;
+      else others += s;
+    });
+
+    const devhubLimit = process.env.DEVHUB_STORAGE_QUOTA_BYTES ? parseInt(process.env.DEVHUB_STORAGE_QUOTA_BYTES, 10) : (5 * 1024 * 1024 * 1024);
+    return {
+      provider: 'devhub',
+      name: 'DEVHUB Storage',
+      connected: true,
+      used: totalBytes,
+      limit: devhubLimit,
+      percentage: devhubLimit > 0 ? ((totalBytes / devhubLimit) * 100) : null,
+      breakdown: { documents, images, videos, others },
+      fileCount: files.length,
+      available: true
+    };
+  }
+
+  if (provider === 'google_drive') {
+    const integration = await prisma.userIntegration.findFirst({
+      where: { userId, provider: 'google_drive' }
+    });
+    if (!integration || integration.status !== 'connected' || !integration.accessToken) {
+      return {
+        provider: 'google_drive',
+        name: 'Google Drive',
+        connected: false,
+        available: false,
+        message: 'Google Drive is not connected'
+      };
+    }
+    try {
+      const token = await getValidToken(integration);
+      const qRes = await fetch('https://www.googleapis.com/drive/v3/about?fields=user,storageQuota', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!qRes.ok) {
+        return {
+          provider: 'google_drive',
+          name: 'Google Drive',
+          connected: true,
+          account: integration.accountName,
+          available: false,
+          message: 'Storage unavailable'
+        };
+      }
+      const qData = await qRes.json();
+      const quota = qData.storageQuota || {};
+      const used = quota.usage ? parseInt(quota.usage, 10) : 0;
+      const limit = quota.limit ? parseInt(quota.limit, 10) : null;
+      const percentage = limit ? ((used / limit) * 100) : null;
+      return {
+        provider: 'google_drive',
+        name: 'Google Drive',
+        connected: true,
+        account: integration.accountName || qData.user?.emailAddress || null,
+        used,
+        limit,
+        percentage,
+        available: true
+      };
+    } catch (err) {
+      return {
+        provider: 'google_drive',
+        name: 'Google Drive',
+        connected: true,
+        account: integration.accountName,
+        available: false,
+        message: 'Storage unavailable'
+      };
+    }
+  }
+
+  if (provider === 'dropbox') {
+    const integration = await prisma.userIntegration.findFirst({
+      where: { userId, provider: 'dropbox' }
+    });
+    if (!integration || integration.status !== 'connected' || !integration.accessToken) {
+      return {
+        provider: 'dropbox',
+        name: 'Dropbox',
+        connected: false,
+        available: false,
+        message: 'Dropbox is not connected'
+      };
+    }
+    try {
+      const token = await getValidToken(integration);
+      const dRes = await fetch('https://api.dropboxapi.com/2/users/get_space_usage', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!dRes.ok) {
+        return {
+          provider: 'dropbox',
+          name: 'Dropbox',
+          connected: true,
+          account: integration.accountName,
+          available: false,
+          message: 'Storage unavailable'
+        };
+      }
+      const dData = await dRes.json();
+      const used = dData.used || 0;
+      const limit = dData.allocation?.allocated || null;
+      const percentage = limit ? ((used / limit) * 100) : null;
+      return {
+        provider: 'dropbox',
+        name: 'Dropbox',
+        connected: true,
+        account: integration.accountName,
+        used,
+        limit,
+        percentage,
+        available: true
+      };
+    } catch (err) {
+      return {
+        provider: 'dropbox',
+        name: 'Dropbox',
+        connected: true,
+        account: integration.accountName,
+        available: false,
+        message: 'Storage unavailable'
+      };
+    }
+  }
+
+  if (provider === 'onedrive') {
+    const integration = await prisma.userIntegration.findFirst({
+      where: { userId, provider: 'onedrive' }
+    });
+    if (!integration || integration.status !== 'connected' || !integration.accessToken) {
+      return {
+        provider: 'onedrive',
+        name: 'OneDrive',
+        connected: false,
+        available: false,
+        message: 'OneDrive is not connected'
+      };
+    }
+    try {
+      const token = await getValidToken(integration);
+      const oRes = await fetch('https://graph.microsoft.com/v1.0/me/drive', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!oRes.ok) {
+        return {
+          provider: 'onedrive',
+          name: 'OneDrive',
+          connected: true,
+          account: integration.accountName,
+          available: false,
+          message: 'Storage unavailable'
+        };
+      }
+      const oData = await oRes.json();
+      const used = oData.quota?.used || 0;
+      const limit = oData.quota?.total || null;
+      const percentage = limit ? ((used / limit) * 100) : null;
+      return {
+        provider: 'onedrive',
+        name: 'OneDrive',
+        connected: true,
+        account: integration.accountName,
+        used,
+        limit,
+        percentage,
+        available: true
+      };
+    } catch (err) {
+      return {
+        provider: 'onedrive',
+        name: 'OneDrive',
+        connected: true,
+        account: integration.accountName,
+        available: false,
+        message: 'Storage unavailable'
+      };
+    }
+  }
+
+  throw new Error(`Unsupported provider: ${provider}`);
+}
+
+/**
+ * Endpoint to retrieve context-aware storage quotas for DEVHUB and connected cloud providers
+ */
+exports.getProviderQuota = async (req, res) => {
+  try {
+    const { provider } = req.params;
+    const userId = req.userId;
+
+    if (provider) {
+      const quota = await fetchSingleProviderQuota(provider, userId);
+      return res.json({ success: true, quota });
+    }
+
+    // Otherwise return all 4 provider quotas simultaneously
+    const [devhub, google_drive, dropbox, onedrive] = await Promise.all([
+      fetchSingleProviderQuota('devhub', userId).catch(() => ({ provider: 'devhub', name: 'DEVHUB Storage', available: false })),
+      fetchSingleProviderQuota('google_drive', userId).catch(() => ({ provider: 'google_drive', name: 'Google Drive', connected: false, available: false })),
+      fetchSingleProviderQuota('dropbox', userId).catch(() => ({ provider: 'dropbox', name: 'Dropbox', connected: false, available: false })),
+      fetchSingleProviderQuota('onedrive', userId).catch(() => ({ provider: 'onedrive', name: 'OneDrive', connected: false, available: false }))
+    ]);
+
+    res.json({
+      success: true,
+      quotas: {
+        devhub,
+        google_drive,
+        dropbox,
+        onedrive
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching provider quota:', error);
+    res.status(500).json({ success: false, message: error.message || 'Internal server error' });
+  }
+};
+

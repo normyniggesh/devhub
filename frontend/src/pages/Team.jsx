@@ -1,106 +1,227 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '../api/client';
-import Avatar from '../components/common/Avatar';
-import LoadingState from '../components/common/LoadingState';
-import ErrorState from '../components/common/ErrorState';
+import CompactPageHeader from '../components/common/CompactPageHeader';
+import MemberSummary from '../components/team/MemberSummary';
+import MemberTable from '../components/team/MemberTable';
+import MemberDetailsModal from '../components/team/MemberDetailsModal';
+import AddMemberModal from '../components/team/AddMemberModal';
+import ChangeRoleModal from '../components/team/ChangeRoleModal';
+import ConfirmDialog from '../components/common/ConfirmDialog';
 
 export default function Team() {
   const [members, setMembers] = useState([]);
+  const [summary, setSummary] = useState({
+    totalMembers: 0,
+    sharedProjects: 0,
+    admins: 0,
+    pendingInvites: 0
+  });
+  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const fetchTeam = async () => {
-      try {
-        const data = await apiClient('/projects');
-        const allProjects = data.projects || [];
-        
-        // Aggregate unique users and the projects they are in
-        const userMap = new Map();
-        
-        allProjects.forEach(project => {
-          // Add owner
-          if (!userMap.has(project.owner.id)) {
-            userMap.set(project.owner.id, {
-              user: project.owner,
-              projects: []
-            });
-          }
-          if (!userMap.get(project.owner.id).projects.includes(project.name)) {
-            userMap.get(project.owner.id).projects.push(project.name);
-          }
-          
-          // Add members
-          project.members.forEach(m => {
-            if (!userMap.has(m.user.id)) {
-              userMap.set(m.user.id, {
-                user: m.user,
-                projects: []
-              });
-            }
-            if (!userMap.get(m.user.id).projects.includes(project.name)) {
-              userMap.get(m.user.id).projects.push(project.name);
-            }
-          });
-        });
-        
-        setMembers(Array.from(userMap.values()));
-      } catch (err) {
-        setError(err.message || 'Failed to fetch team data');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchTeam();
+  // Search & Role Filter
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState('All');
+
+  // Modals state
+  const [selectedMember, setSelectedMember] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showChangeRoleModal, setShowChangeRoleModal] = useState(false);
+  const [memberToChangeRole, setMemberToChangeRole] = useState(null);
+
+  // Destructive removal confirmation
+  const [memberToRemove, setMemberToRemove] = useState(null);
+  const [removing, setRemoving] = useState(false);
+
+  const fetchTeamData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await apiClient('/team');
+      setMembers(res.members || []);
+      setSummary(res.summary || {
+        totalMembers: (res.members || []).length,
+        sharedProjects: 0,
+        admins: (res.members || []).filter(m => m.role === 'Admin').length,
+        pendingInvites: 0
+      });
+      setProjects(res.projects || []);
+    } catch (err) {
+      console.error('Error fetching team:', err);
+      setError(err.message || 'Failed to load team data');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  if (loading) return <LoadingState message="Loading team members..." />;
-  if (error) return <ErrorState title="Error Loading Team" message={error} onRetry={() => window.location.reload()} />;
+  useEffect(() => {
+    fetchTeamData();
+  }, [fetchTeamData]);
+
+  // Actions
+  const handleViewMember = (member) => {
+    setSelectedMember(member);
+    setShowDetailsModal(true);
+  };
+
+  const handleOpenChangeRole = (member) => {
+    setMemberToChangeRole(member);
+    setShowChangeRoleModal(true);
+  };
+
+  const handleConfirmRemove = async () => {
+    if (!memberToRemove) return;
+    try {
+      setRemoving(true);
+      // If member has a shared project, remove from project
+      const projectId = memberToRemove.projects?.[0]?.id;
+      if (projectId) {
+        await apiClient(`/team/${memberToRemove.id}/projects/${projectId}`, {
+          method: 'DELETE'
+        });
+      }
+      setMemberToRemove(null);
+      await fetchTeamData();
+    } catch (err) {
+      alert(err.message || 'Failed to remove member');
+    } finally {
+      setRemoving(false);
+    }
+  };
 
   return (
-    <div className="flex flex-col gap-6 max-w-6xl">
-      <div>
-        <h1 className="text-2xl font-bold text-white tracking-tight">Team</h1>
-        <p className="text-xs text-slate-400 mt-0.5">People you collaborate with across your projects.</p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {members.length > 0 ? (
-          members.map(member => (
-            <div key={member.user.id} className="bg-[#101524] border border-[#192238] rounded-xl p-5 hover:border-[#2a3655] transition group">
-              <div className="flex flex-col items-center text-center">
-                <Avatar user={member.user} size="lg" className="mb-3 group-hover:scale-105 transition-transform" />
-                <h3 className="text-base font-bold text-white mb-1">{member.user.name}</h3>
-                <p className="text-xs text-slate-400 mb-4">{member.user.email}</p>
-                
-                <div className="w-full">
-                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 text-left">
-                    Shared Projects ({member.projects.length})
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {member.projects.slice(0, 3).map(pName => (
-                      <span key={pName} className="text-[10px] px-2 py-0.5 rounded bg-[#1e293b] text-slate-300 font-medium truncate max-w-full">
-                        {pName}
-                      </span>
-                    ))}
-                    {member.projects.length > 3 && (
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-[#1e293b] text-slate-400 font-medium">
-                        +{member.projects.length - 3} more
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
+    <div className="flex flex-col gap-5 max-w-[1920px] mx-auto pb-12">
+      {/* 4th "Tab Style" Compact Hero Header */}
+      <CompactPageHeader
+        title="Team"
+        subtitle="Manage people and project access."
+        actions={
+          <>
+            {/* Search Input */}
+            <div className="relative w-48 sm:w-64">
+              <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+              <input
+                type="text"
+                placeholder="Search member, email, project..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl pl-8 pr-7 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                >
+                  <i className="fa-solid fa-xmark text-xs"></i>
+                </button>
+              )}
             </div>
-          ))
-        ) : (
-          <div className="col-span-full flex flex-col items-center justify-center p-12 bg-[#101524] border border-dashed border-[#232a3f] rounded-2xl">
-            <i className="fa-solid fa-users text-4xl text-slate-500 mb-4"></i>
-            <h2 className="text-lg font-bold text-white mb-2">No team members yet</h2>
-            <p className="text-sm text-slate-400 text-center max-w-md">Invite people to collaborate on your projects and tasks. Your team space will appear here.</p>
-          </div>
-        )}
-      </div>
+
+            {/* Role Filter Dropdown */}
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              className="bg-[#161d2f] border border-[#1f2a44] rounded-xl px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:border-purple-500 transition cursor-pointer"
+            >
+              <option value="All">All Roles</option>
+              <option value="Admin">Admins</option>
+              <option value="Editor">Editors</option>
+              <option value="Member">Members</option>
+              <option value="Viewer">Viewers</option>
+            </select>
+
+            {/* Add Member Button */}
+            <button
+              type="button"
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-2 px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow-lg shadow-purple-900/30 transition shrink-0 active:scale-95"
+            >
+              <i className="fa-solid fa-user-plus text-xs"></i>
+              <span>Add Member</span>
+            </button>
+          </>
+        }
+      />
+
+      {/* Compact Summary Row (Real statistics only) */}
+      <MemberSummary summary={summary} />
+
+      {/* Main Member Table Area */}
+      {error ? (
+        <div className="p-6 text-center text-red-400 bg-red-500/10 border border-red-500/20 rounded-2xl text-xs">
+          {error}
+        </div>
+      ) : loading ? (
+        <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-16 flex flex-col items-center justify-center">
+          <i className="fa-solid fa-circle-notch fa-spin text-3xl text-purple-500 mb-3"></i>
+          <span className="text-xs font-semibold text-slate-400">Loading team members...</span>
+        </div>
+      ) : (
+        <MemberTable
+          members={members}
+          onViewMember={handleViewMember}
+          onChangeRole={handleOpenChangeRole}
+          onRemoveMember={(member) => setMemberToRemove(member)}
+          searchQuery={searchQuery}
+          roleFilter={roleFilter}
+        />
+      )}
+
+      {/* Member Details Modal */}
+      {showDetailsModal && (
+        <MemberDetailsModal
+          open={showDetailsModal}
+          onClose={() => {
+            setShowDetailsModal(false);
+            setSelectedMember(null);
+          }}
+          member={selectedMember}
+          onChangeRole={(m) => {
+            setShowDetailsModal(false);
+            handleOpenChangeRole(m);
+          }}
+        />
+      )}
+
+      {/* Add Member Modal */}
+      {showAddModal && (
+        <AddMemberModal
+          open={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          projects={projects}
+          onMemberAdded={fetchTeamData}
+        />
+      )}
+
+      {/* Change Role Modal */}
+      {showChangeRoleModal && (
+        <ChangeRoleModal
+          open={showChangeRoleModal}
+          onClose={() => {
+            setShowChangeRoleModal(false);
+            setMemberToChangeRole(null);
+          }}
+          member={memberToChangeRole}
+          onRoleUpdated={fetchTeamData}
+        />
+      )}
+
+      {/* Remove Member ConfirmDialog */}
+      {memberToRemove && (
+        <ConfirmDialog
+          open={Boolean(memberToRemove)}
+          onClose={() => setMemberToRemove(null)}
+          onConfirm={handleConfirmRemove}
+          title="Remove Team Member"
+          message={`Are you sure you want to remove ${memberToRemove.name} (${memberToRemove.email}) from project access? Their assigned tasks will be unassigned.`}
+          confirmText="Remove Member"
+          loading={removing}
+          danger={true}
+        />
+      )}
     </div>
   );
 }

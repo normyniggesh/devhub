@@ -25,21 +25,21 @@ export default function CloudIntegrationCard({
           </div>
           <div className="min-w-0 flex-1">
             <h3 className="text-sm font-bold text-white tracking-tight">{name}</h3>
-            <p className="text-xs text-slate-400 mt-1 leading-relaxed line-clamp-2">
+            <p className="text-xs text-slate-400 mt-1 leading-relaxed line-clamp-2 min-h-[32px]">
               {description}
             </p>
           </div>
         </div>
 
         {/* Status Row */}
-        <div className="pt-3 border-t border-[#192238] flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5">
+        <div className="pt-3 border-t border-[#192238] flex items-center justify-between gap-2 flex-wrap min-h-[28px]">
+          <div className="flex items-center gap-1.5 shrink-0">
             <IntegrationStatus isConnected={isConnected} />
           </div>
 
           {isConnected && accountName && (
             <span
-              className="text-[11px] font-mono text-slate-300 bg-[#161d2f] border border-[#1f2a44] px-2 py-0.5 rounded-lg truncate max-w-[180px]"
+              className="text-[11px] font-mono text-slate-300 bg-[#161d2f] border border-[#1f2a44] px-2 py-0.5 rounded-lg truncate max-w-[130px] sm:max-w-[160px]"
               title={accountName}
             >
               {accountName}

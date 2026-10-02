@@ -70,7 +70,11 @@ export const apiClient = async (endpoint, { body, method, ...customConfig } = {}
     endpoint.startsWith('/admin') ||
     endpoint.startsWith('/api/admin') ||
     endpoint.startsWith('/search') ||
-    endpoint.startsWith('/api/search')
+    endpoint.startsWith('/api/search') ||
+    endpoint.startsWith('/team') ||
+    endpoint.startsWith('/api/team') ||
+    endpoint.startsWith('/integrations') ||
+    endpoint.startsWith('/api/integrations')
   ) {
     const opts = { body, ...customConfig };
     if (method) opts.method = method;

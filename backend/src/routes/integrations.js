@@ -9,16 +9,19 @@ const {
   disconnectIntegration,
   listProviderFiles,
   downloadProviderFile,
-  importProviderFile
+  importProviderFile,
+  getProviderQuota
 } = require('../controllers/integrations');
 
 router.use(authMiddleware);
 
 router.get('/', getUserIntegrations);
+router.get('/quota', getProviderQuota);
 router.get('/google/auth-url', getGoogleAuthUrl);
 router.post('/google/callback', handleGoogleCallback);
 router.post('/connect', connectIntegration);
 router.post('/disconnect', disconnectIntegration);
+router.get('/:provider/quota', getProviderQuota);
 router.get('/:provider/files', listProviderFiles);
 router.get('/:provider/download/:fileId', downloadProviderFile);
 router.post('/:provider/import', importProviderFile);

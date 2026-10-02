@@ -1,14 +1,16 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { apiClient } from '../api/client';
 import { useStore } from '../store';
 import { formatSize } from '../utils/formatting';
-import Tabs from '../components/common/Tabs';
-import ActivityFeed from '../components/activity/ActivityFeed';
-import Avatar from '../components/common/Avatar';
-import Modal from '../components/common/Modal';
-import { useClickOutside } from '../hooks/useClickOutside';
+import CompactPageHeader from '../components/common/CompactPageHeader';
+import StorageUsage from '../components/files/StorageUsage';
 import CloudIntegrations from '../components/files/CloudIntegrations';
+import DriveFolderRow from '../components/files/DriveFolderRow';
+import DriveFileRow from '../components/files/DriveFileRow';
+import ActivityFeed from '../components/activity/ActivityFeed';
+import Modal from '../components/common/Modal';
+import ConfirmDialog from '../components/common/ConfirmDialog';
+import { useClickOutside } from '../hooks/useClickOutside';
 
 export default function Files() {
   const { currentUser } = useStore();
@@ -20,30 +22,16 @@ export default function Files() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Active navigation tab
+  // 'All Files' | 'Google Drive' | 'DEVHUB' | 'Shared with Me' | 'Dropbox' | 'OneDrive'
   const [activeTab, setActiveTab] = useState('All Files');
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'grid'
-  
   const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: 'updatedAt', direction: 'desc' });
 
-  // Navigation state
+  // Navigation state for DEVHUB files
   const [currentFolderId, setCurrentFolderId] = useState(null);
   const [folderHistory, setFolderHistory] = useState([]); // [{id, name, projectId}]
-
-  // Modals
-  const [showFolderModal, setShowFolderModal] = useState(false);
-  const [editingFolder, setEditingFolder] = useState(null);
-  const [folderForm, setFolderForm] = useState({ name: '', projectId: '' });
-  const [folderSubmitting, setFolderSubmitting] = useState(false);
-
-  const [showFileModal, setShowFileModal] = useState(false);
-  const [editingFile, setEditingFile] = useState(null);
-  const [fileForm, setFileForm] = useState({ name: '', type: 'Document', size: 1024, storagePath: '', projectId: '' });
-  const [fileSubmitting, setFileSubmitting] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState(null);
-
-  const [openMenuId, setOpenMenuId] = useState(null); // format: 'file_ID' or 'folder_ID'
-  const menuRef = useRef(null);
 
   // Cloud Storage Integrations state
   const [integrations, setIntegrations] = useState({
@@ -52,13 +40,43 @@ export default function Files() {
     onedrive: { connected: false }
   });
 
+  // Storage Quota State (Dynamic Quotas for all providers)
+  const [quotas, setQuotas] = useState({});
+  const [quotasLoading, setQuotasLoading] = useState(false);
+
+  // Inline Cloud Provider browsing state (for Google Drive, Dropbox, OneDrive tabs)
+  const [cloudItems, setCloudItems] = useState([]);
+  const [cloudLoading, setCloudLoading] = useState(false);
+  const [cloudError, setCloudError] = useState(null);
+  const [cloudBreadcrumbs, setCloudBreadcrumbs] = useState([{ id: 'root', name: 'My Drive' }]);
+  const [importingFileId, setImportingFileId] = useState(null);
+  const [importMessage, setImportMessage] = useState(null);
+
+  // Modals state
+  const [showFolderModal, setShowFolderModal] = useState(false);
+  const [editingFolder, setEditingFolder] = useState(null);
+  const [folderForm, setFolderForm] = useState({ name: '', projectId: '' });
+  const [folderSubmitting, setFolderSubmitting] = useState(false);
+
+  const [showFileModal, setShowFileModal] = useState(false);
+  const [editingFile, setEditingFile] = useState(null);
+  const [fileForm, setFileForm] = useState({ name: '', projectId: '' });
+  const [fileSubmitting, setFileSubmitting] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState(null);
+
+  const [confirmDelete, setConfirmDelete] = useState(null); // { type: 'file'|'folder', id, name }
+  const [deleting, setDeleting] = useState(false);
+
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const menuRef = useRef(null);
   useClickOutside(menuRef, () => setOpenMenuId(null));
 
-  const loadData = async () => {
+  // 1. Fetch initial data and storage quota
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const [projRes, foldRes, fileRes, dashRes, intRes] = await Promise.all([
         apiClient('/projects'),
         apiClient('/folders'),
@@ -75,7 +93,7 @@ export default function Files() {
         dropbox: { connected: false },
         onedrive: { connected: false }
       });
-      
+
       const allAct = dashRes.dashboard?.recentActivity || [];
       setRecentActivity(allAct.filter(a => a.entityType === 'File' || a.entityType === 'Folder'));
     } catch (err) {
@@ -83,17 +101,69 @@ export default function Files() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  const fetchQuotas = useCallback(async () => {
+    try {
+      setQuotasLoading(true);
+      const res = await apiClient('/integrations/quota');
+      if (res.quotas) {
+        setQuotas(res.quotas);
+      }
+    } catch (err) {
+      console.warn('Could not fetch storage quotas:', err);
+    } finally {
+      setQuotasLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     loadData();
-  }, []);
+    fetchQuotas();
+  }, [loadData, fetchQuotas]);
 
+  // 2. Fetch cloud provider items when activeTab is a cloud provider
+  const currentCloudFolder = cloudBreadcrumbs[cloudBreadcrumbs.length - 1];
+
+  const loadCloudFiles = useCallback(async (provider, folderId = 'root') => {
+    try {
+      setCloudLoading(true);
+      setCloudError(null);
+      let queryUrl = `/integrations/${provider}/files?folderId=${encodeURIComponent(folderId)}`;
+      if (searchQuery.trim()) {
+        queryUrl += `&search=${encodeURIComponent(searchQuery.trim())}`;
+      }
+      const res = await apiClient(queryUrl);
+      setCloudItems(res.files || []);
+    } catch (err) {
+      setCloudError(err.message || `Failed to load files from ${provider}`);
+      setCloudItems([]);
+    } finally {
+      setCloudLoading(false);
+    }
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (activeTab === 'Google Drive' && integrations.google_drive?.connected) {
+      loadCloudFiles('google_drive', currentCloudFolder.id);
+    } else if (activeTab === 'Dropbox' && integrations.dropbox?.connected) {
+      loadCloudFiles('dropbox', currentCloudFolder.id === 'root' ? '' : currentCloudFolder.id);
+    } else if (activeTab === 'OneDrive' && integrations.onedrive?.connected) {
+      loadCloudFiles('onedrive', currentCloudFolder.id);
+    }
+  }, [activeTab, integrations, currentCloudFolder.id, loadCloudFiles]);
+
+  // DEVHUB Folder navigation
   const handleOpenFolder = (folder) => {
     setFolderHistory([...folderHistory, { id: folder.id, name: folder.name, projectId: folder.projectId }]);
     setCurrentFolderId(folder.id);
     setActiveTab('All Files');
     setSearchQuery('');
+  };
+
+  const handleGoRoot = () => {
+    setFolderHistory([]);
+    setCurrentFolderId(null);
   };
 
   const handleGoBack = () => {
@@ -105,12 +175,7 @@ export default function Files() {
     }
   };
 
-  const handleGoRoot = () => {
-    setFolderHistory([]);
-    setCurrentFolderId(null);
-  };
-
-  // RBAC Helpers (Safe checks)
+  // RBAC checks
   const canModifyProject = (projectId) => {
     if (!projectId) return false;
     const proj = projects.find(p => p.id === projectId);
@@ -119,7 +184,7 @@ export default function Files() {
     const member = proj.members?.find(m => m.user?.id === currentUser?.id || m.userId === currentUser?.id);
     return member?.role === 'Admin' || member?.role === 'Editor';
   };
-  
+
   const canDeleteProjectData = (projectId) => {
     if (!projectId) return false;
     const proj = projects.find(p => p.id === projectId);
@@ -131,27 +196,29 @@ export default function Files() {
 
   const currentProjectId = currentFolderId ? folderHistory[folderHistory.length - 1]?.projectId : '';
 
-  // Data Filtering
+  // Data Filtering for local DEVHUB views
   let currentViewFolders = [];
   let currentViewFiles = [];
 
   if (activeTab === 'All Files') {
     currentViewFolders = folders.filter(f => f.parentId === currentFolderId);
     currentViewFiles = files.filter(f => f.folderId === currentFolderId);
+  } else if (activeTab === 'DEVHUB') {
+    // Show all DEVHUB workspace files
+    currentViewFiles = files;
+    currentViewFolders = folders.filter(f => !f.parentId);
   } else if (activeTab === 'Shared with Me') {
     currentViewFiles = files.filter(f => f.uploader?.id !== currentUser?.id && f.uploaderId !== currentUser?.id);
-  } else if (activeTab === 'Recent') {
-    currentViewFiles = [...files].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).slice(0, 30);
   }
 
-  if (searchQuery) {
+  if (searchQuery && (activeTab === 'All Files' || activeTab === 'DEVHUB' || activeTab === 'Shared with Me')) {
     const q = searchQuery.toLowerCase();
     currentViewFiles = currentViewFiles.filter(f => 
       f.name?.toLowerCase().includes(q) || 
       f.type?.toLowerCase().includes(q) ||
       f.project?.name?.toLowerCase().includes(q)
     );
-    if (activeTab === 'All Files') {
+    if (activeTab === 'All Files' || activeTab === 'DEVHUB') {
       currentViewFolders = currentViewFolders.filter(f => 
         f.name?.toLowerCase().includes(q) ||
         f.project?.name?.toLowerCase().includes(q)
@@ -159,6 +226,7 @@ export default function Files() {
     }
   }
 
+  // Sort files
   currentViewFiles.sort((a, b) => {
     let aVal = a[sortConfig.key];
     let bVal = b[sortConfig.key];
@@ -174,35 +242,19 @@ export default function Files() {
     return 0;
   });
 
-  const storageMetrics = useMemo(() => {
-    let total = 0, images = 0, documents = 0, videos = 0, others = 0;
-    files.forEach(f => {
-      const s = f.size || 0;
-      total += s;
-      const t = (f.type || '').toLowerCase();
-      if (t.includes('image') || t.includes('png') || t.includes('jpg') || t.includes('jpeg') || t.includes('svg') || t.includes('fig')) images += s;
-      else if (t.includes('pdf') || t.includes('doc') || t.includes('txt') || t.includes('csv') || t.includes('xls') || t.includes('ppt')) documents += s;
-      else if (t.includes('video') || t.includes('mp4') || t.includes('avi') || t.includes('mov')) videos += s;
-      else others += s;
-    });
-    return { total, images, documents, videos, others };
-  }, [files]);
-
-
-
   const getFileIcon = (type) => {
     const t = (type || '').toLowerCase();
     if (t.includes('pdf')) return { icon: 'fa-solid fa-file-pdf', color: 'text-rose-400' };
     if (t.includes('doc')) return { icon: 'fa-solid fa-file-word', color: 'text-blue-400' };
     if (t.includes('xls') || t.includes('csv')) return { icon: 'fa-solid fa-file-excel', color: 'text-emerald-400' };
-    if (t.includes('ppt')) return { icon: 'fa-solid fa-file-powerpoint', color: 'text-orange-400' };
+    if (t.includes('ppt')) return { icon: 'fa-solid fa-file-powerpoint', color: 'text-amber-400' };
     if (t.includes('png') || t.includes('jpg') || t.includes('jpeg') || t.includes('svg') || t.includes('fig')) return { icon: 'fa-solid fa-file-image', color: 'text-purple-400' };
-    if (t.includes('zip') || t.includes('rar')) return { icon: 'fa-solid fa-file-zipper', color: 'text-amber-400' };
-    if (t.includes('txt')) return { icon: 'fa-solid fa-file-lines', color: 'text-slate-400' };
+    if (t.includes('zip') || t.includes('rar')) return { icon: 'fa-solid fa-file-zipper', color: 'text-yellow-400' };
+    if (t.includes('video') || t.includes('mp4')) return { icon: 'fa-solid fa-file-video', color: 'text-sky-400' };
     return { icon: 'fa-solid fa-file', color: 'text-slate-400' };
   };
 
-  // Handlers
+  // Save Folder (create or rename)
   const handleSaveFolder = async (e) => {
     e.preventDefault();
     setFolderSubmitting(true);
@@ -220,7 +272,8 @@ export default function Files() {
         });
       }
       setShowFolderModal(false);
-      loadData();
+      await loadData();
+      await fetchQuotas();
     } catch (err) {
       alert(err.message || 'Failed to save folder');
     } finally {
@@ -228,16 +281,7 @@ export default function Files() {
     }
   };
 
-  const handleDeleteFolder = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this folder? All contents must be empty.')) return;
-    try {
-      await apiClient(`/folders/${id}`, { method: 'DELETE' });
-      loadData();
-    } catch (err) {
-      alert(err.message || 'Failed to delete folder');
-    }
-  };
-
+  // Save File (upload or rename)
   const handleSaveFile = async (e) => {
     e.preventDefault();
     setFileSubmitting(true);
@@ -259,465 +303,727 @@ export default function Files() {
           formData.append('files', selectedFiles[i]);
         }
         
-        await apiClient('/files/upload', { 
-          method: 'POST', 
-          body: formData 
-        });
+        await apiClient('/files', { method: 'POST', body: formData });
       }
       setShowFileModal(false);
-      loadData();
+      setSelectedFiles(null);
+      await loadData();
+      await fetchQuotas();
     } catch (err) {
-      alert(err.message || 'Failed to save file');
+      alert(err.message || 'Failed to upload file');
     } finally {
       setFileSubmitting(false);
     }
   };
 
-  const handleDownloadFile = async (e, id) => {
-    e.preventDefault();
+  // Download DEVHUB file
+  const handleDownloadFile = async (e, fileId) => {
     e.stopPropagation();
     try {
-      const data = await apiClient(`/files/${id}/download`);
-      if (data.url) {
-        window.open(data.url, '_blank');
+      const res = await apiClient(`/files/${fileId}/download`);
+      if (res.url) {
+        window.open(res.url, '_blank');
       }
     } catch (err) {
-      alert(err.message || 'Failed to download file');
+      alert(err.message || 'Download failed');
     }
   };
 
-  const handleDeleteFile = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this file metadata?')) return;
+  // Execute deletion
+  const handleExecuteDelete = async () => {
+    if (!confirmDelete) return;
     try {
-      await apiClient(`/files/${id}`, { method: 'DELETE' });
-      loadData();
+      setDeleting(true);
+      if (confirmDelete.type === 'folder') {
+        await apiClient(`/folders/${confirmDelete.id}`, { method: 'DELETE' });
+      } else {
+        await apiClient(`/files/${confirmDelete.id}`, { method: 'DELETE' });
+      }
+      setConfirmDelete(null);
+      await loadData();
+      await fetchQuotas();
     } catch (err) {
-      alert(err.message || 'Failed to delete file');
+      alert(err.message || 'Failed to delete item');
+    } finally {
+      setDeleting(false);
     }
   };
 
-  const openNewFolder = () => {
-    setEditingFolder(null);
-    setFolderForm({ name: '', projectId: currentProjectId || (projects[0]?.id || '') });
-    setShowFolderModal(true);
+  // Cloud item download
+  const handleCloudDownload = (file, provider = 'google_drive') => {
+    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    const downloadUrl = `${apiBase}/integrations/${provider}/download/${encodeURIComponent(file.id)}`;
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.setAttribute('download', file.name);
+    link.setAttribute('target', '_blank');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
-  const openNewFile = () => {
-    setEditingFile(null);
-    setFileForm({ name: '', projectId: currentProjectId || (projects[0]?.id || '') });
-    setSelectedFiles(null);
-    setShowFileModal(true);
+  // Cloud item import to DEVHUB
+  const handleCloudImport = async (file, provider = 'google_drive') => {
+    const targetProject = projects[0]?.id;
+    if (!targetProject) {
+      alert('Please create at least one DEVHUB project first to import files.');
+      return;
+    }
+    try {
+      setImportingFileId(file.id);
+      setImportMessage(null);
+      const res = await apiClient(`/integrations/${provider}/import`, {
+        method: 'POST',
+        body: {
+          fileId: file.id,
+          fileName: file.name,
+          mimeType: file.mimeType,
+          size: file.size,
+          projectId: targetProject,
+          folderId: currentFolderId || null
+        }
+      });
+      setImportMessage({ type: 'success', text: res.message || `Imported "${file.name}" to DEVHUB` });
+      await loadData();
+      await fetchQuotas();
+    } catch (err) {
+      setImportMessage({ type: 'error', text: err.message || 'Import failed' });
+    } finally {
+      setImportingFileId(null);
+    }
   };
+
+  // Hero tabs config
+  const heroTabs = [
+    { id: 'All Files', label: 'All Files', icon: 'fa-solid fa-folder-tree' },
+    { id: 'Google Drive', label: 'Google Drive', icon: 'fa-brands fa-google-drive' },
+    { id: 'DEVHUB', label: 'DEVHUB', icon: 'fa-solid fa-cloud' },
+    { id: 'Shared with Me', label: 'Shared with Me', icon: 'fa-solid fa-users' },
+    ...(integrations.dropbox?.connected ? [{ id: 'Dropbox', label: 'Dropbox', icon: 'fa-brands fa-dropbox' }] : []),
+    ...(integrations.onedrive?.connected ? [{ id: 'OneDrive', label: 'OneDrive', icon: 'fa-brands fa-microsoft' }] : [])
+  ];
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 max-w-[1920px] mx-auto pb-12 min-h-screen">
       
       {/* Main Content Area */}
-      <div className="flex-1 min-w-0 flex flex-col gap-6">
+      <div className="flex-1 min-w-0 flex flex-col gap-5">
         
-        {/* Hero Section */}
-        <div className="relative rounded-2xl py-5 px-6 md:px-7 bg-[#0f1422] border border-[#192238] overflow-hidden flex flex-col md:flex-row justify-between items-center gap-6 shadow-sm">
-          <div className="absolute right-0 top-0 bottom-0 w-1/2 opacity-30 pointer-events-none bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-purple-600/40 via-indigo-900/10 to-transparent"></div>
-          <div className="z-10 w-full">
-            <div className="flex items-center gap-2 text-[11px] font-bold tracking-wider text-slate-400 mb-2 uppercase">
-              <span>Files</span>
-              <span className="text-slate-600">›</span>
-              <span className="text-purple-400">{activeTab}</span>
-            </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight mb-1">Files</h1>
-            <p className="text-xs md:text-sm text-slate-400">Store. Share. Collaborate. Keep everything in one place.</p>
-          </div>
-          <div className="z-10 hidden md:block shrink-0 text-right">
-             <p className="text-xs italic text-slate-400">"Organized files create organized minds."</p>
-             <div className="w-12 h-0.5 bg-purple-500 mt-2 ml-auto rounded-full shadow-[0_0_8px_rgba(168,85,247,0.6)]"></div>
-          </div>
-        </div>
+        {/* Compact Hero Header (Approved 4th Tab Style Direction) */}
+        <CompactPageHeader
+          title="Files"
+          subtitle="Manage your files across different storage providers."
+          tabs={heroTabs}
+          activeTab={activeTab}
+          onTabChange={(tab) => {
+            setActiveTab(tab);
+            setCurrentFolderId(null);
+            setFolderHistory([]);
+            setCloudBreadcrumbs([{ id: 'root', name: 'My Drive' }]);
+          }}
+          actions={
+            <>
+              {/* Search Filter */}
+              <div className="relative w-44 sm:w-56">
+                <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                <input
+                  type="text"
+                  placeholder="Filter files..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl pl-8 pr-7 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                  >
+                    <i className="fa-solid fa-xmark text-xs"></i>
+                  </button>
+                )}
+              </div>
 
-        {/* Filter / Action Bar */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-3">
-          <Tabs 
-            tabs={['All Files', 'Shared with Me', 'Recent'].map(t => ({ id: t, label: t }))}
-            activeTab={activeTab}
-            onChange={(tab) => { setActiveTab(tab); setCurrentFolderId(null); setFolderHistory([]); }}
-          />
+              {/* Upload Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingFile(null);
+                  setFileForm({ name: '', projectId: currentProjectId || (projects[0]?.id || '') });
+                  setSelectedFiles(null);
+                  setShowFileModal(true);
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 bg-[#161d2f] hover:bg-[#1f2a44] text-slate-200 hover:text-white border border-[#1f2a44] rounded-xl text-xs font-bold transition shrink-0"
+              >
+                <i className="fa-solid fa-arrow-up-from-bracket text-xs text-purple-400"></i>
+                <span>Upload</span>
+              </button>
 
-          <div className="flex items-center gap-3 w-full md:w-auto">
-             <div className="relative flex-1 md:w-56">
-               <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
-               <input 
-                 type="text" 
-                 placeholder="Filter files..." 
-                 value={searchQuery}
-                 onChange={(e) => setSearchQuery(e.target.value)}
-                 className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl pl-8 pr-7 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition"
-               />
-               {searchQuery && (
-                 <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
-                   <i className="fa-solid fa-xmark text-xs"></i>
-                 </button>
-               )}
-             </div>
+              {/* New Folder Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingFolder(null);
+                  setFolderForm({ name: '', projectId: currentProjectId || (projects[0]?.id || '') });
+                  setShowFolderModal(true);
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow-md shadow-purple-900/30 transition shrink-0 active:scale-95"
+              >
+                <i className="fa-solid fa-folder-plus text-xs"></i>
+                <span>New Folder</span>
+              </button>
 
-             <button onClick={openNewFile} className="flex items-center justify-center gap-2 px-3.5 py-2 bg-[#161d2f] hover:bg-[#1a2333] text-white border border-[#1f2a44] rounded-xl text-xs font-bold transition shrink-0">
-               <i className="fa-solid fa-upload"></i> Upload
-             </button>
-             
-             <div className="relative shrink-0" ref={openMenuId === 'new_menu' ? menuRef : null}>
-               <button onClick={() => setOpenMenuId(openMenuId === 'new_menu' ? null : 'new_menu')} className="flex items-center justify-center gap-2 px-3.5 py-2 bg-[#5922cf] hover:bg-[#682ae6] text-white rounded-xl text-xs font-bold shadow-lg shadow-purple-900/30 transition">
-                 New <i className="fa-solid fa-chevron-down text-[10px] ml-1"></i>
-               </button>
-               {openMenuId === 'new_menu' && (
-                 <div className="absolute right-0 top-full mt-2 w-48 bg-[#1f2638] rounded-xl shadow-xl border border-[#2d364f] z-50 overflow-hidden py-1">
-                   <button onClick={() => { setOpenMenuId(null); openNewFolder(); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-xs font-semibold text-slate-200 hover:text-white hover:bg-[#2a344a] text-left">
-                     <i className="fa-solid fa-folder-plus text-purple-400"></i> New Folder
-                   </button>
-                 </div>
-               )}
-             </div>
-             <div className="flex items-center bg-[#0f1422] border border-[#192238] rounded-xl p-1 shrink-0">
-               <button onClick={() => setViewMode('grid')} className={`w-8 h-8 flex items-center justify-center rounded-lg transition ${viewMode === 'grid' ? 'bg-[#1a2333] text-white' : 'text-slate-500 hover:text-white'}`}><i className="fa-solid fa-border-all text-xs"></i></button>
-               <button onClick={() => setViewMode('list')} className={`w-8 h-8 flex items-center justify-center rounded-lg transition ${viewMode === 'list' ? 'bg-[#1a2333] text-white' : 'text-slate-500 hover:text-white'}`}><i className="fa-solid fa-list text-xs"></i></button>
-             </div>
-          </div>
-        </div>
+              {/* View / List Toggle */}
+              <div className="flex items-center bg-[#121828] border border-[#192238] rounded-xl p-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('list')}
+                  className={`w-7 h-7 flex items-center justify-center rounded-lg transition ${
+                    viewMode === 'list' ? 'bg-[#1f2a44] text-white shadow-sm' : 'text-slate-500 hover:text-white'
+                  }`}
+                  title="List view"
+                >
+                  <i className="fa-solid fa-list text-xs"></i>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('grid')}
+                  className={`w-7 h-7 flex items-center justify-center rounded-lg transition ${
+                    viewMode === 'grid' ? 'bg-[#1f2a44] text-white shadow-sm' : 'text-slate-500 hover:text-white'
+                  }`}
+                  title="Grid view"
+                >
+                  <i className="fa-solid fa-border-all text-xs"></i>
+                </button>
+              </div>
+            </>
+          }
+        />
 
-        {/* Cloud Storage Integrations Section (Spacious 3-column row on desktop, stack on mobile) */}
+        {/* Cloud Storage Integrations Section (Equal Card Heights, Clear Statuses, Real OAuth) */}
         <CloudIntegrations
           integrations={integrations}
           onRefreshIntegrations={async () => {
-            const res = await apiClient('/integrations').catch(() => ({ integrations: {} }));
-            setIntegrations(res.integrations || {});
+            await loadData();
+            await fetchQuotas();
           }}
           projects={projects}
           currentProjectId={currentProjectId}
           currentFolderId={currentFolderId}
-          onFileImported={() => {
-            loadData();
+          onFileImported={async () => {
+            await loadData();
+            await fetchQuotas();
           }}
         />
 
-        {/* Breadcrumb Navigation for All Files */}
-        {activeTab === 'All Files' && (
-           <div className="flex items-center gap-2 text-xs text-slate-400 bg-[#0f1422] border border-[#192238] px-4 py-2.5 rounded-xl font-medium">
-             <button onClick={handleGoRoot} className="hover:text-white transition flex items-center gap-2"><i className="fa-solid fa-home"></i> Root</button>
-             {folderHistory.map((h, i) => (
-               <div key={h.id} className="flex items-center gap-2">
-                 <span className="text-slate-600">/</span>
-                 <button onClick={() => {
-                   const newHistory = folderHistory.slice(0, i + 1);
-                   setFolderHistory(newHistory);
-                   setCurrentFolderId(h.id);
-                 }} className={`transition truncate max-w-[150px] ${i === folderHistory.length - 1 ? 'text-white font-bold' : 'hover:text-white'}`}>{h.name}</button>
-               </div>
-             ))}
-           </div>
+        {/* Import Notification Message */}
+        {importMessage && (
+          <div
+            className={`px-4 py-3 rounded-xl text-xs flex items-center justify-between border ${
+              importMessage.type === 'success'
+                ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-300'
+                : 'bg-rose-500/10 border-rose-500/25 text-rose-300'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <i className={`fa-solid ${importMessage.type === 'success' ? 'fa-circle-check text-emerald-400' : 'fa-circle-exclamation text-rose-400'}`}></i>
+              <span className="font-semibold">{importMessage.text}</span>
+            </div>
+            <button type="button" onClick={() => setImportMessage(null)} className="hover:opacity-75">
+              <i className="fa-solid fa-xmark"></i>
+            </button>
+          </div>
         )}
 
-        {/* Main Content (Folders & Files) */}
+        {/* Breadcrumb Navigation for DEVHUB All Files */}
+        {activeTab === 'All Files' && (
+          <div className="flex items-center gap-2 text-xs text-slate-400 bg-[#0f1422] border border-[#192238] px-4 py-2 rounded-xl font-medium">
+            <button
+              type="button"
+              onClick={handleGoRoot}
+              className={`hover:text-white transition flex items-center gap-1.5 ${
+                folderHistory.length === 0 ? 'text-white font-bold' : ''
+              }`}
+            >
+              <i className="fa-solid fa-home text-purple-400"></i>
+              <span>Root</span>
+            </button>
+            {folderHistory.map((h, i) => (
+              <div key={h.id} className="flex items-center gap-2">
+                <span className="text-slate-600">/</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newHistory = folderHistory.slice(0, i + 1);
+                    setFolderHistory(newHistory);
+                    setCurrentFolderId(h.id);
+                  }}
+                  className={`transition truncate max-w-[150px] ${
+                    i === folderHistory.length - 1 ? 'text-white font-bold' : 'hover:text-white'
+                  }`}
+                >
+                  {h.name}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Breadcrumb Navigation for Google Drive View */}
+        {activeTab === 'Google Drive' && integrations.google_drive?.connected && (
+          <div className="flex items-center gap-2 text-xs text-slate-400 bg-[#0f1422] border border-[#192238] px-4 py-2 rounded-xl font-medium">
+            <i className="fa-brands fa-google-drive text-amber-400 mr-1"></i>
+            {cloudBreadcrumbs.map((bc, idx) => (
+              <div key={bc.id} className="flex items-center gap-2">
+                {idx > 0 && <span className="text-slate-600">/</span>}
+                <button
+                  type="button"
+                  onClick={() => setCloudBreadcrumbs(prev => prev.slice(0, idx + 1))}
+                  className={`hover:text-white transition truncate max-w-[150px] ${
+                    idx === cloudBreadcrumbs.length - 1 ? 'text-white font-bold' : ''
+                  }`}
+                >
+                  {bc.name}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* MAIN FILE BROWSER AREA */}
         {error ? (
-          <div className="p-8 text-center text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl">{error}</div>
+          <div className="p-8 text-center text-red-400 bg-red-500/10 border border-red-500/20 rounded-2xl text-xs">
+            {error}
+          </div>
         ) : loading ? (
-          <div className="flex justify-center py-20"><i className="fa-solid fa-circle-notch fa-spin text-3xl text-purple-500"></i></div>
-        ) : (activeTab === 'All Files' || activeTab === 'Shared with Me' || activeTab === 'Recent') && (
-          <>
-            {/* Folders Section (Only in All Files) */}
-            {activeTab === 'All Files' && (
-              <div className="mb-2">
-                <div className="flex items-center justify-between mb-4 px-2">
-                  <h2 className="text-sm font-bold text-white flex items-center gap-2"><i className="fa-solid fa-folder text-slate-400"></i> Folders</h2>
-                  <span className="text-xs font-bold text-slate-500">{currentViewFolders.length} folders</span>
-                </div>
-                
-                {currentViewFolders.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-10 bg-[#0f1422] border border-dashed border-[#1f2a44] rounded-2xl">
-                    <p className="text-sm text-slate-400">No folders yet.</p>
-                    <button onClick={openNewFolder} className="mt-3 text-xs font-bold text-purple-400 hover:text-purple-300">Create Folder</button>
+          <div className="flex flex-col items-center justify-center py-24 bg-[#0f1422] border border-[#192238] rounded-2xl">
+            <i className="fa-solid fa-circle-notch fa-spin text-3xl text-purple-500 mb-3"></i>
+            <span className="text-xs font-semibold text-slate-400">Loading files...</span>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+
+            {/* CASE 1: Google Drive Tab */}
+            {activeTab === 'Google Drive' && (
+              !integrations.google_drive?.connected ? (
+                <div className="bg-[#0f1422] border border-dashed border-[#192238] rounded-2xl p-12 text-center flex flex-col items-center justify-center">
+                  <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-3">
+                    <i className="fa-brands fa-google-drive text-2xl text-amber-400"></i>
                   </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {currentViewFolders.map(folder => {
-                      const fCount = files.filter(f => f.folderId === folder.id).length;
-                      const isMenuOpen = openMenuId === `folder_${folder.id}`;
-                      const canEdit = canModifyProject(folder.projectId);
-                      const canDel = canDeleteProjectData(folder.projectId);
-                      
-                      return (
-                        <div key={folder.id} onClick={() => handleOpenFolder(folder)} className="group bg-[#0f1422] border border-[#192238] hover:border-[#2d3a5a] rounded-2xl p-4 cursor-pointer transition shadow-sm relative">
-                          <div className="flex items-start justify-between mb-3">
-                            <i className="fa-solid fa-folder text-3xl text-purple-500 group-hover:scale-110 transition-transform origin-bottom-left"></i>
-                            <div className="relative" ref={isMenuOpen ? menuRef : null}>
-                              <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(isMenuOpen ? null : `folder_${folder.id}`); }} className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 hover:text-white hover:bg-[#1a2333] transition opacity-0 group-hover:opacity-100">
-                                <i className="fa-solid fa-ellipsis text-sm"></i>
+                  <h3 className="text-base font-bold text-white mb-1">Google Drive Not Connected</h3>
+                  <p className="text-xs text-slate-400 max-w-md mb-5 leading-relaxed">
+                    Connect your personal Google Account to browse, download, and import files directly into DEVHUB projects.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const redirectUri = `${window.location.origin}${window.location.pathname}`;
+                      const res = await apiClient(`/integrations/google/auth-url?redirectUri=${encodeURIComponent(redirectUri)}`);
+                      if (res.url) window.location.href = res.url;
+                    }}
+                    className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-bold transition shadow-lg shadow-amber-500/20 flex items-center gap-2"
+                  >
+                    <i className="fa-solid fa-plug text-xs"></i>
+                    <span>Connect Google Drive</span>
+                  </button>
+                </div>
+              ) : cloudLoading ? (
+                <div className="py-20 text-center bg-[#0f1422] border border-[#192238] rounded-2xl">
+                  <i className="fa-solid fa-circle-notch fa-spin text-2xl text-amber-400 mb-2"></i>
+                  <p className="text-xs text-slate-400">Loading Google Drive files...</p>
+                </div>
+              ) : cloudError ? (
+                <div className="p-6 text-center text-red-400 bg-red-500/10 border border-red-500/20 rounded-2xl text-xs">
+                  {cloudError}
+                </div>
+              ) : (
+                <div className="bg-[#0f1422] border border-[#192238] rounded-2xl overflow-hidden shadow-sm">
+                  <div className="overflow-y-auto max-h-[580px] hide-scrollbar">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-[#121828] border-b border-[#192238] text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                          <th className="py-3 px-4">Item Name</th>
+                          <th className="py-3 px-4 hidden sm:table-cell">Size</th>
+                          <th className="py-3 px-4 hidden md:table-cell">Modified</th>
+                          <th className="py-3 px-4 text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#192238]/60 text-slate-300">
+                        {cloudItems.length > 0 ? (
+                          cloudItems.map(item => {
+                            if (item.isFolder) {
+                              return (
+                                <DriveFolderRow
+                                  key={item.id}
+                                  folder={item}
+                                  onOpenFolder={(f) => {
+                                    setCloudBreadcrumbs(prev => [...prev, { id: f.id, name: f.name }]);
+                                  }}
+                                />
+                              );
+                            }
+                            return (
+                              <DriveFileRow
+                                key={item.id}
+                                file={item}
+                                onDownload={(f) => handleCloudDownload(f, 'google_drive')}
+                                onImport={(f) => handleCloudImport(f, 'google_drive')}
+                                importing={importingFileId === item.id}
+                              />
+                            );
+                          })
+                        ) : (
+                          <tr>
+                            <td colSpan="4" className="py-12 text-center text-slate-400 text-xs">
+                              No files or folders in this Google Drive folder.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )
+            )}
+
+            {/* CASE 2: DEVHUB Local Views (All Files, DEVHUB, Shared with Me) */}
+            {(activeTab === 'All Files' || activeTab === 'DEVHUB' || activeTab === 'Shared with Me') && (
+              <>
+                {/* Folders Row (Only for All Files and DEVHUB root) */}
+                {(activeTab === 'All Files' || activeTab === 'DEVHUB') && currentViewFolders.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-3 px-1">
+                      <h2 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                        <i className="fa-solid fa-folder text-purple-400"></i>
+                        <span>Folders ({currentViewFolders.length})</span>
+                      </h2>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3.5">
+                      {currentViewFolders.map(folder => {
+                        const canEdit = canModifyProject(folder.projectId);
+                        const canDel = canDeleteProjectData(folder.projectId);
+                        const isMenuOpen = openMenuId === `folder_${folder.id}`;
+
+                        return (
+                          <div
+                            key={folder.id}
+                            onClick={() => handleOpenFolder(folder)}
+                            className="group bg-[#0f1422] border border-[#192238] hover:border-[#283552] rounded-xl p-3.5 cursor-pointer transition shadow-sm relative flex items-center justify-between"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <i className="fa-solid fa-folder text-2xl text-purple-500 group-hover:scale-105 transition-transform shrink-0"></i>
+                              <div className="min-w-0">
+                                <span className="text-xs font-bold text-white truncate block group-hover:text-purple-300 transition">
+                                  {folder.name}
+                                </span>
+                                <span className="text-[10px] text-slate-500 truncate block">
+                                  {folder.project?.name || 'Project'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Dropdown Menu */}
+                            <div className="relative shrink-0" ref={isMenuOpen ? menuRef : null}>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuId(isMenuOpen ? null : `folder_${folder.id}`);
+                                }}
+                                className="w-7 h-7 flex items-center justify-center rounded text-slate-500 hover:text-white hover:bg-[#1a2333] transition opacity-0 group-hover:opacity-100"
+                              >
+                                <i className="fa-solid fa-ellipsis"></i>
                               </button>
                               {isMenuOpen && (
-                                <div className="absolute right-0 top-full mt-1 w-32 bg-[#1f2638] rounded-xl shadow-xl border border-[#2d364f] z-50 overflow-hidden py-1" onClick={e => e.stopPropagation()}>
-                                  <button onClick={() => { setOpenMenuId(null); handleOpenFolder(folder); }} className="flex items-center gap-2 w-full px-4 py-2 text-xs font-semibold text-white hover:bg-[#2a344a] text-left"><i className="fa-solid fa-folder-open w-3"></i> Open</button>
-                                  {canEdit && <button onClick={() => { setOpenMenuId(null); setEditingFolder(folder); setFolderForm({ name: folder.name, projectId: folder.projectId }); setShowFolderModal(true); }} className="flex items-center gap-2 w-full px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-[#2a344a] hover:text-white text-left"><i className="fa-solid fa-pen w-3"></i> Rename</button>}
-                                  {canDel && <button onClick={() => { setOpenMenuId(null); handleDeleteFolder(folder.id); }} className="flex items-center gap-2 w-full px-4 py-2 text-xs font-semibold text-red-400 hover:bg-red-500/10 text-left border-t border-[#2d364f] mt-1 pt-2"><i className="fa-solid fa-trash w-3"></i> Delete</button>}
+                                <div
+                                  className="absolute right-0 top-full mt-1 w-32 bg-[#1f2638] rounded-xl shadow-xl border border-[#2d364f] z-50 overflow-hidden py-1"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenMenuId(null);
+                                      handleOpenFolder(folder);
+                                    }}
+                                    className="flex items-center gap-2 w-full px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#2a344a] text-left"
+                                  >
+                                    <i className="fa-solid fa-folder-open w-3 text-purple-400"></i> Open
+                                  </button>
+                                  {canEdit && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenMenuId(null);
+                                        setEditingFolder(folder);
+                                        setFolderForm({ name: folder.name, projectId: folder.projectId });
+                                        setShowFolderModal(true);
+                                      }}
+                                      className="flex items-center gap-2 w-full px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-[#2a344a] hover:text-white text-left"
+                                    >
+                                      <i className="fa-solid fa-pen w-3 text-slate-400"></i> Rename
+                                    </button>
+                                  )}
+                                  {canDel && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenMenuId(null);
+                                        setConfirmDelete({ type: 'folder', id: folder.id, name: folder.name });
+                                      }}
+                                      className="flex items-center gap-2 w-full px-3 py-1.5 text-xs font-semibold text-red-400 hover:bg-red-500/10 text-left border-t border-[#2d364f] mt-1 pt-1.5"
+                                    >
+                                      <i className="fa-solid fa-trash w-3"></i> Delete
+                                    </button>
+                                  )}
                                 </div>
                               )}
                             </div>
                           </div>
-                          <div>
-                            <h3 className="text-sm font-bold text-white truncate mb-1 group-hover:text-purple-400 transition-colors">{folder.name}</h3>
-                            <p className="text-[10px] text-slate-400 font-medium truncate">{folder.project?.name || 'Unknown Project'}</p>
-                            <p className="text-[10px] text-slate-500 mt-2">{fCount} files • Updated {new Date(folder.updatedAt).toLocaleDateString()}</p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Files Section */}
-            <div className="flex-1 bg-[#0f1422] border border-[#192238] rounded-2xl overflow-hidden flex flex-col shadow-sm">
-              <div className="p-4 border-b border-[#192238] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <h2 className="text-sm font-bold text-white flex items-center gap-2 shrink-0"><i className="fa-solid fa-file-lines text-slate-400"></i> Files</h2>
-                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                  
-                  <div className="relative flex-1 sm:flex-none sm:min-w-[200px]">
-                    <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
-                    <input 
-                      type="text" 
-                      placeholder="Search files..." 
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition shadow-inner"
-                    />
-                  </div>
-
-                  <div className="relative" ref={openMenuId === 'filter_menu' ? menuRef : null}>
-                    <button onClick={() => setOpenMenuId(openMenuId === 'filter_menu' ? null : 'filter_menu')} className="flex items-center gap-2 bg-[#161d2f] border border-[#1f2a44] rounded-lg px-3 py-1.5 text-xs font-bold text-slate-300 hover:text-white transition">
-                      <i className="fa-solid fa-filter text-slate-500"></i> Filter <i className="fa-solid fa-chevron-down text-[10px]"></i>
-                    </button>
-                    {openMenuId === 'filter_menu' && (
-                      <div className="absolute right-0 top-full mt-1 w-48 bg-[#1f2638] rounded-xl shadow-xl border border-[#2d364f] z-50 p-3">
-                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">File Type</div>
-                        <div className="flex flex-col gap-1.5 mb-3">
-                           <label className="flex items-center gap-2 text-xs text-slate-300"><input type="checkbox" className="rounded bg-[#0f1422] border-[#2d364f] text-purple-500" /> Documents</label>
-                           <label className="flex items-center gap-2 text-xs text-slate-300"><input type="checkbox" className="rounded bg-[#0f1422] border-[#2d364f] text-purple-500" /> Images</label>
-                        </div>
-                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 border-t border-[#2d364f] pt-3">Shared Status</div>
-                        <div className="flex flex-col gap-1.5">
-                           <label className="flex items-center gap-2 text-xs text-slate-300"><input type="checkbox" className="rounded bg-[#0f1422] border-[#2d364f] text-purple-500" /> Shared with me</label>
-                           <label className="flex items-center gap-2 text-xs text-slate-300"><input type="checkbox" className="rounded bg-[#0f1422] border-[#2d364f] text-purple-500" /> Owned by me</label>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="relative">
-                    <select value={sortConfig.key} onChange={e => setSortConfig({...sortConfig, key: e.target.value})} className="appearance-none bg-[#161d2f] border border-[#1f2a44] rounded-lg pl-3 pr-8 py-1.5 text-xs font-bold text-slate-300 focus:outline-none cursor-pointer hover:text-white transition">
-                      <option value="updatedAt">Last Modified</option>
-                      <option value="name">Name</option>
-                      <option value="size">Size</option>
-                      <option value="type">Type</option>
-                      <option value="project">Project</option>
-                    </select>
-                    <i className="fa-solid fa-sort absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-500 pointer-events-none"></i>
-                  </div>
-                  <button onClick={() => setSortConfig({...sortConfig, direction: sortConfig.direction === 'asc' ? 'desc' : 'asc'})} className="w-8 h-8 flex items-center justify-center bg-[#161d2f] border border-[#1f2a44] rounded-lg text-slate-400 hover:text-white transition shrink-0">
-                    <i className={`fa-solid fa-arrow-${sortConfig.direction === 'asc' ? 'up' : 'down'} text-xs`}></i>
-                  </button>
-                </div>
-              </div>
-
-              {currentViewFiles.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 flex-1">
-                  <i className="fa-regular fa-file text-4xl text-slate-600 mb-4"></i>
-                  <h3 className="text-base font-bold text-white mb-1">No files found</h3>
-                  <p className="text-xs text-slate-400">Upload documents, images, and other files here.</p>
-                </div>
-              ) : viewMode === 'list' ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs whitespace-nowrap">
-                    <thead className="bg-[#161d2f]/50 text-slate-400 uppercase font-bold text-[10px] tracking-wider border-b border-[#1f2a44]">
-                      <tr>
-                        <th className="py-3 px-4 w-10"><input type="checkbox" className="rounded border-slate-600 bg-[#0f1422] checked:bg-purple-500" disabled /></th>
-                        <th className="py-3 px-4">Name</th>
-                        <th className="py-3 px-4">Type</th>
-                        <th className="py-3 px-4">Project / Folder</th>
-                        <th className="py-3 px-4">Size</th>
-                        <th className="py-3 px-4">Last Modified</th>
-                        <th className="py-3 px-4">Shared</th>
-                        <th className="py-3 px-4 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#1f2a44] text-slate-300 font-medium">
-                      {currentViewFiles.map(file => {
-                        const { icon, color } = getFileIcon(file.type);
-                        const isMenuOpen = openMenuId === `file_${file.id}`;
-                        const canEdit = canModifyProject(file.projectId);
-                        const canDel = canDeleteProjectData(file.projectId) || (file.uploader?.id === currentUser?.id || file.uploaderId === currentUser?.id);
-
-                        return (
-                          <tr key={file.id} className="hover:bg-[#161d2f] transition group">
-                            <td className="py-3 px-4"><input type="checkbox" className="rounded border-slate-600 bg-[#0f1422] checked:bg-purple-500 cursor-pointer" /></td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-3">
-                                <i className={`${icon} ${color} text-sm w-4 text-center`}></i>
-                                <span className="text-white font-bold">{file.name}</span>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4 text-[10px] uppercase tracking-wider">{file.type}</td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-1.5">
-                                <span className={`w-2 h-2 rounded-full ${file.project?.name ? 'bg-emerald-500' : 'bg-slate-500'}`}></span>
-                                <span>{file.project?.name || 'Unknown Project'}</span>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4">{formatSize(file.size)}</td>
-                            <td className="py-3 px-4">{new Date(file.updatedAt).toLocaleDateString()}</td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-2">
-                                <Avatar user={file.uploader} size="sm" className="w-5 h-5 text-[8px]" />
-                                <span className="text-[10px] text-slate-500 bg-[#161d2f] px-1.5 py-0.5 rounded">Project members</span>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4 text-right">
-                               <div className="relative inline-block text-left" ref={isMenuOpen ? menuRef : null}>
-                                 <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(isMenuOpen ? null : `file_${file.id}`); }} className="w-6 h-6 flex items-center justify-center rounded text-slate-500 hover:text-white hover:bg-[#1a2333] transition opacity-0 group-hover:opacity-100">
-                                   <i className="fa-solid fa-ellipsis"></i>
-                                 </button>
-                                 {isMenuOpen && (
-                                   <div className="absolute right-0 top-full mt-1 w-32 bg-[#1f2638] rounded-xl shadow-xl border border-[#2d364f] z-50 overflow-hidden py-1">
-                                     <button onClick={(e) => handleDownloadFile(e, file.id)} className="flex items-center gap-2 w-full px-4 py-2 text-xs font-semibold text-white hover:bg-[#2a344a] text-left"><i className="fa-solid fa-download w-3"></i> Download</button>
-                                     {canEdit && <button onClick={() => { setOpenMenuId(null); setEditingFile(file); setFileForm({ name: file.name, type: file.type, size: file.size, storagePath: file.storagePath, projectId: file.projectId }); setShowFileModal(true); }} className="flex items-center gap-2 w-full px-4 py-2 text-xs font-semibold text-slate-300 hover:text-white hover:bg-[#2a344a] text-left"><i className="fa-solid fa-pen w-3"></i> Rename</button>}
-                                     {canDel && <button onClick={() => { setOpenMenuId(null); handleDeleteFile(file.id); }} className="flex items-center gap-2 w-full px-4 py-2 text-xs font-semibold text-red-400 hover:bg-red-500/10 text-left border-t border-[#2d364f] mt-1 pt-2"><i className="fa-solid fa-trash w-3"></i> Delete</button>}
-                                   </div>
-                                 )}
-                               </div>
-                            </td>
-                          </tr>
                         );
                       })}
-                    </tbody>
-                  </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Files Section */}
+                <div className="bg-[#0f1422] border border-[#192238] rounded-2xl shadow-sm overflow-hidden">
+                  <div className="py-3 px-4 bg-[#121828] border-b border-[#192238] flex items-center justify-between">
+                    <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                      <i className="fa-solid fa-file text-purple-400"></i>
+                      <span>Files ({currentViewFiles.length})</span>
+                    </h3>
+                    <div className="flex items-center gap-2 text-xs text-slate-400">
+                      <span>Sort by:</span>
+                      <select
+                        value={sortConfig.key}
+                        onChange={(e) => setSortConfig(prev => ({ ...prev, key: e.target.value }))}
+                        className="bg-[#161d2f] border border-[#1f2a44] rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
+                      >
+                        <option value="updatedAt">Date Modified</option>
+                        <option value="name">Name</option>
+                        <option value="size">Size</option>
+                        <option value="project">Project</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {currentViewFiles.length === 0 ? (
+                    <div className="py-16 text-center text-slate-400 text-xs">
+                      <i className="fa-solid fa-box-open text-3xl text-slate-600 mb-2"></i>
+                      <p className="font-semibold text-slate-300">No files in this view</p>
+                      <p className="text-[11px] text-slate-500 mt-1">Upload a file or import from connected cloud storage.</p>
+                    </div>
+                  ) : viewMode === 'list' ? (
+                    <div className="overflow-y-auto max-h-[520px] hide-scrollbar">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="bg-[#121828]/50 border-b border-[#192238] text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            <th className="py-2.5 px-4">Name</th>
+                            <th className="py-2.5 px-4 hidden sm:table-cell">Project</th>
+                            <th className="py-2.5 px-4 hidden md:table-cell">Size</th>
+                            <th className="py-2.5 px-4 hidden lg:table-cell">Modified</th>
+                            <th className="py-2.5 px-4 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#192238]/60 text-slate-300">
+                          {currentViewFiles.map(file => {
+                            const { icon, color } = getFileIcon(file.type);
+                            const canEdit = canModifyProject(file.projectId);
+                            const canDel = canDeleteProjectData(file.projectId);
+                            const isMenuOpen = openMenuId === `file_${file.id}`;
+
+                            return (
+                              <tr
+                                key={file.id}
+                                className="hover:bg-[#161d2f]/70 transition-colors group cursor-pointer"
+                                onClick={(e) => handleDownloadFile(e, file.id)}
+                              >
+                                <td className="py-3 px-4">
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-8 h-8 rounded-lg bg-[#161d2f] border border-[#1f2a44] flex items-center justify-center shrink-0">
+                                      <i className={`${icon} ${color} text-sm`}></i>
+                                    </div>
+                                    <div className="min-w-0">
+                                      <span className="font-semibold text-white truncate block group-hover:text-purple-300 transition" title={file.name}>
+                                        {file.name}
+                                      </span>
+                                      <span className="text-[10px] text-slate-500 uppercase sm:hidden">
+                                        {formatSize(file.size)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="py-3 px-4 hidden sm:table-cell text-slate-400 text-xs truncate max-w-[150px]">
+                                  {file.project?.name || 'Project'}
+                                </td>
+                                <td className="py-3 px-4 hidden md:table-cell font-mono text-slate-300 text-xs">
+                                  {formatSize(file.size)}
+                                </td>
+                                <td className="py-3 px-4 hidden lg:table-cell text-slate-400 text-xs">
+                                  {new Date(file.updatedAt).toLocaleDateString()}
+                                </td>
+                                <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleDownloadFile(e, file.id)}
+                                      title="Download file"
+                                      className="w-7 h-7 flex items-center justify-center rounded text-slate-400 hover:text-white hover:bg-[#1a2333] transition"
+                                    >
+                                      <i className="fa-solid fa-download text-xs"></i>
+                                    </button>
+                                    {canEdit && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setEditingFile(file);
+                                          setFileForm({ name: file.name, projectId: file.projectId });
+                                          setShowFileModal(true);
+                                        }}
+                                        title="Rename file"
+                                        className="w-7 h-7 flex items-center justify-center rounded text-slate-400 hover:text-white hover:bg-[#1a2333] transition"
+                                      >
+                                        <i className="fa-solid fa-pen text-xs"></i>
+                                      </button>
+                                    )}
+                                    {canDel && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setConfirmDelete({ type: 'file', id: file.id, name: file.name })}
+                                        title="Delete file"
+                                        className="w-7 h-7 flex items-center justify-center rounded text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition"
+                                      >
+                                        <i className="fa-solid fa-trash text-xs"></i>
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3.5 overflow-y-auto max-h-[520px] hide-scrollbar">
+                      {currentViewFiles.map(file => {
+                        const { icon, color } = getFileIcon(file.type);
+                        return (
+                          <div
+                            key={file.id}
+                            onClick={(e) => handleDownloadFile(e, file.id)}
+                            className="group bg-[#161d2f] border border-[#1f2a44] rounded-xl p-3.5 flex flex-col hover:border-[#384366] transition shadow-sm relative cursor-pointer"
+                          >
+                            <div className="flex items-start justify-between mb-2.5">
+                              <i className={`${icon} ${color} text-2xl`}></i>
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 bg-[#0f1422] px-2 py-0.5 rounded">
+                                {file.type || 'file'}
+                              </span>
+                            </div>
+                            <h4 className="text-xs font-bold text-white truncate mb-0.5" title={file.name}>
+                              {file.name}
+                            </h4>
+                            <p className="text-[10px] text-slate-400 truncate mb-3">
+                              {file.project?.name}
+                            </p>
+                            <div className="mt-auto pt-2 border-t border-[#1f2a44]/60 flex items-center justify-between text-[10px] text-slate-400">
+                              <span>{formatSize(file.size)}</span>
+                              <span>{new Date(file.updatedAt).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto">
-                   {currentViewFiles.map(file => {
-                     const { icon, color } = getFileIcon(file.type);
-                     return (
-                       <div key={file.id} className="group bg-[#161d2f] border border-[#1f2a44] rounded-xl p-4 flex flex-col hover:border-[#384366] transition shadow-sm relative">
-                         <div className="flex items-start justify-between mb-3">
-                           <i className={`${icon} ${color} text-3xl`}></i>
-                           <div className="text-right">
-                             <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 bg-[#0f1422] px-2 py-1 rounded-md">{file.type}</span>
-                           </div>
-                         </div>
-                         <h3 className="text-xs font-bold text-white truncate mb-1" title={file.name}>{file.name}</h3>
-                         <p className="text-[10px] text-slate-400 truncate mb-3">{file.project?.name}</p>
-                         <div className="mt-auto flex items-center justify-between text-[10px] font-medium text-slate-500">
-                           <span>{formatSize(file.size)}</span>
-                           <span>{new Date(file.updatedAt).toLocaleDateString()}</span>
-                         </div>
-                         <button onClick={(e) => handleDownloadFile(e, file.id)} className="absolute inset-0 z-0"></button>
-                       </div>
-                     );
-                   })}
-                </div>
-              )}
-            </div>
-          </>
+              </>
+            )}
+
+          </div>
         )}
       </div>
 
-      {/* Right Sidebar */}
-      <div className="w-full lg:w-[280px] xl:w-[320px] shrink-0 flex flex-col gap-5">
+      {/* RIGHT SIDEBAR (Compact, Dynamic Storage Usage, Recent Activity, Quick Actions) */}
+      <div className="w-full lg:w-[280px] xl:w-[320px] shrink-0 flex flex-col gap-4">
         
-        {/* Storage */}
-        <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-             <h2 className="text-sm font-bold text-white flex items-center gap-2"><i className="fa-solid fa-hard-drive text-slate-400"></i> Storage</h2>
-             <span className="text-[10px] font-bold text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded uppercase tracking-wider">{files.length} files</span>
-          </div>
-          <div className="mb-4">
-             <div className="flex justify-between text-xs mb-1">
-               <span className="text-slate-300 font-medium">Usage Breakdown</span>
-               <span className="text-slate-500">Quota Unknown</span>
-             </div>
-             <div className="text-base font-extrabold text-white mb-3">{formatSize(storageMetrics.total)} <span className="text-xs font-medium text-slate-500 font-normal">total processed</span></div>
-             
-             {storageMetrics.total > 0 ? (
-               <div className="h-1.5 w-full flex rounded-full overflow-hidden mb-4 bg-[#1f2a44]">
-                 {storageMetrics.documents > 0 && <div style={{width: `${(storageMetrics.documents/storageMetrics.total)*100}%`}} className="bg-blue-500"></div>}
-                 {storageMetrics.images > 0 && <div style={{width: `${(storageMetrics.images/storageMetrics.total)*100}%`}} className="bg-emerald-500"></div>}
-                 {storageMetrics.videos > 0 && <div style={{width: `${(storageMetrics.videos/storageMetrics.total)*100}%`}} className="bg-amber-500"></div>}
-                 {storageMetrics.others > 0 && <div style={{width: `${(storageMetrics.others/storageMetrics.total)*100}%`}} className="bg-purple-500"></div>}
-               </div>
-             ) : (
-               <div className="h-1.5 w-full rounded-full bg-[#1f2a44] mb-4"></div>
-             )}
+        {/* Dynamic Context-Aware Storage Usage Component */}
+        <StorageUsage
+          activeTab={activeTab}
+          viewFiles={currentViewFiles}
+          allDevhubFiles={files}
+          quotas={quotas}
+          loading={quotasLoading}
+          onRefresh={fetchQuotas}
+        />
 
-             <div className="flex flex-col gap-2.5">
-               <div className="flex items-center justify-between text-xs font-medium">
-                 <div className="flex items-center gap-2 text-slate-300"><span className="w-2 h-2 rounded-full bg-blue-500"></span> Documents</div>
-                 <span className="text-white">{formatSize(storageMetrics.documents)}</span>
-               </div>
-               <div className="flex items-center justify-between text-xs font-medium">
-                 <div className="flex items-center gap-2 text-slate-300"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Images</div>
-                 <span className="text-white">{formatSize(storageMetrics.images)}</span>
-               </div>
-               <div className="flex items-center justify-between text-xs font-medium">
-                 <div className="flex items-center gap-2 text-slate-300"><span className="w-2 h-2 rounded-full bg-amber-500"></span> Videos</div>
-                 <span className="text-white">{formatSize(storageMetrics.videos)}</span>
-               </div>
-               <div className="flex items-center justify-between text-xs font-medium">
-                 <div className="flex items-center gap-2 text-slate-300"><span className="w-2 h-2 rounded-full bg-purple-500"></span> Others</div>
-                 <span className="text-white">{formatSize(storageMetrics.others)}</span>
-               </div>
-             </div>
+        {/* Compact Recent Activity */}
+        <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-4 shadow-sm flex flex-col max-h-[280px]">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-xs font-bold text-white tracking-tight uppercase flex items-center gap-1.5">
+              <i className="fa-regular fa-clock text-purple-400"></i>
+              <span>Recent Activity</span>
+            </h2>
           </div>
-          <button className="w-full py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 rounded-xl text-xs font-bold transition border border-purple-500/30">
-            Storage Options Unavailable
-          </button>
-        </div>
-
-        {/* Recent Activity */}
-        <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-5 shadow-sm flex flex-col max-h-[300px]">
-          <div className="flex items-center justify-between mb-4 shrink-0">
-             <h2 className="text-sm font-bold text-white flex items-center gap-2"><i className="fa-regular fa-calendar-check text-slate-400"></i> Recent Activity</h2>
-             <span className="text-[10px] text-slate-500 font-bold uppercase hover:text-white cursor-pointer transition">View All →</span>
-          </div>
-          <div className="flex-1 overflow-y-auto hide-scrollbar pr-2">
-            <ActivityFeed activities={recentActivity} emptyMessage="No recent file activity." />
+          <div className="flex-1 overflow-y-auto hide-scrollbar pr-1">
+            <ActivityFeed activities={recentActivity} emptyMessage="No recent file actions." />
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-5 shadow-sm">
-          <h2 className="text-sm font-bold text-white flex items-center gap-2 mb-4"><i className="fa-solid fa-bolt text-slate-400"></i> Quick Actions</h2>
-          <div className="grid grid-cols-2 gap-3">
-            <button onClick={openNewFile} className="flex items-center gap-2 p-2 rounded-lg hover:bg-[#161d2f] text-slate-300 hover:text-white text-[11px] font-bold transition text-left">
-              <i className="fa-solid fa-upload w-4 text-center"></i> Upload Files
+        {/* Compact Quick Actions */}
+        <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-4 shadow-sm">
+          <h2 className="text-xs font-bold text-white tracking-tight uppercase flex items-center gap-1.5 mb-3">
+            <i className="fa-solid fa-bolt text-purple-400"></i>
+            <span>Quick Actions</span>
+          </h2>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setEditingFile(null);
+                setFileForm({ name: '', projectId: currentProjectId || (projects[0]?.id || '') });
+                setSelectedFiles(null);
+                setShowFileModal(true);
+              }}
+              className="flex items-center gap-2 p-2 rounded-xl bg-[#161d2f] hover:bg-[#1a2333] border border-[#1f2a44] text-slate-300 hover:text-white text-xs font-bold transition text-left"
+            >
+              <i className="fa-solid fa-upload text-purple-400 w-3"></i>
+              <span>Upload</span>
             </button>
-            <button onClick={openNewFolder} className="flex items-center gap-2 p-2 rounded-lg hover:bg-[#161d2f] text-slate-300 hover:text-white text-[11px] font-bold transition text-left">
-              <i className="fa-solid fa-folder-plus w-4 text-center"></i> Create Folder
+
+            <button
+              type="button"
+              onClick={() => {
+                setEditingFolder(null);
+                setFolderForm({ name: '', projectId: currentProjectId || (projects[0]?.id || '') });
+                setShowFolderModal(true);
+              }}
+              className="flex items-center gap-2 p-2 rounded-xl bg-[#161d2f] hover:bg-[#1a2333] border border-[#1f2a44] text-slate-300 hover:text-white text-xs font-bold transition text-left"
+            >
+              <i className="fa-solid fa-folder-plus text-indigo-400 w-3"></i>
+              <span>Folder</span>
             </button>
-            <button className="flex items-center gap-2 p-2 rounded-lg hover:bg-[#161d2f] text-slate-300 hover:text-white text-[11px] font-bold transition text-left opacity-50 cursor-not-allowed">
-              <i className="fa-solid fa-share-nodes w-4 text-center"></i> Share Files
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('Google Drive')}
+              className="flex items-center gap-2 p-2 rounded-xl bg-[#161d2f] hover:bg-[#1a2333] border border-[#1f2a44] text-slate-300 hover:text-white text-xs font-bold transition text-left"
+            >
+              <i className="fa-brands fa-google-drive text-amber-400 w-3"></i>
+              <span>Drive</span>
             </button>
-            <button onClick={() => { setActiveTab('Trash'); setCurrentFolderId(null); }} className="flex items-center gap-2 p-2 rounded-lg hover:bg-[#161d2f] text-slate-300 hover:text-white text-[11px] font-bold transition text-left">
-              <i className="fa-solid fa-trash w-4 text-center"></i> View Trash
+
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('All Files');
+                handleGoRoot();
+              }}
+              className="flex items-center gap-2 p-2 rounded-xl bg-[#161d2f] hover:bg-[#1a2333] border border-[#1f2a44] text-slate-300 hover:text-white text-xs font-bold transition text-left"
+            >
+              <i className="fa-solid fa-house text-emerald-400 w-3"></i>
+              <span>Root</span>
             </button>
           </div>
-        </div>
-
-
-
-        {/* Info Card */}
-        <div className="bg-gradient-to-br from-indigo-900/40 to-[#0f1422] border border-indigo-500/20 rounded-2xl p-5 shadow-sm flex items-start gap-4">
-           <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0">
-             <i className="fa-solid fa-lightbulb text-indigo-400"></i>
-           </div>
-           <div>
-             <h3 className="text-xs font-bold text-white mb-1">Keep your workspace organized</h3>
-             <p className="text-[10px] text-slate-400 leading-relaxed mb-2">Use folders, tags and consistent naming to find files faster.</p>
-             <span className="text-[10px] font-bold text-indigo-400 cursor-pointer hover:text-indigo-300 transition">Learn file organization tips &rarr;</span>
-           </div>
         </div>
 
       </div>
@@ -725,64 +1031,143 @@ export default function Files() {
       {/* Folder Modal */}
       {showFolderModal && (
         <Modal open={showFolderModal} onClose={() => setShowFolderModal(false)} className="max-w-sm p-6">
-          <h2 className="text-lg text-white font-bold mb-4">{editingFolder ? 'Rename Folder' : 'New Folder'}</h2>
-            <form onSubmit={handleSaveFolder} className="flex flex-col gap-4">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Project <span className="text-red-500">*</span></label>
-                <select required disabled={!!editingFolder} value={folderForm.projectId} onChange={e => setFolderForm({...folderForm, projectId: e.target.value})} className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl px-4 py-2.5 text-sm font-semibold text-white focus:outline-none focus:border-purple-500 transition disabled:opacity-50 appearance-none">
-                  <option value="" disabled>Select a project</option>
-                  {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Folder Name <span className="text-red-500">*</span></label>
-                <input required value={folderForm.name} onChange={e => setFolderForm({...folderForm, name: e.target.value})} placeholder="E.g. Assets" className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 transition shadow-inner" />
-              </div>
-              <div className="flex justify-end gap-3 mt-2 pt-4 border-t border-[#1f2a44]">
-                <button type="button" disabled={folderSubmitting} onClick={() => setShowFolderModal(false)} className="px-4 py-2 text-slate-300 text-xs font-bold hover:text-white hover:bg-[#1a2333] rounded-lg transition disabled:opacity-50">Cancel</button>
-                <button type="submit" disabled={folderSubmitting} className="px-5 py-2 bg-[#5922cf] hover:bg-[#682ae6] text-white rounded-lg text-xs font-bold shadow-lg shadow-purple-900/30 transition disabled:opacity-50 flex items-center gap-2">
-                  {folderSubmitting && <i className="fa-solid fa-spinner fa-spin"></i>}
-                  Save
-                </button>
-              </div>
-            </form>
+          <h2 className="text-base text-white font-bold mb-4">
+            {editingFolder ? 'Rename Folder' : 'New Folder'}
+          </h2>
+          <form onSubmit={handleSaveFolder} className="flex flex-col gap-4">
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                Project <span className="text-red-500">*</span>
+              </label>
+              <select
+                required
+                disabled={Boolean(editingFolder)}
+                value={folderForm.projectId}
+                onChange={e => setFolderForm({ ...folderForm, projectId: e.target.value })}
+                className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl px-4 py-2.5 text-xs font-semibold text-white focus:outline-none focus:border-purple-500 transition disabled:opacity-50"
+              >
+                <option value="" disabled>Select a project</option>
+                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                Folder Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                required
+                value={folderForm.name}
+                onChange={e => setFolderForm({ ...folderForm, name: e.target.value })}
+                placeholder="E.g. Documents"
+                className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500 transition shadow-inner"
+              />
+            </div>
+            <div className="flex justify-end gap-3 mt-2 pt-4 border-t border-[#1f2a44]">
+              <button
+                type="button"
+                disabled={folderSubmitting}
+                onClick={() => setShowFolderModal(false)}
+                className="px-4 py-2 text-slate-300 text-xs font-bold hover:text-white hover:bg-[#1a2333] rounded-lg transition disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={folderSubmitting}
+                className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold shadow-lg shadow-purple-900/30 transition disabled:opacity-50 flex items-center gap-2"
+              >
+                {folderSubmitting && <i className="fa-solid fa-spinner fa-spin"></i>}
+                <span>Save</span>
+              </button>
+            </div>
+          </form>
         </Modal>
       )}
 
-      {/* File Modal */}
+      {/* File Upload / Rename Modal */}
       {showFileModal && (
         <Modal open={showFileModal} onClose={() => setShowFileModal(false)} className="max-w-sm p-6">
-          <h2 className="text-lg text-white font-bold mb-4">{editingFile ? 'Edit File Metadata' : 'Upload / Register File'}</h2>
-            <form onSubmit={handleSaveFile} className="flex flex-col gap-4">
+          <h2 className="text-base text-white font-bold mb-4">
+            {editingFile ? 'Rename File' : 'Upload Files'}
+          </h2>
+          <form onSubmit={handleSaveFile} className="flex flex-col gap-4">
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                Project <span className="text-red-500">*</span>
+              </label>
+              <select
+                required
+                disabled={Boolean(editingFile)}
+                value={fileForm.projectId}
+                onChange={e => setFileForm({ ...fileForm, projectId: e.target.value })}
+                className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl px-4 py-2.5 text-xs font-semibold text-white focus:outline-none focus:border-purple-500 transition disabled:opacity-50"
+              >
+                <option value="" disabled>Select a project</option>
+                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+            {editingFile ? (
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Project <span className="text-red-500">*</span></label>
-                <select required disabled={!!editingFile} value={fileForm.projectId} onChange={e => setFileForm({...fileForm, projectId: e.target.value})} className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl px-4 py-2.5 text-sm font-semibold text-white focus:outline-none focus:border-purple-500 transition disabled:opacity-50 appearance-none">
-                  <option value="" disabled>Select a project</option>
-                  {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                  File Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  required
+                  value={fileForm.name}
+                  onChange={e => setFileForm({ ...fileForm, name: e.target.value })}
+                  placeholder="E.g. Roadmap.pdf"
+                  className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500 transition shadow-inner"
+                />
               </div>
-              {editingFile ? (
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">File Name <span className="text-red-500">*</span></label>
-                  <input required value={fileForm.name} onChange={e => setFileForm({...fileForm, name: e.target.value})} placeholder="E.g. Logo.png" className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 transition shadow-inner" />
-                </div>
-              ) : (
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Select Files <span className="text-red-500">*</span></label>
-                  <input required type="file" multiple onChange={e => setSelectedFiles(e.target.files)} className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl px-4 py-2.5 text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-purple-500/20 file:text-purple-400 hover:file:bg-purple-500/30 transition shadow-inner" />
-                </div>
-              )}
-              <div className="flex justify-end gap-3 mt-2 pt-4 border-t border-[#1f2a44]">
-                <button type="button" disabled={fileSubmitting} onClick={() => setShowFileModal(false)} className="px-4 py-2 text-slate-300 text-xs font-bold hover:text-white hover:bg-[#1a2333] rounded-lg transition disabled:opacity-50">Cancel</button>
-                <button type="submit" disabled={fileSubmitting} className="px-5 py-2 bg-[#5922cf] hover:bg-[#682ae6] text-white rounded-lg text-xs font-bold shadow-lg shadow-purple-900/30 transition disabled:opacity-50 flex items-center gap-2">
-                  {fileSubmitting && <i className="fa-solid fa-spinner fa-spin"></i>}
-                  {editingFile ? 'Save Changes' : 'Upload'}
-                </button>
+            ) : (
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                  Select Files <span className="text-red-500">*</span>
+                </label>
+                <input
+                  required
+                  type="file"
+                  multiple
+                  onChange={e => setSelectedFiles(e.target.files)}
+                  className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl px-4 py-2.5 text-xs text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-purple-500/20 file:text-purple-400 hover:file:bg-purple-500/30 transition shadow-inner"
+                />
               </div>
-            </form>
+            )}
+            <div className="flex justify-end gap-3 mt-2 pt-4 border-t border-[#1f2a44]">
+              <button
+                type="button"
+                disabled={fileSubmitting}
+                onClick={() => setShowFileModal(false)}
+                className="px-4 py-2 text-slate-300 text-xs font-bold hover:text-white hover:bg-[#1a2333] rounded-lg transition disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={fileSubmitting}
+                className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold shadow-lg shadow-purple-900/30 transition disabled:opacity-50 flex items-center gap-2"
+              >
+                {fileSubmitting && <i className="fa-solid fa-spinner fa-spin"></i>}
+                <span>{editingFile ? 'Save Changes' : 'Upload'}</span>
+              </button>
+            </div>
+          </form>
         </Modal>
       )}
 
+      {/* Delete Confirmation Dialog */}
+      {confirmDelete && (
+        <ConfirmDialog
+          open={Boolean(confirmDelete)}
+          onClose={() => setConfirmDelete(null)}
+          onConfirm={handleExecuteDelete}
+          title={`Delete ${confirmDelete.type === 'folder' ? 'Folder' : 'File'}`}
+          message={`Are you sure you want to delete "${confirmDelete.name}"? This action cannot be undone.`}
+          confirmText="Delete"
+          loading={deleting}
+          danger={true}
+        />
+      )}
 
     </div>
   );
