@@ -3,10 +3,19 @@ const {
   PutObjectCommand, 
   DeleteObjectCommand, 
   GetObjectCommand,
+  HeadObjectCommand,
   HeadBucketCommand,
   GetBucketLocationCommand,
-  ListObjectsV2Command
+  ListObjectsV2Command,
+  ListBucketsCommand,
+  GetBucketPolicyCommand,
+  GetBucketEncryptionCommand,
+  GetBucketAclCommand,
+  GetBucketOwnershipControlsCommand,
+  GetPublicAccessBlockCommand
 } = require('@aws-sdk/client-s3');
+const { STSClient, GetCallerIdentityCommand } = require('@aws-sdk/client-sts');
+const { IAMClient, ListAttachedUserPoliciesCommand, ListUserPoliciesCommand, GetUserPolicyCommand } = require('@aws-sdk/client-iam');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const crypto = require('crypto');
 const path = require('path');
@@ -15,8 +24,33 @@ const path = require('path');
 let s3Client = null;
 let currentClientRegion = null;
 let detectedBucketRegion = null;
+let cachedCallerIdentity = null;
 
 const cleanEnv = (val) => val ? val.replace(/^['"]+|['"]+$/g, '').trim() : '';
+
+/**
+ * Safely fetches the AWS STS Caller Identity without leaking secrets.
+ */
+const getCallerIdentitySafe = async () => {
+  if (cachedCallerIdentity) return cachedCallerIdentity;
+  try {
+    const accessKeyId = cleanEnv(process.env.AWS_ACCESS_KEY_ID);
+    const secretAccessKey = cleanEnv(process.env.AWS_SECRET_ACCESS_KEY);
+    const stsClient = new STSClient({
+      region: currentClientRegion || 'us-west-2',
+      credentials: { accessKeyId, secretAccessKey }
+    });
+    const res = await stsClient.send(new GetCallerIdentityCommand({}));
+    cachedCallerIdentity = {
+      account: res.Account,
+      arn: res.Arn,
+      userId: res.UserId
+    };
+    return cachedCallerIdentity;
+  } catch (err) {
+    return { account: 'UNKNOWN', arn: 'UNKNOWN', error: err.message };
+  }
+};
 
 /**
  * Proactively auto-detects the physical S3 bucket region via a HEAD request.
@@ -116,7 +150,6 @@ const executeWithRegionRetry = async (operation) => {
  */
 const generateSafeKey = (projectId, folderId, originalName) => {
   const uniqueId = crypto.randomUUID();
-  // Sanitize filename to remove weird characters and prevent traversal
   const safeName = originalName.replace(/[^a-zA-Z0-9.-]/g, '_');
   
   if (folderId && folderId !== 'null') {
@@ -126,10 +159,11 @@ const generateSafeKey = (projectId, folderId, originalName) => {
 };
 
 /**
- * Uploads a file buffer to S3.
+ * Uploads a file buffer to S3 with safe structured diagnostic logging.
  */
 const uploadFile = async (fileBuffer, mimeType, key) => {
   const bucket = getBucketName();
+  const caller = await getCallerIdentitySafe();
 
   const command = new PutObjectCommand({
     Bucket: bucket,
@@ -138,8 +172,37 @@ const uploadFile = async (fileBuffer, mimeType, key) => {
     ContentType: mimeType,
   });
 
-  await executeWithRegionRetry((client) => client.send(command));
-  return key;
+  try {
+    const res = await executeWithRegionRetry((client) => client.send(command));
+    console.log('[S3 UPLOAD SUCCESS]', {
+      bucket,
+      region: currentClientRegion,
+      operation: 'PutObject',
+      accountId: caller.account,
+      iamArn: caller.arn,
+      httpStatus: res?.$metadata?.httpStatusCode,
+      requestId: res?.$metadata?.requestId,
+      key
+    });
+    return key;
+  } catch (err) {
+    const diag = {
+      bucket,
+      region: currentClientRegion,
+      operation: 'PutObject',
+      accountId: caller.account,
+      iamArn: caller.arn,
+      errorCode: err.name || err.Code,
+      errorMessage: err.message,
+      httpStatus: err.$metadata?.httpStatusCode,
+      requestId: err.$metadata?.requestId,
+      extendedRequestId: err.$metadata?.extendedRequestId || err.$response?.headers?.['x-amz-id-2'],
+      key
+    };
+    console.error('[S3 UPLOAD FAILURE]', diag);
+    err.s3Diagnostic = diag;
+    throw err;
+  }
 };
 
 /**
@@ -153,7 +216,6 @@ const getDownloadUrl = async (key, expiresIn = 3600) => {
     Key: key,
   });
 
-  // Generates a pre-signed URL valid for `expiresIn` seconds
   return await executeWithRegionRetry((client) => getSignedUrl(client, command, { expiresIn }));
 };
 
@@ -172,7 +234,7 @@ const deleteFile = async (key) => {
 };
 
 /**
- * Diagnostic tool to inspect S3 permissions, bucket status, and configuration live.
+ * Comprehensive diagnostic tool to inspect live S3 & IAM status, bucket owner, and test all AWS operations.
  */
 const diagnoseS3 = async () => {
   const envRegion = cleanEnv(process.env.AWS_REGION);
@@ -194,18 +256,40 @@ const diagnoseS3 = async () => {
       hasSecret: !!secret,
       secretLength: secret ? secret.length : 0
     },
-    tests: {}
+    callerIdentity: {},
+    operationsSuite: {},
+    bucketSettings: {},
+    iamInspection: {}
   };
 
-  // 0. STS Caller Identity (identifies IAM user ARN and Account ID)
+  // Helper for safe command execution
+  const executeSafe = async (fn) => {
+    try {
+      const res = await fn();
+      return {
+        success: true,
+        statusCode: res?.$metadata?.httpStatusCode,
+        requestId: res?.$metadata?.requestId,
+        data: res
+      };
+    } catch (err) {
+      return {
+        success: false,
+        errorName: err.name || err.Code,
+        errorMessage: err.message,
+        statusCode: err.$metadata?.httpStatusCode,
+        requestId: err.$metadata?.requestId,
+        extendedRequestId: err.$metadata?.extendedRequestId || err.$response?.headers?.['x-amz-id-2'],
+        headers: err.$response?.headers
+      };
+    }
+  };
+
+  // 1. STS Caller Identity
   try {
-    const { STSClient, GetCallerIdentityCommand } = require('@aws-sdk/client-sts');
     const stsClient = new STSClient({
       region: currentClientRegion || 'us-west-2',
-      credentials: {
-        accessKeyId,
-        secretAccessKey: secret,
-      }
+      credentials: { accessKeyId, secretAccessKey: secret }
     });
     const callerId = await stsClient.send(new GetCallerIdentityCommand({}));
     results.callerIdentity = {
@@ -222,101 +306,153 @@ const diagnoseS3 = async () => {
     };
   }
 
-  // 1. HeadBucket (tests s3:ListBucket / bucket existence)
-  try {
-    const headRes = await client.send(new HeadBucketCommand({ Bucket: bucket }));
-    results.tests.headBucket = { success: true, status: headRes.$metadata.httpStatusCode };
-  } catch (err) {
-    results.tests.headBucket = {
-      success: false,
-      errorName: err.name,
-      errorMessage: err.message,
-      statusCode: err.$metadata?.httpStatusCode,
-      requestId: err.$metadata?.requestId,
-      regionHeader: err.$response?.headers?.['x-amz-bucket-region']
-    };
-  }
+  // 2. REQUIRED REAL AWS OPERATIONS SUITE (Prompt Section 5)
+  // Operation 1: HeadBucket
+  results.operationsSuite.headBucket = await executeSafe(() =>
+    client.send(new HeadBucketCommand({ Bucket: bucket }))
+  );
 
-  // 2. GetBucketLocation
-  try {
+  // Operation 2: GetBucketLocation
+  results.operationsSuite.getBucketLocation = await executeSafe(async () => {
     const locRes = await client.send(new GetBucketLocationCommand({ Bucket: bucket }));
-    results.tests.getBucketLocation = { success: true, locationConstraint: locRes.LocationConstraint || 'us-east-1 (default)' };
-  } catch (err) {
-    results.tests.getBucketLocation = {
-      success: false,
-      errorName: err.name,
-      errorMessage: err.message,
-      statusCode: err.$metadata?.httpStatusCode
-    };
-  }
+    return { locationConstraint: locRes.LocationConstraint || 'us-east-1 (default)' };
+  });
 
-  // 3. ListObjects (tests s3:ListBucket on arn:aws:s3:::devhub-s3)
-  try {
-    const listRes = await client.send(new ListObjectsV2Command({ Bucket: bucket, MaxKeys: 5 }));
-    results.tests.listObjects = {
-      success: true,
-      keyCount: listRes.KeyCount,
-      sampleKeys: (listRes.Contents || []).map(c => c.Key)
-    };
-  } catch (err) {
-    results.tests.listObjects = {
-      success: false,
-      errorName: err.name,
-      errorMessage: err.message,
-      statusCode: err.$metadata?.httpStatusCode,
-      requestId: err.$metadata?.requestId
-    };
-  }
-
-  // 4. PutObject (tests s3:PutObject on arn:aws:s3:::devhub-s3/*)
-  const testKey = `diagnostics/health-check-${Date.now()}.txt`;
-  try {
-    const putRes = await client.send(new PutObjectCommand({
+  // Operation 3: PutObject to devhub-test/live-upload-test.txt
+  const liveTestKey = 'devhub-test/live-upload-test.txt';
+  const livePayload = Buffer.from('DEVHUB live test content generated at ' + new Date().toISOString());
+  results.operationsSuite.putObject = await executeSafe(() =>
+    client.send(new PutObjectCommand({
       Bucket: bucket,
-      Key: testKey,
-      Body: Buffer.from('DEVHUB S3 diagnostic health check test payload'),
+      Key: liveTestKey,
+      Body: livePayload,
       ContentType: 'text/plain'
-    }));
-    results.tests.putObject = { success: true, key: testKey, status: putRes.$metadata.httpStatusCode };
+    }))
+  );
 
-    // 5. GetObject (tests s3:GetObject on arn:aws:s3:::devhub-s3/*)
-    try {
-      const getRes = await client.send(new GetObjectCommand({ Bucket: bucket, Key: testKey }));
-      results.tests.getObject = { success: true, status: getRes.$metadata.httpStatusCode };
-    } catch (getErr) {
-      results.tests.getObject = {
-        success: false,
-        errorName: getErr.name,
-        errorMessage: getErr.message,
-        statusCode: getErr.$metadata?.httpStatusCode
-      };
-    }
+  // Operation 4: HeadObject on devhub-test/live-upload-test.txt
+  results.operationsSuite.headObject = await executeSafe(() =>
+    client.send(new HeadObjectCommand({
+      Bucket: bucket,
+      Key: liveTestKey
+    }))
+  );
 
-    // 6. DeleteObject (tests s3:DeleteObject on arn:aws:s3:::devhub-s3/*)
-    try {
-      const delRes = await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: testKey }));
-      results.tests.deleteObject = { success: true, status: delRes.$metadata.httpStatusCode };
-    } catch (delErr) {
-      results.tests.deleteObject = {
-        success: false,
-        errorName: delErr.name,
-        errorMessage: delErr.message,
-        statusCode: delErr.$metadata?.httpStatusCode
-      };
-    }
-  } catch (putErr) {
-    results.tests.putObject = {
-      success: false,
-      key: testKey,
-      errorName: putErr.name,
-      errorMessage: putErr.message,
-      statusCode: putErr.$metadata?.httpStatusCode,
-      requestId: putErr.$metadata?.requestId,
-      extendedRequestId: putErr.$metadata?.extendedRequestId || putErr.$response?.headers?.['x-amz-id-2'],
-      headers: putErr.$response?.headers
+  // Operation 5: GetObject on devhub-test/live-upload-test.txt
+  results.operationsSuite.getObject = await executeSafe(() =>
+    client.send(new GetObjectCommand({
+      Bucket: bucket,
+      Key: liveTestKey
+    }))
+  );
+
+  // Operation 6: DeleteObject on devhub-test/live-upload-test.txt
+  results.operationsSuite.deleteObject = await executeSafe(() =>
+    client.send(new DeleteObjectCommand({
+      Bucket: bucket,
+      Key: liveTestKey
+    }))
+  );
+
+  // 3. BUCKET OWNERSHIP & LIST BUCKETS INSPECTION (Prompt Section 4)
+  results.bucketSettings.listBuckets = await executeSafe(async () => {
+    const listRes = await client.send(new ListBucketsCommand({}));
+    const bucketNames = (listRes.Buckets || []).map(b => b.Name);
+    const ownsTargetBucket = bucketNames.includes(bucket);
+    return {
+      owner: listRes.Owner,
+      totalBuckets: bucketNames.length,
+      bucketNames,
+      ownsTargetBucket
     };
+  });
+
+  if (results.callerIdentity?.account) {
+    results.bucketSettings.headBucketExpectedOwner = await executeSafe(() =>
+      client.send(new HeadBucketCommand({
+        Bucket: bucket,
+        ExpectedBucketOwner: results.callerIdentity.account
+      }))
+    );
   }
 
+  // 4. ENCRYPTION CHECKS (Prompt Section 7)
+  results.bucketSettings.getBucketEncryption = await executeSafe(() =>
+    client.send(new GetBucketEncryptionCommand({ Bucket: bucket }))
+  );
+
+  // Test PutObject with SSE-S3 (AES256)
+  const sseTestKey = 'devhub-test/live-upload-sse-test.txt';
+  results.operationsSuite.putObjectWithSseS3 = await executeSafe(() =>
+    client.send(new PutObjectCommand({
+      Bucket: bucket,
+      Key: sseTestKey,
+      Body: livePayload,
+      ContentType: 'text/plain',
+      ServerSideEncryption: 'AES256'
+    }))
+  );
+  if (results.operationsSuite.putObjectWithSseS3.success) {
+    await executeSafe(() => client.send(new DeleteObjectCommand({ Bucket: bucket, Key: sseTestKey })));
+  }
+
+  // 5. OBJECT OWNERSHIP & ACL CHECKS (Prompt Section 8)
+  results.bucketSettings.getBucketAcl = await executeSafe(() =>
+    client.send(new GetBucketAclCommand({ Bucket: bucket }))
+  );
+  results.bucketSettings.getOwnershipControls = await executeSafe(() =>
+    client.send(new GetBucketOwnershipControlsCommand({ Bucket: bucket }))
+  );
+  results.bucketSettings.getPublicAccessBlock = await executeSafe(() =>
+    client.send(new GetPublicAccessBlockCommand({ Bucket: bucket }))
+  );
+
+  // Test PutObject with bucket-owner-full-control ACL
+  const aclTestKey = 'devhub-test/live-upload-acl-test.txt';
+  results.operationsSuite.putObjectWithAcl = await executeSafe(() =>
+    client.send(new PutObjectCommand({
+      Bucket: bucket,
+      Key: aclTestKey,
+      Body: livePayload,
+      ContentType: 'text/plain',
+      ACL: 'bucket-owner-full-control'
+    }))
+  );
+  if (results.operationsSuite.putObjectWithAcl.success) {
+    await executeSafe(() => client.send(new DeleteObjectCommand({ Bucket: bucket, Key: aclTestKey })));
+  }
+
+  // 6. BUCKET POLICY INSPECTION (Prompt Section 6)
+  results.bucketSettings.getBucketPolicy = await executeSafe(async () => {
+    const polRes = await client.send(new GetBucketPolicyCommand({ Bucket: bucket }));
+    return { policy: polRes.Policy ? JSON.parse(polRes.Policy) : null };
+  });
+
+  // 7. IAM POLICY INSPECTION (Prompt Section 6)
+  if (results.callerIdentity?.arn && results.callerIdentity.arn.includes(':user/')) {
+    const userName = results.callerIdentity.arn.split('/').pop();
+    try {
+      const iamClient = new IAMClient({
+        region: 'us-east-1', // IAM is global, default endpoint us-east-1
+        credentials: { accessKeyId, secretAccessKey: secret }
+      });
+      const attached = await iamClient.send(new ListAttachedUserPoliciesCommand({ UserName: userName }));
+      const inline = await iamClient.send(new ListUserPoliciesCommand({ UserName: userName }));
+      results.iamInspection = {
+        userName,
+        attachedPolicies: attached.AttachedPolicies || [],
+        inlinePolicyNames: inline.PolicyNames || []
+      };
+    } catch (iamErr) {
+      results.iamInspection = {
+        userName,
+        errorName: iamErr.name || iamErr.Code,
+        errorMessage: iamErr.message
+      };
+    }
+  }
+
+  results.tests = results.operationsSuite;
   return results;
 };
 
@@ -325,6 +461,6 @@ module.exports = {
   getDownloadUrl,
   deleteFile,
   generateSafeKey,
-  diagnoseS3
+  diagnoseS3,
+  getCallerIdentitySafe
 };
-
