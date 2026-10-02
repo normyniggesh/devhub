@@ -68,7 +68,9 @@ export const apiClient = async (endpoint, { body, method, ...customConfig } = {}
     endpoint.startsWith('/auth') ||
     endpoint.startsWith('/api/auth') ||
     endpoint.startsWith('/admin') ||
-    endpoint.startsWith('/api/admin')
+    endpoint.startsWith('/api/admin') ||
+    endpoint.startsWith('/search') ||
+    endpoint.startsWith('/api/search')
   ) {
     const opts = { body, ...customConfig };
     if (method) opts.method = method;

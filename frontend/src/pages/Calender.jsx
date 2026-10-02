@@ -268,17 +268,17 @@ export default function Calender() {
       <div className="flex-1 min-w-0 flex flex-col gap-6">
         
         {/* Header / Top Bar */}
-        <div className="relative rounded-2xl p-6 bg-[#0f1422] border border-[#192238] overflow-hidden flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 shadow-sm">
+        <div className="relative rounded-2xl py-5 px-6 md:px-7 bg-[#0f1422] border border-[#192238] overflow-hidden flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm">
            <div className="absolute right-0 top-0 bottom-0 w-1/2 opacity-30 pointer-events-none bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-purple-600/30 via-[#0f1422]/10 to-transparent"></div>
            <div className="z-10">
-             <div className="flex items-center gap-2 text-[10px] font-bold tracking-wider text-slate-400 mb-2 uppercase">
+             <div className="flex items-center gap-2 text-[10px] font-bold tracking-wider text-slate-400 mb-1 uppercase">
                <span>Calendar</span>
                <span className="text-slate-600">›</span>
                <span className="text-purple-400">{monthName} {year}</span>
              </div>
-             <h1 className="text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
-               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-purple-800 flex items-center justify-center shadow-lg shadow-purple-900/50 shrink-0">
-                 <i className="fa-regular fa-calendar text-white text-lg"></i>
+             <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
+               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-purple-800 flex items-center justify-center shadow-lg shadow-purple-900/50 shrink-0">
+                 <i className="fa-regular fa-calendar text-white text-base"></i>
                </div>
                {monthName} {year}
              </h1>
@@ -286,30 +286,18 @@ export default function Calender() {
            
            <div className="z-10 flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
               <div className="flex bg-[#161d2f] border border-[#1f2a44] rounded-xl p-1 shadow-inner">
-                 <button onClick={handlePrevMonth} className="px-3 py-1.5 text-slate-400 hover:text-white hover:bg-[#1a2333] rounded-lg transition"><i className="fa-solid fa-chevron-left text-xs"></i></button>
-                 <button onClick={handleToday} className="px-4 py-1.5 text-xs font-bold text-white hover:bg-[#1a2333] rounded-lg transition">Today</button>
-                 <button onClick={handleNextMonth} className="px-3 py-1.5 text-slate-400 hover:text-white hover:bg-[#1a2333] rounded-lg transition"><i className="fa-solid fa-chevron-right text-xs"></i></button>
+                 <button onClick={handlePrevMonth} className="px-3 py-1.5 text-slate-400 hover:text-white hover:bg-[#1a2333] rounded-lg transition" title="Previous Month"><i className="fa-solid fa-chevron-left text-xs"></i></button>
+                 <button onClick={handleToday} className="px-3.5 py-1.5 text-xs font-bold text-white hover:bg-[#1a2333] rounded-lg transition">Today</button>
+                 <button onClick={handleNextMonth} className="px-3 py-1.5 text-slate-400 hover:text-white hover:bg-[#1a2333] rounded-lg transition" title="Next Month"><i className="fa-solid fa-chevron-right text-xs"></i></button>
               </div>
-              <button onClick={() => openAdd(null)} className="w-full sm:w-auto px-5 py-2.5 bg-[#5922cf] hover:bg-[#682ae6] text-white rounded-xl text-sm font-bold shadow-lg shadow-purple-900/30 transition flex items-center justify-center gap-2">
-                <i className="fa-solid fa-plus"></i> Add Event
+              <button onClick={() => openAdd(null)} className="w-full sm:w-auto px-4 py-2 bg-[#5922cf] hover:bg-[#682ae6] text-white rounded-xl text-xs md:text-sm font-bold shadow-lg shadow-purple-900/30 transition flex items-center justify-center gap-2">
+                <i className="fa-solid fa-plus text-xs"></i> Add Event
               </button>
            </div>
         </div>
 
-        {/* Filters & Tabs */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-           <div className="flex items-center gap-1.5 p-1 bg-[#0f1422] border border-[#192238] rounded-xl overflow-x-auto hide-scrollbar shadow-sm">
-             {['Month', 'Week', 'Day', 'Agenda'].map(tab => (
-               <button 
-                 key={tab} 
-                 onClick={() => tab === 'Month' && setActiveTab(tab)}
-                 className={`px-4 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap ${activeTab === tab ? 'bg-purple-600 text-white shadow-md shadow-purple-900/20' : 'text-slate-400 cursor-not-allowed opacity-50'}`}
-                 title={tab !== 'Month' ? 'Coming soon in future MVP phases' : ''}
-               >
-                 {tab}
-               </button>
-             ))}
-           </div>
+        {/* Filters */}
+        <div className="flex flex-col md:flex-row md:items-center justify-end gap-3">
            <div className="flex items-center gap-3">
              <select value={selectedProjectFilter} onChange={e => setSelectedProjectFilter(e.target.value)} className="appearance-none bg-[#0f1422] border border-[#192238] rounded-xl px-4 py-2 text-xs font-bold text-slate-300 focus:outline-none focus:border-purple-500 transition shadow-sm cursor-pointer min-w-[140px]">
                <option value="">All Projects</option>

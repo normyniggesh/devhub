@@ -637,10 +637,10 @@ export default function Tasks() {
   };
 
   return (
-    <div className="flex flex-col gap-6 max-w-[1920px] mx-auto pb-12 min-h-screen">
+    <div className="flex flex-col gap-5 max-w-[1920px] mx-auto pb-12 min-h-screen">
       
       {/* Top Header / Hero */}
-      <div className="relative rounded-2xl p-6 bg-[#0f1422] border border-[#192238] overflow-hidden flex flex-col justify-center shadow-sm min-h-[140px]">
+      <div className="relative rounded-2xl py-5 px-6 md:px-7 bg-[#0f1422] border border-[#192238] overflow-hidden flex flex-col justify-center shadow-sm">
          <div className="absolute right-0 top-0 bottom-0 w-2/3 opacity-40 pointer-events-none bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0iZyIgeDE9IjAlIiB5MT0iMTAwJSIgeDI9IjEwMCUiIHkyPSIwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0idHJhbnNwYXJlbnQiLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiM1OTIyY2YiIHN0b3Atb3BhY2l0eT0iMC4xNSIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZykiLz48L3N2Zz4=')] bg-cover"></div>
          <div className="z-10">
            <div className="flex items-center gap-2 text-[10px] font-bold tracking-wider text-slate-400 mb-2 uppercase">
@@ -648,7 +648,7 @@ export default function Tasks() {
              <span className="text-slate-600">›</span>
              <span className="text-purple-400">All Tasks</span>
            </div>
-           <h1 className="text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
+           <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
              Tasks
            </h1>
            <p className="text-xs text-slate-400 mt-1 font-medium">Turn plans into progress.</p>

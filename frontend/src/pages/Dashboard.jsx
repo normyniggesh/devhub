@@ -125,21 +125,21 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Hero Section */}
-      <div className="relative bg-gradient-to-r from-[#111624] to-[#0a0d14] rounded-2xl p-8 border border-[#192238] overflow-hidden -mt-4">
+      <div className="relative bg-gradient-to-r from-[#111624] to-[#0a0d14] rounded-2xl py-5 px-6 md:px-8 border border-[#192238] overflow-hidden">
         {/* Subtle background graphic */}
         <div className="absolute right-0 top-0 bottom-0 opacity-10 pointer-events-none w-1/2" style={{ background: 'radial-gradient(circle at 100% 50%, #5243d4 0%, transparent 60%)' }}></div>
         <div className="relative z-10">
-          <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight mb-2 flex items-center gap-3">
+          <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight mb-1 flex items-center gap-3">
             Good afternoon, {currentUser?.name?.split(' ')[0] || 'there'} <span className="animate-wave inline-block origin-bottom-right">👋</span>
           </h1>
-          <p className="text-slate-400 text-sm md:text-base max-w-xl">
+          <p className="text-slate-400 text-xs md:text-sm max-w-xl">
             Let's make progress today.
           </p>
         </div>
-        <div className="absolute top-8 right-8 hidden md:block text-right">
-          <p className="text-sm italic text-slate-400 font-serif leading-relaxed text-opacity-80">
+        <div className="absolute top-5 right-6 md:right-8 hidden md:block text-right">
+          <p className="text-xs italic text-slate-400 font-serif leading-relaxed text-opacity-80">
             "Discipline today,<br/>Big results tomorrow."
           </p>
         </div>
@@ -193,13 +193,13 @@ export default function Dashboard() {
               </div>
             ) : (
               filteredProjects.map(p => (
-                <div key={p.id} className="group flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3 -mx-3 rounded-xl hover:bg-[#151c2d] transition border border-transparent hover:border-[#1f2a44]">
+                <div key={p.id} className="group flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3 -mx-3 rounded-xl hover:bg-[#151c2d] transition border border-transparent hover:border-[#1f2a44] cursor-pointer" onClick={() => navigate(`/projects/${p.id}`)}>
                   <div className="flex items-start sm:items-center gap-3 w-full sm:w-1/3 min-w-0">
                     <div className="w-10 h-10 rounded-lg bg-[#1a2333] border border-[#2d3a5a] flex items-center justify-center shrink-0">
                       <i className="fa-regular fa-folder text-purple-400"></i>
                     </div>
                     <div className="min-w-0">
-                      <h3 className="text-sm font-bold text-white truncate cursor-pointer hover:text-purple-400 transition" onClick={() => navigate(`/projects`)}>{p.name}</h3>
+                      <h3 className="text-sm font-bold text-white truncate group-hover:text-purple-400 transition">{p.name}</h3>
                       <p className="text-[10px] text-slate-400 mt-0.5 truncate">{p.category || 'General'} &middot; {p.status}</p>
                     </div>
                   </div>
@@ -221,36 +221,16 @@ export default function Dashboard() {
 
         {/* Calendar Panel */}
         <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-5 flex flex-col">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <i className="fa-regular fa-calendar text-slate-400"></i> Calendar
-            </h2>
+          <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#192238]">
+            <div>
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <i className="fa-regular fa-calendar text-slate-400"></i> Upcoming Events
+              </h2>
+              <p className="text-[11px] text-slate-400 mt-0.5">{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+            </div>
             <Link to="/calendar" className="text-xs font-semibold text-slate-300 hover:text-white flex items-center gap-1 bg-[#1a2333] hover:bg-[#253046] px-3 py-1.5 rounded-lg border border-[#2d3a5a] transition">
               View All <i className="fa-solid fa-arrow-right text-[10px]"></i>
             </Link>
-          </div>
-
-          <div className="mb-4">
-            <h3 className="text-sm font-bold text-white">{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h3>
-            {/* Simple week representation (visual only) */}
-            <div className="flex justify-between items-center mt-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wide">
-              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
-                <div key={day} className="text-center">{day}</div>
-              ))}
-            </div>
-            <div className="flex justify-between items-center mt-1 pb-4 border-b border-[#1f2a44]">
-               {/* Faking a week view visually just to match the vibe. Not functional. */}
-               {Array.from({length: 7}).map((_, i) => {
-                 const d = new Date();
-                 d.setDate(d.getDate() - d.getDay() + 1 + i);
-                 const isToday = d.getDate() === new Date().getDate();
-                 return (
-                   <div key={i} className={`text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-purple-600 text-white' : 'text-slate-300'}`}>
-                     {d.getDate()}
-                   </div>
-                 );
-               })}
-            </div>
           </div>
 
           <div className="flex-1 flex flex-col gap-3 overflow-y-auto pr-1">
@@ -264,8 +244,8 @@ export default function Dashboard() {
                 return (
                   <div key={e.id} className="flex gap-3 p-2 hover:bg-[#151c2d] rounded-xl transition cursor-pointer group" onClick={() => {
                     if (e.derived) {
-                      if (e.sourceType === 'project') navigate(`/projects`);
-                      else if (e.sourceType === 'task') navigate(`/tasks`);
+                      if (e.sourceType === 'project') navigate(e.sourceId ? `/projects/${e.sourceId}` : '/projects');
+                      else if (e.sourceType === 'task') navigate(e.sourceId ? `/tasks?projectId=${e.projectId || ''}` : '/tasks');
                     } else {
                       navigate(`/calendar`);
                     }

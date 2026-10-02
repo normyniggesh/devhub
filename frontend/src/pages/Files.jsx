@@ -315,27 +315,8 @@ export default function Files() {
       {/* Main Content Area */}
       <div className="flex-1 min-w-0 flex flex-col gap-6">
         
-        {/* Top Header / Search */}
-        <div className="flex items-center justify-between gap-4 bg-[#0f1422] border border-[#192238] rounded-2xl p-3 px-4 shadow-sm">
-          <div className="relative flex-1 max-w-xl">
-            <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
-            <input 
-              type="text" 
-              placeholder="Search files, folders, projects, or keywords..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl pl-10 pr-10 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition shadow-inner"
-            />
-            {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white">
-                <i className="fa-solid fa-xmark"></i>
-              </button>
-            )}
-          </div>
-        </div>
-
         {/* Hero Section */}
-        <div className="relative rounded-2xl p-8 bg-[#0f1422] border border-[#192238] overflow-hidden flex flex-col md:flex-row justify-between items-center gap-6 shadow-sm">
+        <div className="relative rounded-2xl py-5 px-6 md:px-7 bg-[#0f1422] border border-[#192238] overflow-hidden flex flex-col md:flex-row justify-between items-center gap-6 shadow-sm">
           <div className="absolute right-0 top-0 bottom-0 w-1/2 opacity-30 pointer-events-none bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-purple-600/40 via-indigo-900/10 to-transparent"></div>
           <div className="z-10 w-full">
             <div className="flex items-center gap-2 text-[11px] font-bold tracking-wider text-slate-400 mb-2 uppercase">
@@ -343,8 +324,8 @@ export default function Files() {
               <span className="text-slate-600">›</span>
               <span className="text-purple-400">{activeTab}</span>
             </div>
-            <h1 className="text-3xl font-extrabold text-white tracking-tight mb-2">Files</h1>
-            <p className="text-sm text-slate-400">Store. Share. Collaborate. Keep everything in one place.</p>
+            <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight mb-1">Files</h1>
+            <p className="text-xs md:text-sm text-slate-400">Store. Share. Collaborate. Keep everything in one place.</p>
           </div>
           <div className="z-10 hidden md:block shrink-0 text-right">
              <p className="text-xs italic text-slate-400">"Organized files create organized minds."</p>
@@ -353,20 +334,36 @@ export default function Files() {
         </div>
 
         {/* Filter / Action Bar */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-3">
           <Tabs 
-            tabs={['All Files', 'Shared with Me', 'Recent', 'Starred', 'Trash'].map(t => ({ id: t, label: t }))}
+            tabs={['All Files', 'Shared with Me', 'Recent'].map(t => ({ id: t, label: t }))}
             activeTab={activeTab}
             onChange={(tab) => { setActiveTab(tab); setCurrentFolderId(null); setFolderHistory([]); }}
           />
 
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-             <button onClick={openNewFile} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-[#161d2f] hover:bg-[#1a2333] text-white border border-[#1f2a44] rounded-xl text-xs font-bold transition">
+          <div className="flex items-center gap-3 w-full md:w-auto">
+             <div className="relative flex-1 md:w-56">
+               <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+               <input 
+                 type="text" 
+                 placeholder="Filter files..." 
+                 value={searchQuery}
+                 onChange={(e) => setSearchQuery(e.target.value)}
+                 className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl pl-8 pr-7 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition"
+               />
+               {searchQuery && (
+                 <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
+                   <i className="fa-solid fa-xmark text-xs"></i>
+                 </button>
+               )}
+             </div>
+
+             <button onClick={openNewFile} className="flex items-center justify-center gap-2 px-3.5 py-2 bg-[#161d2f] hover:bg-[#1a2333] text-white border border-[#1f2a44] rounded-xl text-xs font-bold transition shrink-0">
                <i className="fa-solid fa-upload"></i> Upload
              </button>
              
-             <div className="relative" ref={openMenuId === 'new_menu' ? menuRef : null}>
-               <button onClick={() => setOpenMenuId(openMenuId === 'new_menu' ? null : 'new_menu')} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-[#5922cf] hover:bg-[#682ae6] text-white rounded-xl text-xs font-bold shadow-lg shadow-purple-900/30 transition">
+             <div className="relative shrink-0" ref={openMenuId === 'new_menu' ? menuRef : null}>
+               <button onClick={() => setOpenMenuId(openMenuId === 'new_menu' ? null : 'new_menu')} className="flex items-center justify-center gap-2 px-3.5 py-2 bg-[#5922cf] hover:bg-[#682ae6] text-white rounded-xl text-xs font-bold shadow-lg shadow-purple-900/30 transition">
                  New <i className="fa-solid fa-chevron-down text-[10px] ml-1"></i>
                </button>
                {openMenuId === 'new_menu' && (
@@ -398,15 +395,6 @@ export default function Files() {
             loadData();
           }}
         />
-
-        {/* Empty States for unsupported tabs */}
-        {(activeTab === 'Starred' || activeTab === 'Trash') && (
-          <div className="flex flex-col items-center justify-center py-20 bg-[#0f1422] border border-dashed border-[#1f2a44] rounded-2xl">
-            <i className={`fa-solid ${activeTab === 'Starred' ? 'fa-star text-amber-500' : 'fa-trash text-slate-500'} text-4xl mb-4 opacity-50`}></i>
-            <h2 className="text-lg font-bold text-white mb-2">{activeTab} not supported</h2>
-            <p className="text-sm text-slate-400">This feature is not currently available in the backend.</p>
-          </div>
-        )}
 
         {/* Breadcrumb Navigation for All Files */}
         {activeTab === 'All Files' && (

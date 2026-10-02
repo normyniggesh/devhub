@@ -50,8 +50,8 @@ export default function Activity2() {
   const openBugs = qaItems?.openBugs || [];
 
   return (
-    <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#121624] via-[#151a2d] to-[#1e1735] border border-[#1e2538] p-7 flex items-center justify-between min-h-[140px]" data-purpose="page-hero-header">
+    <div className="space-y-5">
+      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#121624] via-[#151a2d] to-[#1e1735] border border-[#1e2538] py-5 px-6 md:px-7 flex items-center justify-between shadow-sm" data-purpose="page-hero-header">
         <div className="space-y-1.5 z-10">
           <div className="flex items-center gap-1.5 text-xs text-slate-400">
             <span>Workspace</span>

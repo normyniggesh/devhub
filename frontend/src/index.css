@@ -1412,3 +1412,203 @@
   border-color: #e2dac9 !important;
 }
 
+/* ==========================================================
+   GLOBAL SEARCH BAR THEME SYSTEM
+   ========================================================== */
+/* Default / Purple */
+.global-search-input {
+  background-color: rgba(19, 23, 34, 0.95);
+  border-color: #232a3f;
+  color: #ffffff;
+}
+.global-search-input::placeholder {
+  color: #94a3b8;
+}
+
+/* Theme: Green */
+[data-theme="green"] .global-search-input {
+  background-color: #060e08 !important;
+  border-color: #173620 !important;
+  color: #f0fdf4 !important;
+}
+[data-theme="green"] .global-search-input:focus {
+  border-color: #22c55e !important;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25) !important;
+}
+[data-theme="green"] .global-search-input::placeholder {
+  color: #6b8f75 !important;
+}
+[data-theme="green"] .global-search-icon,
+[data-theme="green"] .global-search-badge {
+  color: #4ade80 !important;
+  background-color: #0d1e12 !important;
+  border-color: #1a4224 !important;
+}
+[data-theme="green"] .global-search-dropdown {
+  background-color: #050a06 !important;
+  border-color: #183a22 !important;
+}
+[data-theme="green"] .global-search-header {
+  background-color: #030704 !important;
+  border-color: #132e1b !important;
+  color: #86a893 !important;
+}
+[data-theme="green"] .global-search-item:hover,
+[data-theme="green"] .global-search-item-selected {
+  background-color: #0e2415 !important;
+  border-color: #22c55e !important;
+}
+
+/* Theme: Light */
+[data-theme="light"] .global-search-input {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+[data-theme="light"] .global-search-input:focus {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
+}
+[data-theme="light"] .global-search-input::placeholder {
+  color: #64748b !important;
+}
+[data-theme="light"] .global-search-icon {
+  color: #64748b !important;
+}
+[data-theme="light"] .global-search-badge {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #475569 !important;
+}
+[data-theme="light"] .global-search-clear {
+  color: #64748b !important;
+}
+[data-theme="light"] .global-search-clear:hover {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+[data-theme="light"] .global-search-dropdown {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+}
+[data-theme="light"] .global-search-header {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #64748b !important;
+}
+[data-theme="light"] .global-search-item {
+  color: #1e293b !important;
+}
+[data-theme="light"] .global-search-item:hover {
+  background-color: #f1f5f9 !important;
+}
+[data-theme="light"] .global-search-item-selected {
+  background-color: #ede9fe !important;
+  border-color: #c4b5fd !important;
+}
+[data-theme="light"] .global-search-item-title {
+  color: #0f172a !important;
+}
+[data-theme="light"] .global-search-item-sub {
+  color: #64748b !important;
+}
+[data-theme="light"] .global-search-cat-title {
+  color: #64748b !important;
+}
+
+/* Theme: Warm */
+[data-theme="warm"] .global-search-input {
+  background-color: #ffffff !important;
+  border-color: #d6cebe !important;
+  color: #1c1917 !important;
+}
+[data-theme="warm"] .global-search-input:focus {
+  border-color: #d97706 !important;
+  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.2) !important;
+}
+[data-theme="warm"] .global-search-input::placeholder {
+  color: #78716c !important;
+}
+[data-theme="warm"] .global-search-icon {
+  color: #78716c !important;
+}
+[data-theme="warm"] .global-search-badge {
+  background-color: #ede5d5 !important;
+  border-color: #d6cebe !important;
+  color: #57534e !important;
+}
+[data-theme="warm"] .global-search-clear {
+  color: #78716c !important;
+}
+[data-theme="warm"] .global-search-clear:hover {
+  background-color: #e2dac9 !important;
+  color: #1c1917 !important;
+}
+[data-theme="warm"] .global-search-dropdown {
+  background-color: #fdfbf7 !important;
+  border-color: #e2dac9 !important;
+  box-shadow: 0 20px 25px -5px rgba(68, 64, 60, 0.15) !important;
+}
+[data-theme="warm"] .global-search-header {
+  background-color: #f5efe4 !important;
+  border-color: #e2dac9 !important;
+  color: #78716c !important;
+}
+[data-theme="warm"] .global-search-item {
+  color: #292524 !important;
+}
+[data-theme="warm"] .global-search-item:hover {
+  background-color: #ede5d5 !important;
+}
+[data-theme="warm"] .global-search-item-selected {
+  background-color: #fef3c7 !important;
+  border-color: #fcd34d !important;
+}
+[data-theme="warm"] .global-search-item-title {
+  color: #1c1917 !important;
+}
+[data-theme="warm"] .global-search-item-sub {
+  color: #78716c !important;
+}
+[data-theme="warm"] .global-search-cat-title {
+  color: #78716c !important;
+}
+
+/* Theme: Blue */
+[data-theme="blue"] .global-search-input {
+  background-color: #0b1528 !important;
+  border-color: #1e3256 !important;
+  color: #ffffff !important;
+}
+[data-theme="blue"] .global-search-input:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25) !important;
+}
+[data-theme="blue"] .global-search-input::placeholder {
+  color: #7e92b2 !important;
+}
+[data-theme="blue"] .global-search-icon {
+  color: #60a5fa !important;
+}
+[data-theme="blue"] .global-search-badge {
+  background-color: #13223f !important;
+  border-color: #1e3a68 !important;
+  color: #93c5fd !important;
+}
+[data-theme="blue"] .global-search-dropdown {
+  background-color: #0a1222 !important;
+  border-color: #1e3256 !important;
+}
+[data-theme="blue"] .global-search-header {
+  background-color: #070d18 !important;
+  border-color: #152542 !important;
+  color: #7e92b2 !important;
+}
+[data-theme="blue"] .global-search-item:hover,
+[data-theme="blue"] .global-search-item-selected {
+  background-color: #132444 !important;
+  border-color: #3b82f6 !important;
+}
+
+

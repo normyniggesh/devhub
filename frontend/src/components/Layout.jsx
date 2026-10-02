@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import ThemeToggle from './common/ThemeToggle';
+import GlobalSearch from './common/GlobalSearch';
 import { useStore } from '../store';
 import { apiClient } from '../api/client';
 
@@ -79,28 +80,28 @@ export default function Layout() {
     <div className="min-h-screen flex antialiased selection:bg-indigo-600 selection:text-white text-slate-400">
       <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
       <main className="flex-1 flex flex-col min-w-0 bg-[#090c13] overflow-x-hidden">
-        {/* Top Bar & Search */}
-        <div className="hero-banner px-4 md:px-8 pt-4 md:pt-6 pb-6 border-b border-[#161b2b]">
-          <div className="flex items-center justify-between gap-4 pb-4 md:pb-6">
-            <div className="flex items-center gap-3">
+        {/* Top Header & Global Search */}
+        <header className="hero-banner px-4 md:px-8 py-3 md:py-3.5 border-b border-[#161b2b]">
+          <div className="flex items-center justify-between gap-3 md:gap-6">
+            {/* Mobile Menu Toggle */}
+            <div className="flex items-center md:hidden shrink-0">
               <button 
-                className="md:hidden text-slate-400 hover:text-white transition"
+                className="text-slate-400 hover:text-white transition p-1.5 rounded-lg hover:bg-[#131722]"
                 onClick={() => setSidebarOpen(true)}
+                title="Open menu"
+                aria-label="Open menu"
               >
-                <i className="fa-solid fa-bars text-xl"></i>
+                <i className="fa-solid fa-bars text-lg"></i>
               </button>
-              <div className="relative w-full max-w-[200px] sm:max-w-xs md:w-96">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-500">
-                  <i className="fa-solid fa-magnifying-glass text-xs"></i>
-                </span>
-                <input className="w-full bg-[#131722]/80 border border-[#232a3f] rounded-xl pl-9 pr-12 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 backdrop-blur-md" placeholder="Search..." type="text" />
-                <div className="absolute inset-y-0 right-0 hidden sm:flex items-center pr-3 pointer-events-none">
-                  <span className="text-[10px] font-semibold bg-[#1f2638] text-slate-400 px-1.5 py-0.5 rounded border border-[#2d364f]">⌘ K</span>
-                </div>
-              </div>
+            </div>
+
+            {/* Prominent Global Search (roughly 50-70% width, centered) */}
+            <div className="flex-1 max-w-2xl lg:max-w-3xl mx-auto">
+              <GlobalSearch />
             </div>
             
-            <div className="flex items-center space-x-3 md:space-x-4 shrink-0">
+            {/* Actions: Theme Toggle, Notifications, User Avatar */}
+            <div className="flex items-center space-x-2 md:space-x-3 shrink-0">
               {/* Theme Switcher */}
               <ThemeToggle />
 
@@ -195,10 +196,10 @@ export default function Layout() {
               </div>
             </div>
           </div>
-        </div>
+        </header>
         
         {/* Page content */}
-        <div className="p-4 md:p-8 space-y-6">
+        <div className="px-4 md:px-8 py-4 md:py-5 space-y-5">
           <Outlet />
         </div>
       </main>

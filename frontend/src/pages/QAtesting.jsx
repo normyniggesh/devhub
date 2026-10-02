@@ -318,34 +318,8 @@ export default function QAtesting() {
       {/* Main Content Area */}
       <div className="flex-1 min-w-0 flex flex-col gap-6">
         
-        {/* Top Header / Search */}
-        <div className="flex items-center justify-between gap-4 bg-[#0f1422] border border-[#192238] rounded-2xl p-3 px-4 shadow-sm">
-          <div className="relative flex-1 max-w-xl">
-            <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
-            <input
-              type="text"
-              placeholder="Search tests, bugs, modules, testers..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl pl-10 pr-10 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition shadow-inner"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
-              >
-                <i className="fa-solid fa-xmark text-xs"></i>
-              </button>
-            )}
-          </div>
-          <div className="flex items-center gap-3">
-            <Avatar user={currentUser} size="md" shape="square" />
-          </div>
-        </div>
-
         {/* Hero Section */}
-        <div className="relative rounded-2xl p-8 bg-[#0f1422] border border-[#192238] overflow-hidden flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 shadow-sm">
+        <div className="relative rounded-2xl py-5 px-6 md:px-7 bg-[#0f1422] border border-[#192238] overflow-hidden flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 shadow-sm">
           <div className="absolute right-0 top-0 bottom-0 w-1/2 opacity-30 pointer-events-none bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-purple-600/30 via-[#0f1422]/10 to-transparent"></div>
           <div className="z-10">
             <div className="flex items-center gap-2 text-[10px] font-bold tracking-wider text-slate-400 mb-2 uppercase">
@@ -478,8 +452,8 @@ export default function QAtesting() {
             {/* 2. TESTS TAB */}
             {activeTab === 'Tests' && (
               <div className="flex flex-col gap-5">
-                {/* Header Controls: Filters & New Test */}
-                <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                {/* Header Controls: Filters, Search & New Test */}
+                <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-3.5 flex flex-col md:flex-row items-center justify-between gap-3">
                   {/* Status Filters */}
                   <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0">
                     {['All', 'Available', 'Taken', 'Not Tested', 'Passed', 'Failed', 'Blocked'].map(tab => (
@@ -487,7 +461,7 @@ export default function QAtesting() {
                         key={tab}
                         type="button"
                         onClick={() => setTestFilter(tab)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
                           testFilter === tab
                             ? 'bg-purple-600 text-white shadow-md shadow-purple-950/40'
                             : 'bg-[#161d2f] text-slate-400 hover:text-white border border-[#1f2a44]'
@@ -498,20 +472,39 @@ export default function QAtesting() {
                     ))}
                   </div>
 
-                  {/* Actions */}
-                  {canEdit && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingTestCase(null);
-                        setShowTestCaseModal(true);
-                      }}
-                      className="px-4 py-2 bg-[#5922cf] hover:bg-[#682ae6] text-white rounded-xl text-xs font-bold shadow-lg shadow-purple-900/30 transition flex items-center gap-2 shrink-0 self-end md:self-auto"
-                    >
-                      <i className="fa-solid fa-plus text-[10px]"></i>
-                      <span>New Test</span>
-                    </button>
-                  )}
+                  {/* Search and Action */}
+                  <div className="flex items-center gap-3 w-full md:w-auto">
+                    <div className="relative flex-1 md:w-56">
+                      <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                      <input
+                        type="text"
+                        placeholder="Filter tests..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl pl-8 pr-7 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition"
+                      />
+                      {searchQuery && (
+                        <button type="button" onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
+                          <i className="fa-solid fa-xmark text-xs"></i>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingTestCase(null);
+                          setShowTestCaseModal(true);
+                        }}
+                        className="px-4 py-2 bg-[#5922cf] hover:bg-[#682ae6] text-white rounded-xl text-xs font-bold shadow-lg shadow-purple-900/30 transition flex items-center gap-2 shrink-0 self-end md:self-auto"
+                      >
+                        <i className="fa-solid fa-plus text-[10px]"></i>
+                        <span>New Test</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Tests List */}
@@ -575,8 +568,8 @@ export default function QAtesting() {
             {/* 3. ISSUES / BUGS TAB */}
             {activeTab === 'Issues/Bugs' && (
               <div className="flex flex-col gap-5">
-                {/* Header Controls */}
-                <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                {/* Header Controls: Filters, Search & Report Bug */}
+                <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-3.5 flex flex-col md:flex-row items-center justify-between gap-3">
                   {/* Status Filters */}
                   <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0">
                     {['All', 'Open', 'In Progress', 'Resolved', 'Closed'].map(tab => (
@@ -584,7 +577,7 @@ export default function QAtesting() {
                         key={tab}
                         type="button"
                         onClick={() => setBugFilter(tab)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
                           bugFilter === tab
                             ? 'bg-rose-600 text-white shadow-md shadow-rose-950/40'
                             : 'bg-[#161d2f] text-slate-400 hover:text-white border border-[#1f2a44]'
@@ -595,21 +588,39 @@ export default function QAtesting() {
                     ))}
                   </div>
 
-                  {/* Actions */}
-                  {canEdit && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingBug(null);
-                        setBugInitialData(null);
-                        setShowBugModal(true);
-                      }}
-                      className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-rose-900/30 transition flex items-center gap-2 shrink-0 self-end md:self-auto"
-                    >
-                      <i className="fa-solid fa-plus text-[10px]"></i>
-                      <span>Report Bug</span>
-                    </button>
-                  )}
+                  {/* Search and Action */}
+                  <div className="flex items-center gap-3 w-full md:w-auto">
+                    <div className="relative flex-1 md:w-56">
+                      <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                      <input
+                        type="text"
+                        placeholder="Filter bugs..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl pl-8 pr-7 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500 transition"
+                      />
+                      {searchQuery && (
+                        <button type="button" onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
+                          <i className="fa-solid fa-xmark text-xs"></i>
+                        </button>
+                      )}
+                    </div>
+
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingBug(null);
+                          setBugInitialData(null);
+                          setShowBugModal(true);
+                        }}
+                        className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-rose-900/30 transition flex items-center gap-2 shrink-0 self-end md:self-auto"
+                      >
+                        <i className="fa-solid fa-plus text-[10px]"></i>
+                        <span>Report Bug</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Bugs List */}
