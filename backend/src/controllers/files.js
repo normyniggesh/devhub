@@ -1,7 +1,8 @@
 const prisma = require('../db');
 const { checkProjectAccess } = require('../utils/projectAccess');
 const { createAuditLog } = require('../utils/audit');
-const { uploadFile, getDownloadUrl, deleteFile: deleteS3File, generateSafeKey } = require('../services/storageService');
+const storageService = require('../services/storageService');
+const { generateSafeKey } = storageService;
 
 exports.getFiles = async (req, res) => {
   try {
@@ -72,7 +73,7 @@ exports.getFileById = async (req, res) => {
 
 exports.createFile = async (req, res) => {
   try {
-    const { name, type, size, storagePath, projectId, folderId } = req.body;
+    const { name, type, size, storagePath, projectId, folderId } = req.body || {};
 
     if (!name || typeof name !== 'string' || !name.trim()) return res.status(400).json({ success: false, message: 'Name is required' });
     if (!type || typeof type !== 'string' || !type.trim()) return res.status(400).json({ success: false, message: 'Type is required' });
@@ -123,13 +124,14 @@ exports.createFile = async (req, res) => {
 
     res.status(201).json({ success: true, file });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    console.error('CreateFile Error:', error);
+    res.status(500).json({ success: false, message: error.message || 'Internal server error' });
   }
 };
 
 exports.uploadFiles = async (req, res) => {
   try {
-    const { projectId, folderId } = req.body;
+    const { projectId, folderId } = req.body || {};
     const files = req.files;
 
     if (!files || files.length === 0) return res.status(400).json({ success: false, message: 'No files uploaded' });
@@ -152,8 +154,9 @@ exports.uploadFiles = async (req, res) => {
       const key = generateSafeKey(projectId, folderId, file.originalname);
       
       try {
-        await uploadFile(file.buffer, file.mimetype, key);
+        await storageService.uploadFile(file.buffer, file.mimetype, key);
       } catch (uploadErr) {
+        console.error(`Storage error for ${file.originalname}:`, uploadErr);
         throw new Error(`Storage error for ${file.originalname}: ` + uploadErr.message);
       }
       
@@ -182,7 +185,8 @@ exports.uploadFiles = async (req, res) => {
           metadata: { name: dbFile.name }
         });
       } catch (dbErr) {
-        await deleteS3File(key).catch(e => console.error("Failed to cleanup orphaned S3 object:", e));
+        console.error(`Database error creating File record for ${file.originalname}:`, dbErr);
+        await storageService.deleteFile(key).catch(e => console.error("Failed to cleanup orphaned S3 object:", e));
         throw dbErr;
       }
     }
@@ -203,7 +207,7 @@ exports.downloadFile = async (req, res) => {
     const access = await checkProjectAccess(file.projectId, req.userId);
     if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
 
-    const downloadUrl = await getDownloadUrl(file.storagePath);
+    const downloadUrl = await storageService.getDownloadUrl(file.storagePath);
     res.json({ success: true, url: downloadUrl });
   } catch (error) {
     console.error('Download Error:', error);
@@ -279,7 +283,7 @@ exports.deleteFile = async (req, res) => {
     }
 
     try {
-      await deleteS3File(file.storagePath);
+      await storageService.deleteFile(file.storagePath);
     } catch (e) {
       console.error('Failed to delete S3 file:', e);
       return res.status(500).json({ success: false, message: 'Failed to delete file from storage' });

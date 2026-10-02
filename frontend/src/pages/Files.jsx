@@ -303,7 +303,7 @@ export default function Files() {
           formData.append('files', selectedFiles[i]);
         }
         
-        await apiClient('/files', { method: 'POST', body: formData });
+        await apiClient('/files/upload', { method: 'POST', body: formData });
       }
       setShowFileModal(false);
       setSelectedFiles(null);
