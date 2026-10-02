@@ -55,8 +55,8 @@ export function useTransferManager() {
         // Case 1: LOCAL PC -> DEVHUB
         if (sourceProvider === 'local' && targetProvider === 'devhub') {
           if (!targetContext.projectId) throw new Error('Target DEVHUB project must be selected');
-          if (item.handle) {
-            const rawFile = await item.handle.getFile();
+          const rawFile = item.file || (item.handle ? await item.handle.getFile() : null);
+          if (rawFile) {
             const formData = new FormData();
             formData.append('files', rawFile);
             formData.append('projectId', targetContext.projectId);
@@ -64,17 +64,17 @@ export function useTransferManager() {
               formData.append('folderId', targetContext.folderId);
             }
             await apiClient('/files/upload', { body: formData });
-            // If move, delete from PC
+            // If move, delete from PC handle if supported
             if (operation === 'move' && clipboard?.sourceContext?.dirHandle) {
-              await clipboard.sourceContext.dirHandle.removeEntry(item.name);
+              try { await clipboard.sourceContext.dirHandle.removeEntry(item.name); } catch(_) {}
             }
           }
         }
 
         // Case 2: LOCAL PC -> GOOGLE DRIVE
         else if (sourceProvider === 'local' && (targetProvider === 'gdrive' || targetProvider === 'google_drive')) {
-          if (item.handle) {
-            const rawFile = await item.handle.getFile();
+          const rawFile = item.file || (item.handle ? await item.handle.getFile() : null);
+          if (rawFile) {
             const formData = new FormData();
             formData.append('file', rawFile);
             if (targetContext.folderId && targetContext.folderId !== 'root') {
@@ -82,7 +82,7 @@ export function useTransferManager() {
             }
             await apiClient('/integrations/google_drive/upload', { body: formData });
             if (operation === 'move' && clipboard?.sourceContext?.dirHandle) {
-              await clipboard.sourceContext.dirHandle.removeEntry(item.name);
+              try { await clipboard.sourceContext.dirHandle.removeEntry(item.name); } catch(_) {}
             }
           }
         }
@@ -106,14 +106,27 @@ export function useTransferManager() {
 
         // Case 4: GOOGLE DRIVE -> LOCAL PC
         else if ((sourceProvider === 'gdrive' || sourceProvider === 'google_drive') && targetProvider === 'local') {
-          if (!targetContext.dirHandle) throw new Error('Target local folder must be connected');
           const res = await fetch(`/api/integrations/google_drive/download/${item.id}`, { credentials: 'include' });
           if (!res.ok) throw new Error(`Failed to download ${item.name} from Google Drive`);
           const arrayBuf = await res.arrayBuffer();
-          const targetFileHandle = await targetContext.dirHandle.getFileHandle(item.name, { create: true });
-          const writable = await targetFileHandle.createWritable();
-          await writable.write(arrayBuf);
-          await writable.close();
+
+          if (targetContext.dirHandle && targetContext.dirHandle.getFileHandle) {
+            const targetFileHandle = await targetContext.dirHandle.getFileHandle(item.name, { create: true });
+            const writable = await targetFileHandle.createWritable();
+            await writable.write(arrayBuf);
+            await writable.close();
+          } else {
+            // Fallback download directly to user's PC via browser download trigger
+            const blob = new Blob([arrayBuf]);
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = item.name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(blobUrl);
+          }
 
           if (operation === 'move') {
             await apiClient(`/integrations/google_drive/files/${item.id}`, { method: 'DELETE' });
@@ -122,15 +135,28 @@ export function useTransferManager() {
 
         // Case 5: DEVHUB -> LOCAL PC
         else if (sourceProvider === 'devhub' && targetProvider === 'local') {
-          if (!targetContext.dirHandle) throw new Error('Target local folder must be connected');
           const dlRes = await apiClient(`/files/${item.id}/download`);
           if (!dlRes.url) throw new Error('Failed to get download URL from DEVHUB');
           const fileRes = await fetch(dlRes.url);
           const arrayBuf = await fileRes.arrayBuffer();
-          const targetFileHandle = await targetContext.dirHandle.getFileHandle(item.name, { create: true });
-          const writable = await targetFileHandle.createWritable();
-          await writable.write(arrayBuf);
-          await writable.close();
+
+          if (targetContext.dirHandle && targetContext.dirHandle.getFileHandle) {
+            const targetFileHandle = await targetContext.dirHandle.getFileHandle(item.name, { create: true });
+            const writable = await targetFileHandle.createWritable();
+            await writable.write(arrayBuf);
+            await writable.close();
+          } else {
+            // Fallback download directly to user's PC via browser download trigger
+            const blob = new Blob([arrayBuf]);
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = item.name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(blobUrl);
+          }
 
           if (operation === 'move') {
             await apiClient(`/files/${item.id}`, { method: 'DELETE' });
