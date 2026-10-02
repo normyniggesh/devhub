@@ -38,6 +38,20 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+app.get('/api/health/s3', async (req, res) => {
+  try {
+    const { diagnoseS3 } = require('./services/storageService');
+    const diagnostic = await diagnoseS3();
+    const hasFailures = Object.values(diagnostic.tests).some(t => t.success === false);
+    res.status(hasFailures ? 500 : 200).json({
+      status: hasFailures ? 'error' : 'ok',
+      diagnostic
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', error: err.message, stack: err.stack });
+  }
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/projects', projectsRoutes);

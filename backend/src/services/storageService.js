@@ -1,4 +1,12 @@
-const { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { 
+  S3Client, 
+  PutObjectCommand, 
+  DeleteObjectCommand, 
+  GetObjectCommand,
+  HeadBucketCommand,
+  GetBucketLocationCommand,
+  ListObjectsV2Command
+} = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const crypto = require('crypto');
 const path = require('path');
@@ -163,10 +171,135 @@ const deleteFile = async (key) => {
   await executeWithRegionRetry((client) => client.send(command));
 };
 
+/**
+ * Diagnostic tool to inspect S3 permissions, bucket status, and configuration live.
+ */
+const diagnoseS3 = async () => {
+  const envRegion = cleanEnv(process.env.AWS_REGION);
+  const bucket = cleanEnv(process.env.AWS_S3_BUCKET);
+  const accessKeyId = cleanEnv(process.env.AWS_ACCESS_KEY_ID);
+  const secret = cleanEnv(process.env.AWS_SECRET_ACCESS_KEY);
+
+  const maskedKey = accessKeyId ? `${accessKeyId.slice(0, 4)}...${accessKeyId.slice(-4)}` : 'MISSING';
+  const detectedRegion = await detectBucketRegion(bucket);
+  const client = await getS3Client();
+
+  const results = {
+    config: {
+      envRegion: envRegion || 'MISSING',
+      detectedRegion: detectedRegion || 'FAILED',
+      activeClientRegion: currentClientRegion,
+      bucket: bucket || 'MISSING',
+      accessKeyMasked: maskedKey,
+      hasSecret: !!secret,
+      secretLength: secret ? secret.length : 0
+    },
+    tests: {}
+  };
+
+  // 1. HeadBucket (tests s3:ListBucket / bucket existence)
+  try {
+    const headRes = await client.send(new HeadBucketCommand({ Bucket: bucket }));
+    results.tests.headBucket = { success: true, status: headRes.$metadata.httpStatusCode };
+  } catch (err) {
+    results.tests.headBucket = {
+      success: false,
+      errorName: err.name,
+      errorMessage: err.message,
+      statusCode: err.$metadata?.httpStatusCode,
+      requestId: err.$metadata?.requestId,
+      regionHeader: err.$response?.headers?.['x-amz-bucket-region']
+    };
+  }
+
+  // 2. GetBucketLocation
+  try {
+    const locRes = await client.send(new GetBucketLocationCommand({ Bucket: bucket }));
+    results.tests.getBucketLocation = { success: true, locationConstraint: locRes.LocationConstraint || 'us-east-1 (default)' };
+  } catch (err) {
+    results.tests.getBucketLocation = {
+      success: false,
+      errorName: err.name,
+      errorMessage: err.message,
+      statusCode: err.$metadata?.httpStatusCode
+    };
+  }
+
+  // 3. ListObjects (tests s3:ListBucket on arn:aws:s3:::devhub-s3)
+  try {
+    const listRes = await client.send(new ListObjectsV2Command({ Bucket: bucket, MaxKeys: 5 }));
+    results.tests.listObjects = {
+      success: true,
+      keyCount: listRes.KeyCount,
+      sampleKeys: (listRes.Contents || []).map(c => c.Key)
+    };
+  } catch (err) {
+    results.tests.listObjects = {
+      success: false,
+      errorName: err.name,
+      errorMessage: err.message,
+      statusCode: err.$metadata?.httpStatusCode,
+      requestId: err.$metadata?.requestId
+    };
+  }
+
+  // 4. PutObject (tests s3:PutObject on arn:aws:s3:::devhub-s3/*)
+  const testKey = `diagnostics/health-check-${Date.now()}.txt`;
+  try {
+    const putRes = await client.send(new PutObjectCommand({
+      Bucket: bucket,
+      Key: testKey,
+      Body: Buffer.from('DEVHUB S3 diagnostic health check test payload'),
+      ContentType: 'text/plain'
+    }));
+    results.tests.putObject = { success: true, key: testKey, status: putRes.$metadata.httpStatusCode };
+
+    // 5. GetObject (tests s3:GetObject on arn:aws:s3:::devhub-s3/*)
+    try {
+      const getRes = await client.send(new GetObjectCommand({ Bucket: bucket, Key: testKey }));
+      results.tests.getObject = { success: true, status: getRes.$metadata.httpStatusCode };
+    } catch (getErr) {
+      results.tests.getObject = {
+        success: false,
+        errorName: getErr.name,
+        errorMessage: getErr.message,
+        statusCode: getErr.$metadata?.httpStatusCode
+      };
+    }
+
+    // 6. DeleteObject (tests s3:DeleteObject on arn:aws:s3:::devhub-s3/*)
+    try {
+      const delRes = await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: testKey }));
+      results.tests.deleteObject = { success: true, status: delRes.$metadata.httpStatusCode };
+    } catch (delErr) {
+      results.tests.deleteObject = {
+        success: false,
+        errorName: delErr.name,
+        errorMessage: delErr.message,
+        statusCode: delErr.$metadata?.httpStatusCode
+      };
+    }
+  } catch (putErr) {
+    results.tests.putObject = {
+      success: false,
+      key: testKey,
+      errorName: putErr.name,
+      errorMessage: putErr.message,
+      statusCode: putErr.$metadata?.httpStatusCode,
+      requestId: putErr.$metadata?.requestId,
+      extendedRequestId: putErr.$metadata?.extendedRequestId || putErr.$response?.headers?.['x-amz-id-2'],
+      headers: putErr.$response?.headers
+    };
+  }
+
+  return results;
+};
+
 module.exports = {
   uploadFile,
   getDownloadUrl,
   deleteFile,
-  generateSafeKey
+  generateSafeKey,
+  diagnoseS3
 };
 
