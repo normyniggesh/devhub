@@ -1,7 +1,7 @@
 const prisma = require('../db');
 const { checkProjectAccess } = require('../utils/projectAccess');
 const { createAuditLog } = require('../utils/audit');
-const { uploadFile, getDownloadUrl, getFileBuffer, deleteFile: deleteS3File, generateSafeKey } = require('../services/storageService');
+const { uploadFile, getDownloadUrl, deleteFile: deleteS3File, generateSafeKey } = require('../services/storageService');
 
 exports.getFiles = async (req, res) => {
   try {
@@ -298,90 +298,6 @@ exports.deleteFile = async (req, res) => {
     res.json({ success: true, message: 'File deleted successfully' });
   } catch (error) {
     console.error('Delete Error:', error);
-    res.status(500).json({ success: false, message: error.message || 'Internal server error' });
-  }
-};
-
-exports.copyFile = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { targetProjectId, targetFolderId, newName } = req.body || {};
-
-    const sourceFile = await prisma.file.findUnique({ where: { id } });
-    if (!sourceFile) return res.status(404).json({ success: false, message: 'Source file not found' });
-
-    const sourceAccess = await checkProjectAccess(sourceFile.projectId, req.userId);
-    if (!sourceAccess.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
-
-    const destProjectId = targetProjectId || sourceFile.projectId;
-    const destAccess = await checkProjectAccess(destProjectId, req.userId);
-    if (!destAccess.accessible) return res.status(403).json({ success: false, message: 'Forbidden destination project' });
-    if (destAccess.role === 'Viewer') return res.status(403).json({ success: false, message: 'Viewers cannot create files' });
-
-    if (targetFolderId && targetFolderId !== 'null') {
-      const folder = await prisma.folder.findUnique({ where: { id: targetFolderId } });
-      if (!folder || folder.projectId !== destProjectId) {
-        return res.status(409).json({ success: false, message: 'Destination folder not found or belongs to another project' });
-      }
-    }
-
-    const finalName = newName && newName.trim()
-      ? newName.trim()
-      : (destProjectId === sourceFile.projectId && (targetFolderId || null) === (sourceFile.folderId || null)
-          ? `Copy of ${sourceFile.name}`
-          : sourceFile.name);
-
-    // Read buffer from S3
-    const fileBuffer = await getFileBuffer(sourceFile.storagePath);
-    const newKey = generateSafeKey(destProjectId, targetFolderId, finalName);
-    await uploadFile(fileBuffer, sourceFile.type, newKey);
-
-    const newDbFile = await prisma.file.create({
-      data: {
-        name: finalName,
-        type: sourceFile.type,
-        size: sourceFile.size,
-        storagePath: newKey,
-        projectId: destProjectId,
-        folderId: targetFolderId && targetFolderId !== 'null' ? targetFolderId : null,
-        uploaderId: req.userId
-      },
-      include: {
-        project: { select: { id: true, name: true } },
-        folder: { select: { id: true, name: true } },
-        uploader: { select: { id: true, name: true } }
-      }
-    });
-
-    createAuditLog({
-      userId: req.userId,
-      action: 'Copied',
-      entityType: 'File',
-      entityId: newDbFile.id,
-      metadata: { name: newDbFile.name, sourceId: sourceFile.id }
-    });
-
-    res.status(201).json({ success: true, file: newDbFile, message: `File copied as "${finalName}"` });
-  } catch (error) {
-    console.error('Copy File Error:', error);
-    res.status(500).json({ success: false, message: error.message || 'Internal server error' });
-  }
-};
-
-exports.getFileContent = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const file = await prisma.file.findUnique({ where: { id } });
-    if (!file) return res.status(404).json({ success: false, message: 'File not found' });
-
-    const access = await checkProjectAccess(file.projectId, req.userId);
-    if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
-
-    const fileBuffer = await getFileBuffer(file.storagePath);
-    res.setHeader('Content-Type', file.type || 'text/plain; charset=utf-8');
-    res.send(fileBuffer);
-  } catch (error) {
-    console.error('Get File Content Error:', error);
     res.status(500).json({ success: false, message: error.message || 'Internal server error' });
   }
 };
