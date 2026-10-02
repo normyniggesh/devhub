@@ -197,6 +197,31 @@ const diagnoseS3 = async () => {
     tests: {}
   };
 
+  // 0. STS Caller Identity (identifies IAM user ARN and Account ID)
+  try {
+    const { STSClient, GetCallerIdentityCommand } = require('@aws-sdk/client-sts');
+    const stsClient = new STSClient({
+      region: currentClientRegion || 'us-west-2',
+      credentials: {
+        accessKeyId,
+        secretAccessKey: secret,
+      }
+    });
+    const callerId = await stsClient.send(new GetCallerIdentityCommand({}));
+    results.callerIdentity = {
+      success: true,
+      arn: callerId.Arn,
+      account: callerId.Account,
+      userId: callerId.UserId
+    };
+  } catch (stsErr) {
+    results.callerIdentity = {
+      success: false,
+      errorName: stsErr.name,
+      errorMessage: stsErr.message
+    };
+  }
+
   // 1. HeadBucket (tests s3:ListBucket / bucket existence)
   try {
     const headRes = await client.send(new HeadBucketCommand({ Bucket: bucket }));
