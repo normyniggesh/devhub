@@ -55,8 +55,7 @@ exports.getSummary = async (req, res) => {
       })
     ]);
 
-    const passRate = totalTestCases > 0 ? Math.round((passedTestCases / totalTestCases) * 100) : 0;
-    const failRate = totalTestCases > 0 ? Math.round((failedTestCases / totalTestCases) * 100) : 0;
+    const notTestedCount = Math.max(0, totalTestCases - (passedTestCases + failedTestCases + blockedTestCases));
 
     res.json({
       success: true,
@@ -65,9 +64,7 @@ exports.getSummary = async (req, res) => {
         passedTestCases,
         failedTestCases,
         blockedTestCases,
-        notTestedTestCases,
-        passRate,
-        failRate,
+        notTestedTestCases: notTestedCount,
         openBugs,
         resolvedBugs,
         totalBugs,

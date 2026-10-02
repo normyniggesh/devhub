@@ -8,7 +8,7 @@ import ActivityFeed from '../components/activity/ActivityFeed';
 // Unified QA Components
 import TestCard from '../components/qa/TestCard';
 import TestCaseModal from '../components/qa/TestCaseModal';
-import TestExecutionModal from '../components/qa/TestExecutionModal';
+import TestResultModal from '../components/qa/TestResultModal';
 import BugModal from '../components/qa/BugModal';
 import QASummary from '../components/qa/QASummary';
 import QAReports from '../components/qa/QAReports';
@@ -39,8 +39,8 @@ export default function QAtesting() {
   const [showTestCaseModal, setShowTestCaseModal] = useState(false);
   const [editingTestCase, setEditingTestCase] = useState(null);
 
-  const [showExecutionModal, setShowExecutionModal] = useState(false);
-  const [executingTestCase, setExecutingTestCase] = useState(null);
+  const [showResultModal, setShowResultModal] = useState(false);
+  const [testingTestCase, setTestingTestCase] = useState(null);
 
   const [showBugModal, setShowBugModal] = useState(false);
   const [editingBug, setEditingBug] = useState(null);
@@ -62,7 +62,7 @@ export default function QAtesting() {
         }
 
         const allAct = dashData.dashboard?.recentActivity || [];
-        setRecentActivity(allAct.filter(a => ['TestCase', 'TestRun', 'Bug'].includes(a.entityType)));
+        setRecentActivity(allAct.filter(a => ['TestCase', 'TestRun', 'TestResult', 'Bug'].includes(a.entityType)));
       } catch (err) {
         console.error('Failed to fetch initial QA data', err);
       } finally {
@@ -122,45 +122,77 @@ export default function QAtesting() {
   // Handler Actions
   // ----------------------------------------------------
 
-  // 1. Run Test
-  const handleOpenRunTest = (tc) => {
-    setExecutingTestCase(tc);
-    setShowExecutionModal(true);
+  // 1. Claim Test Case ([Take Test])
+  const handleClaimTest = async (tc) => {
+    try {
+      const res = await apiClient(`/test-cases/${tc.id}/claim`, { method: 'POST' });
+      const updated = res.testCase;
+      setTestCases(prev => prev.map(item => item.id === tc.id ? { ...item, ...updated } : item));
+      return updated;
+    } catch (err) {
+      alert(err.message || 'Failed to claim test case');
+      throw err;
+    }
   };
 
-  const handleRunSaved = (newResult, updatedTestCase) => {
-    // Update local test cases list with the newly executed status & result
+  // 2. Release Test Case ([Unselect / Release Test])
+  const handleReleaseTest = async (tc) => {
+    try {
+      const res = await apiClient(`/test-cases/${tc.id}/release`, { method: 'POST' });
+      const updated = res.testCase;
+      setTestCases(prev => prev.map(item => item.id === tc.id ? { ...item, ...updated, testerId: null, tester: null } : item));
+      return updated;
+    } catch (err) {
+      alert(err.message || 'Failed to release test case');
+      throw err;
+    }
+  };
+
+  // 3. Open Result Modal ([Test / Update Status])
+  const handleOpenResultModal = (tc) => {
+    setTestingTestCase(tc);
+    setShowResultModal(true);
+  };
+
+  // 4. Save Test Result & Status
+  const handleSaveResult = async (testCaseId, { status, description }) => {
+    const res = await apiClient(`/test-cases/${testCaseId}/result`, {
+      method: 'POST',
+      body: { status, description }
+    });
+    const updated = res.testCase;
+    const newResult = res.testResult;
     setTestCases(prev => prev.map(tc => {
-      if (tc.id === updatedTestCase.id) {
+      if (tc.id === testCaseId) {
         const existingResults = tc.results || [];
         return {
           ...tc,
-          status: updatedTestCase.status,
-          actualResult: updatedTestCase.actualResult,
-          results: [newResult, ...existingResults]
+          ...updated,
+          results: newResult ? [newResult, ...existingResults] : existingResults
         };
       }
       return tc;
     }));
+    return res;
   };
 
-  // 2. Create Bug from Failed Run
-  const handleCreateBugFromRun = (tc, failedResult) => {
+  // 5. Create Bug from Failed or Blocked Test Case
+  const handleCreateBugFromTest = (tc, resultInfo) => {
     setEditingBug(null);
+    const testerName = tc.tester?.name || currentUser?.name || 'Tester';
     setBugInitialData({
       testCaseId: tc.id,
       testCaseTitle: tc.title,
-      testResultId: failedResult?.id || null,
-      title: `[Bug] ${tc.title} failed during test execution`,
+      title: `[Bug] ${tc.title}`,
+      description: `Test Case: ${tc.title}\nTester: ${testerName}\nDate: ${new Date().toLocaleDateString()}\n\nExpected Result: ${tc.expectedResult || 'N/A'}\nActual Result: ${resultInfo?.actualResult || tc.actualResult || 'N/A'}`,
       expectedResult: tc.expectedResult || '',
-      actualResult: failedResult?.actualResult || tc.actualResult || '',
-      description: `Test execution failed on ${new Date().toLocaleDateString()}.\n\nExpected: ${tc.expectedResult || 'N/A'}\nActual: ${failedResult?.actualResult || 'N/A'}`,
+      actualResult: resultInfo?.actualResult || tc.actualResult || '',
       assigneeId: tc.assigneeId || ''
     });
     setShowBugModal(true);
   };
 
-  // 3. Save Bug (Create / Update)
+  // 6. Save Bug (Create / Update)
   const handleBugSaved = (savedBug) => {
     setBugs(prev => {
       const idx = prev.findIndex(b => b.id === savedBug.id);
@@ -172,7 +204,7 @@ export default function QAtesting() {
       return [savedBug, ...prev];
     });
 
-    // Also update linked bugs inside the test cases if applicable
+    // Also update linked bugs inside the test cases
     if (savedBug.testCaseId) {
       setTestCases(prev => prev.map(tc => {
         if (tc.id === savedBug.testCaseId) {
@@ -188,7 +220,7 @@ export default function QAtesting() {
     }
   };
 
-  // 4. Update Bug Status directly
+  // 7. Update Bug Status directly
   const handleUpdateBugStatus = async (bugId, newStatus) => {
     try {
       const res = await apiClient(`/bugs/${bugId}`, {
@@ -201,7 +233,7 @@ export default function QAtesting() {
     }
   };
 
-  // 5. Delete Bug
+  // 8. Delete Bug
   const handleDeleteBug = async (bugId) => {
     if (!window.confirm('Are you sure you want to delete this bug?')) return;
     try {
@@ -216,7 +248,7 @@ export default function QAtesting() {
     }
   };
 
-  // 6. Delete Test Case
+  // 9. Delete Test Case
   const handleDeleteTest = async (tcId) => {
     if (!window.confirm('Are you sure you want to delete this test case?')) return;
     try {
@@ -227,7 +259,7 @@ export default function QAtesting() {
     }
   };
 
-  // 7. Save Test Case
+  // 10. Save Test Case (Create / Edit)
   const handleTestSaved = (savedTest) => {
     setTestCases(prev => {
       const idx = prev.findIndex(t => t.id === savedTest.id);
@@ -242,15 +274,22 @@ export default function QAtesting() {
 
   // Filtered test cases
   const filteredTests = testCases.filter(tc => {
-    const matchesFilter =
-      testFilter === 'All' ? true :
-      testFilter === 'Not Tested' ? (tc.status === 'Not Tested' || !tc.status) :
-      tc.status === testFilter;
+    let matchesFilter = true;
+    if (testFilter === 'Available') {
+      matchesFilter = !tc.testerId;
+    } else if (testFilter === 'Taken') {
+      matchesFilter = Boolean(tc.testerId);
+    } else if (testFilter === 'Not Tested') {
+      matchesFilter = !tc.status || tc.status === 'Not Tested' || tc.status === 'Draft' || tc.status === 'Pending';
+    } else if (testFilter !== 'All') {
+      matchesFilter = tc.status === testFilter;
+    }
 
     const matchesSearch = searchQuery.trim() === '' ||
       tc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (tc.module && tc.module.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (tc.description && tc.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (tc.tester?.name && tc.tester.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (tc.assignee?.name && tc.assignee.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
     return matchesFilter && matchesSearch;
@@ -271,8 +310,8 @@ export default function QAtesting() {
     return matchesFilter && matchesSearch;
   });
 
-  // Tests assigned to current user for sidebar
-  const myAssignedTests = testCases.filter(t => t.assigneeId === currentUser?.id || t.assignee?.id === currentUser?.id);
+  // Tests claimed by current user for sidebar
+  const myClaimedTests = testCases.filter(t => t.testerId === currentUser?.id || t.tester?.id === currentUser?.id);
 
   return (
     <div className="flex flex-col xl:flex-row gap-6 max-w-[1920px] mx-auto pb-12 min-h-screen">
@@ -285,7 +324,7 @@ export default function QAtesting() {
             <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
             <input
               type="text"
-              placeholder="Search tests, bugs, modules, assignees..."
+              placeholder="Search tests, bugs, modules, testers..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl pl-10 pr-10 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition shadow-inner"
@@ -322,7 +361,7 @@ export default function QAtesting() {
               </div>
               QA & Testing
             </h1>
-            <p className="text-sm text-slate-400">Connected test cases, execution runs, and bug management.</p>
+            <p className="text-sm text-slate-400">Direct test claiming, execution history, and connected bug management.</p>
           </div>
 
           {/* Project Selector & "+ New" Dropdown */}
@@ -387,7 +426,7 @@ export default function QAtesting() {
           </div>
         </div>
 
-        {/* 4 Connected QA Tabs: Overview, Tests, Issues/Bugs, Reports */}
+        {/* 4 Clean Connected QA Tabs: Overview | Tests | Issues/Bugs | Reports */}
         <Tabs
           tabs={[
             { id: 'Overview', label: 'Overview' },
@@ -405,19 +444,34 @@ export default function QAtesting() {
             <i className="fa-solid fa-vial-circle-check text-5xl text-slate-600 mb-6 opacity-50"></i>
             <h2 className="text-xl font-bold text-white mb-2">No Project Selected</h2>
             <p className="text-sm text-slate-400 max-w-sm text-center">
-              Select a project from the dropdown above to view QA metrics, tests, runs, and linked bugs.
+              Select a project from the dropdown above to view QA metrics, available tests, and linked bugs.
             </p>
           </div>
         ) : (
           <div className="flex-1 flex flex-col gap-6">
             
-            {/* 1. OVERVIEW TAB */}
+            {/* 1. OVERVIEW TAB: Simplified layout with status cards + Available/Taken sections */}
             {activeTab === 'Overview' && (
               <QASummary
                 projectId={selectedProjectId}
+                testCases={testCases}
+                bugs={bugs}
+                currentUser={currentUser}
                 onNavigateTab={setActiveTab}
-                onRunTest={handleOpenRunTest}
-                onCreateBugFromRun={handleCreateBugFromRun}
+                onClaimTest={handleClaimTest}
+                onReleaseTest={handleReleaseTest}
+                onUpdateResult={handleOpenResultModal}
+                onCreateBug={handleCreateBugFromTest}
+                onViewBug={(bug) => {
+                  setEditingBug(bug);
+                  setBugInitialData(null);
+                  setShowBugModal(true);
+                }}
+                onEditTest={(test) => {
+                  setEditingTestCase(test);
+                  setShowTestCaseModal(true);
+                }}
+                onDeleteTest={handleDeleteTest}
               />
             )}
 
@@ -428,7 +482,7 @@ export default function QAtesting() {
                 <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
                   {/* Status Filters */}
                   <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0">
-                    {['All', 'Not Tested', 'Passed', 'Failed', 'Blocked'].map(tab => (
+                    {['All', 'Available', 'Taken', 'Not Tested', 'Passed', 'Failed', 'Blocked'].map(tab => (
                       <button
                         key={tab}
                         type="button"
@@ -472,7 +526,7 @@ export default function QAtesting() {
                     <p className="text-xs text-slate-400 max-w-sm mb-4">
                       {searchQuery || testFilter !== 'All'
                         ? 'No tests match your current search or status filter.'
-                        : 'Create your first test case to begin testing features and tracking executions.'}
+                        : 'Create your first test case to begin claiming and testing features.'}
                     </p>
                     {canEdit && (
                       <button
@@ -496,14 +550,16 @@ export default function QAtesting() {
                         testCase={tc}
                         currentUser={currentUser}
                         canEdit={canEdit}
-                        canRun={true}
-                        onRunTest={handleOpenRunTest}
+                        canTest={true}
+                        onClaimTest={handleClaimTest}
+                        onReleaseTest={handleReleaseTest}
+                        onUpdateResult={handleOpenResultModal}
                         onEditTest={(test) => {
                           setEditingTestCase(test);
                           setShowTestCaseModal(true);
                         }}
                         onDeleteTest={handleDeleteTest}
-                        onCreateBugFromRun={handleCreateBugFromRun}
+                        onCreateBug={handleCreateBugFromTest}
                         onViewBug={(bug) => {
                           setEditingBug(bug);
                           setBugInitialData(null);
@@ -669,7 +725,7 @@ export default function QAtesting() {
                           )}
                         </div>
 
-                        {/* Linked Test Box (Permanent connection) */}
+                        {/* Linked Test Box */}
                         {b.testCase && (
                           <div className="flex items-center justify-between p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl text-xs text-purple-300">
                             <div className="flex items-center gap-2">
@@ -745,8 +801,8 @@ export default function QAtesting() {
             {activeTab === 'Reports' && (
               <QAReports
                 projectId={selectedProjectId}
-                onCreateBugFromRun={handleCreateBugFromRun}
-                onRunTest={handleOpenRunTest}
+                onCreateBugFromRun={handleCreateBugFromTest}
+                onRunTest={handleOpenResultModal}
               />
             )}
 
@@ -754,46 +810,56 @@ export default function QAtesting() {
         )}
       </div>
 
-      {/* RIGHT SIDEBAR: Assigned Tests & Recent Activity */}
+      {/* RIGHT SIDEBAR: Claimed Tests & Recent Activity */}
       <div className="w-full xl:w-[320px] shrink-0 flex flex-col gap-6">
         
-        {/* Tests Assigned to Current User (Actionable!) */}
+        {/* Tests Claimed by Current User */}
         <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-5 shadow-sm flex flex-col">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-bold text-white flex items-center gap-2">
-              <i className="fa-solid fa-clipboard-user text-purple-400"></i>
-              <span>Assigned to You</span>
+              <i className="fa-solid fa-hand text-indigo-400"></i>
+              <span>Claimed by You</span>
             </h2>
-            <span className="text-[10px] font-bold text-slate-400 bg-[#161d2f] px-2 py-0.5 rounded border border-[#1f2a44]">
-              {myAssignedTests.length}
+            <span className="text-[10px] font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
+              {myClaimedTests.length}
             </span>
           </div>
 
-          {myAssignedTests.length === 0 ? (
+          {myClaimedTests.length === 0 ? (
             <div className="text-center py-6 text-xs text-slate-500 bg-[#161d2f]/50 rounded-xl border border-[#1f2a44] border-dashed">
-              No tests currently assigned to you.
+              You haven't claimed any tests yet. Click [Take Test] on any available test.
             </div>
           ) : (
             <div className="flex flex-col gap-2.5">
-              {myAssignedTests.slice(0, 5).map(tc => (
+              {myClaimedTests.map(tc => (
                 <div
                   key={tc.id}
-                  className="p-3 rounded-xl bg-[#141b2d] border border-[#1f2a44] hover:border-[#2a3652] transition flex items-center justify-between gap-3 text-xs"
+                  className="p-3 rounded-xl bg-[#141b2d] border border-indigo-500/30 hover:border-indigo-500/50 transition flex items-center justify-between gap-3 text-xs"
                 >
                   <div className="min-w-0">
-                    <h4 className="font-bold text-white truncate max-w-[170px]">{tc.title}</h4>
+                    <h4 className="font-bold text-white truncate max-w-[150px]">{tc.title}</h4>
                     <div className="flex items-center gap-2 mt-1">
                       <TestStatusBadge status={tc.status} className="!text-[9px] !py-0.5 !px-1.5" />
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleOpenRunTest(tc)}
-                    className="px-2.5 py-1 bg-[#5922cf] hover:bg-[#682ae6] text-white rounded-lg text-[10px] font-bold transition flex items-center gap-1 shrink-0 shadow-sm"
-                  >
-                    <i className="fa-solid fa-play text-[8px]"></i>
-                    <span>Run</span>
-                  </button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenResultModal(tc)}
+                      className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[10px] font-bold transition flex items-center gap-1 shadow-sm"
+                    >
+                      <i className="fa-solid fa-pen-to-square text-[8px]"></i>
+                      <span>Test</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleReleaseTest(tc)}
+                      title="Release test"
+                      className="p-1 hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 rounded-lg text-xs transition"
+                    >
+                      <i className="fa-solid fa-arrow-rotate-left text-[10px]"></i>
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -828,20 +894,20 @@ export default function QAtesting() {
         onTestSaved={handleTestSaved}
       />
 
-      {/* 2. Test Execution Modal (Run Test) */}
-      <TestExecutionModal
-        isOpen={showExecutionModal}
+      {/* 2. Test Result Modal (Status & Description with strict validation) */}
+      <TestResultModal
+        open={showResultModal}
         onClose={() => {
-          setShowExecutionModal(false);
-          setExecutingTestCase(null);
+          setShowResultModal(false);
+          setTestingTestCase(null);
         }}
-        testCase={executingTestCase}
+        testCase={testingTestCase}
         currentUser={currentUser}
-        onRunSaved={handleRunSaved}
-        onCreateBugFromRun={handleCreateBugFromRun}
+        onSaveResult={handleSaveResult}
+        onCreateBug={handleCreateBugFromTest}
       />
 
-      {/* 3. Bug Modal (Create / Edit Bug, prefilled from failed run or standalone) */}
+      {/* 3. Bug Modal (Create / Edit Bug, prefilled from failed/blocked test or standalone) */}
       <BugModal
         isOpen={showBugModal}
         onClose={() => {

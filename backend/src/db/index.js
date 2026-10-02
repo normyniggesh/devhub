@@ -98,6 +98,17 @@ async function ensureSchema() {
           ADD CONSTRAINT "Bug_testResultId_fkey" 
           FOREIGN KEY ("testResultId") REFERENCES "TestResult"(id) ON UPDATE CASCADE ON DELETE SET NULL;
         END IF;
+
+        -- Test Case Claiming / Tester
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint WHERE conname = 'TestCase_testerId_fkey'
+        ) THEN
+          ALTER TABLE "TestCase" ADD COLUMN IF NOT EXISTS "testerId" TEXT;
+          CREATE INDEX IF NOT EXISTS "TestCase_testerId_idx" ON "TestCase"("testerId");
+          ALTER TABLE "TestCase" 
+          ADD CONSTRAINT "TestCase_testerId_fkey" 
+          FOREIGN KEY ("testerId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE SET NULL;
+        END IF;
       END $$;
 
       -- Email verification and user administration columns
