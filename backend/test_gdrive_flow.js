@@ -170,7 +170,7 @@ async function runGoogleDriveFlowTest() {
     data: {
       name: importedFileName,
       type: 'application/pdf',
-      size: simulatedFileContent.length,
+      size: BigInt(simulatedFileContent.length),
       storagePath: s3StoragePath,
       projectId: project.id,
       uploaderId: userUmer.id

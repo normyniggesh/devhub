@@ -909,8 +909,9 @@ exports.importProviderFile = async (req, res) => {
       data: {
         name: actualFileName,
         type: mimeType,
-        size: fileBuffer.length,
+        size: BigInt(fileBuffer.length),
         storagePath: s3Key,
+        storageProvider: 's3',
         projectId,
         folderId: folderId && folderId !== 'null' ? folderId : null,
         uploaderId: req.userId
@@ -931,7 +932,7 @@ exports.importProviderFile = async (req, res) => {
       metadata: { 
         name: dbFile.name, 
         importedFrom: provider, 
-        size: dbFile.size 
+        size: Number(dbFile.size) 
       }
     });
 
@@ -965,7 +966,7 @@ async function fetchSingleProviderQuota(provider, userId) {
 
     let totalBytes = 0, documents = 0, images = 0, videos = 0, others = 0;
     files.forEach(f => {
-      const s = f.size || 0;
+      const s = Number(f.size) || 0;
       totalBytes += s;
       const t = (f.type || '').toLowerCase();
       if (t.includes('pdf') || t.includes('doc') || t.includes('txt') || t.includes('csv') || t.includes('xls') || t.includes('ppt')) documents += s;

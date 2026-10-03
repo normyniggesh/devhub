@@ -1,3 +1,11 @@
+// Ensure BigInt values serialize cleanly to JSON numbers across all Express res.json() calls
+if (!BigInt.prototype.toJSON) {
+  BigInt.prototype.toJSON = function () {
+    const n = Number(this);
+    return Number.isSafeInteger(n) ? n : this.toString();
+  };
+}
+
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');

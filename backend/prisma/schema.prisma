@@ -55,6 +55,7 @@ model Project {
   startDate   DateTime?
   dueDate     DateTime?
   ownerId     String
+  driveFolderId String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -259,13 +260,14 @@ model ActivityInvolvement {
 }
 
 model Folder {
-  id        String   @id @default(uuid())
-  name      String
-  projectId String
-  parentId  String?
-  creatorId String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(uuid())
+  name          String
+  projectId     String
+  parentId      String?
+  creatorId     String
+  driveFolderId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   project  Project  @relation(fields: [projectId], references: [id])
   parent   Folder?  @relation("FolderToFolder", fields: [parentId], references: [id])
@@ -275,16 +277,18 @@ model Folder {
 }
 
 model File {
-  id          String   @id @default(uuid())
-  name        String
-  type        String
-  size        Int
-  storagePath String
-  projectId   String
-  folderId    String?
-  uploaderId  String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String   @id @default(uuid())
+  name            String
+  type            String
+  size            BigInt
+  storagePath     String
+  storageProvider String   @default("s3")
+  driveFileId     String?
+  projectId       String
+  folderId        String?
+  uploaderId      String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   project  Project @relation(fields: [projectId], references: [id])
   folder   Folder? @relation(fields: [folderId], references: [id])

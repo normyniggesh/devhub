@@ -6,6 +6,14 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
+// Ensure BigInt values serialize cleanly to JSON numbers across all Express res.json() calls
+if (!BigInt.prototype.toJSON) {
+  BigInt.prototype.toJSON = function () {
+    const n = Number(this);
+    return Number.isSafeInteger(n) ? n : this.toString();
+  };
+}
+
 // Automatically ensure schema columns exist on connected PostgreSQL (Neon / Production)
 async function ensureSchema() {
   if (!process.env.DATABASE_URL) return;
@@ -128,6 +136,18 @@ async function ensureSchema() {
       UPDATE "User" 
       SET "status" = 'Active' 
       WHERE "status" IS NULL;
+
+      -- Google Drive Storage migration preparation (Step 2)
+      ALTER TABLE "File" ADD COLUMN IF NOT EXISTS "storageProvider" TEXT DEFAULT 's3';
+      ALTER TABLE "File" ADD COLUMN IF NOT EXISTS "driveFileId" TEXT;
+      ALTER TABLE "File" ALTER COLUMN "size" TYPE BIGINT;
+      ALTER TABLE "Project" ADD COLUMN IF NOT EXISTS "driveFolderId" TEXT;
+      ALTER TABLE "Folder" ADD COLUMN IF NOT EXISTS "driveFolderId" TEXT;
+
+      -- Ensure existing File records remain 's3'
+      UPDATE "File" 
+      SET "storageProvider" = 's3' 
+      WHERE "storageProvider" IS NULL;
     `);
     console.log('[DB] Schema verified successfully.');
   } catch (err) {
@@ -139,4 +159,5 @@ ensureSchema();
 
 module.exports = prisma;
 module.exports.prisma = prisma;
+module.exports.pool = pool;
 module.exports.ensureSchema = ensureSchema;

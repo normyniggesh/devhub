@@ -77,7 +77,7 @@ exports.createFile = async (req, res) => {
 
     if (!name || typeof name !== 'string' || !name.trim()) return res.status(400).json({ success: false, message: 'Name is required' });
     if (!type || typeof type !== 'string' || !type.trim()) return res.status(400).json({ success: false, message: 'Type is required' });
-    if (size === undefined || typeof size !== 'number' || size < 0) return res.status(400).json({ success: false, message: 'Valid size is required' });
+    if (size === undefined || (typeof size !== 'number' && typeof size !== 'bigint' && typeof size !== 'string') || isNaN(Number(size)) || Number(size) < 0) return res.status(400).json({ success: false, message: 'Valid size is required' });
     if (!storagePath || typeof storagePath !== 'string' || !storagePath.trim()) return res.status(400).json({ success: false, message: 'Storage path is required' });
     if (!projectId) return res.status(400).json({ success: false, message: 'projectId is required' });
 
@@ -101,8 +101,9 @@ exports.createFile = async (req, res) => {
       data: {
         name: name.trim(),
         type: type.trim(),
-        size,
+        size: BigInt(size),
         storagePath: storagePath.trim(),
+        storageProvider: 's3',
         projectId,
         folderId: folderId || null,
         uploaderId: req.userId
@@ -165,8 +166,9 @@ exports.uploadFiles = async (req, res) => {
           data: {
             name: file.originalname,
             type: file.mimetype,
-            size: file.size,
+            size: BigInt(file.size),
             storagePath: key,
+            storageProvider: 's3',
             projectId,
             folderId: folderId && folderId !== 'null' ? folderId : null,
             uploaderId: req.userId
