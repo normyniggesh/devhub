@@ -103,19 +103,25 @@ export default function Files() {
     }
   }, []);
 
-  const fetchQuotas = useCallback(async () => {
+  const fetchQuotas = useCallback(async (projId) => {
     try {
       setQuotasLoading(true);
-      const res = await apiClient('/integrations/quota');
-      if (res.quotas) {
-        setQuotas(res.quotas);
+      const targetProjId = projId || (projects.length > 0 ? projects[0].id : null);
+      const [res, projQuotaRes] = await Promise.all([
+        apiClient('/integrations/quota').catch(() => ({ quotas: {} })),
+        targetProjId ? apiClient(`/files/quota?projectId=${targetProjId}`).catch(() => null) : null
+      ]);
+      const merged = res?.quotas || {};
+      if (projQuotaRes?.quota) {
+        merged.teamQuota = projQuotaRes.quota;
       }
+      setQuotas(merged);
     } catch (err) {
       console.warn('Could not fetch storage quotas:', err);
     } finally {
       setQuotasLoading(false);
     }
-  }, []);
+  }, [projects]);
 
   useEffect(() => {
     loadData();

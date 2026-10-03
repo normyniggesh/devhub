@@ -25,6 +25,14 @@ router.patch('/projects/:id/members/:userId', adminController.updateProjectMembe
 // Cloud Connections Monitoring
 router.get('/cloud-connections', adminController.getCloudConnections);
 
+// Storage Quota Allocations Management
+const quotaController = require('../controllers/adminQuotas');
+router.get('/quotas', quotaController.listAllocations);
+router.post('/quotas', quotaController.setQuota);
+router.get('/quotas/:projectId', quotaController.getQuota);
+router.patch('/quotas/:projectId', quotaController.updateQuota);
+router.delete('/quotas/:projectId', quotaController.deactivateQuota);
+
 // Admin Activity Feed
 router.get('/activity', adminController.getActivity);
 

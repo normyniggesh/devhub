@@ -10,9 +10,12 @@ const upload = multer({
   limits: { fileSize: maxFileSizeMB * 1024 * 1024 }
 });
 
+const quotaController = require('../controllers/adminQuotas');
+
 router.use(authMiddleware);
 
 router.get('/', controller.getFiles);
+router.get('/quota', quotaController.getProjectQuotaForUser);
 // Support file uploads on /upload and / routes
 router.post('/upload', upload.array('files', 10), controller.uploadFiles);
 router.post('/', upload.array('files', 10), (req, res, next) => {

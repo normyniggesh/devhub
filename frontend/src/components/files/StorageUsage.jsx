@@ -71,8 +71,18 @@ export default function StorageUsage({
   let breakdown = null;
 
   const devhubLimit = quotas.devhub?.limit || (5 * 1024 * 1024 * 1024);
+  const teamQuota = quotas.teamQuota;
 
-  if (activeTab === 'All Files') {
+  if (teamQuota && (activeTab === 'All Files' || activeTab === 'DEVHUB')) {
+    providerTitle = teamQuota.name ? `${teamQuota.name} (Team Storage)` : 'Team Storage';
+    providerIcon = 'fa-solid fa-server';
+    iconColor = 'text-amber-400';
+    usedBytes = teamQuota.usedNumber || 0;
+    limitBytes = teamQuota.allocatedNumber || devhubLimit;
+    percentage = teamQuota.percentage !== undefined ? teamQuota.percentage : (limitBytes ? (usedBytes / limitBytes) * 100 : null);
+    statusBadge = teamQuota.isActive ? `${percentage.toFixed(1)}% used` : 'Inactive';
+    breakdown = null;
+  } else if (activeTab === 'All Files') {
     providerTitle = 'All Files (DEVHUB)';
     providerIcon = 'fa-solid fa-box-archive';
     iconColor = 'text-purple-400';
@@ -255,7 +265,7 @@ export default function StorageUsage({
             <div className="flex justify-between items-center text-[11px] text-slate-400 mb-4">
               <span>{displayPercentage} used</span>
               {limitBytes && (
-                <span>{formatSize(Math.max(0, limitBytes - usedBytes))} free</span>
+                <span>{formatSize(Math.max(0, limitBytes - usedBytes))} remaining</span>
               )}
             </div>
           )}

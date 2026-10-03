@@ -152,8 +152,32 @@ exports.uploadFiles = async (req, res) => {
 
     const primaryProvider = storageService.getPrimaryStorageProvider();
     let targetDriveFolderId = null;
+    let reservedTotalBytes = 0n;
+    let hasQuotaAllocation = false;
 
     if (primaryProvider === 'google_drive') {
+      const storageQuotaService = require('../services/storageQuotaService');
+      const allocation = await prisma.storageAllocation.findUnique({ where: { projectId } });
+      if (allocation) {
+        hasQuotaAllocation = true;
+        if (!allocation.isActive) {
+          return res.status(403).json({
+            success: false,
+            message: 'Google Drive storage allocation for this project is inactive.'
+          });
+        }
+        const totalIncomingBytes = files.reduce((sum, f) => sum + BigInt(f.size || 0), 0n);
+        try {
+          await storageQuotaService.reserve({ projectId, incomingBytes: totalIncomingBytes });
+          reservedTotalBytes = totalIncomingBytes;
+        } catch (quotaErr) {
+          return res.status(400).json({
+            success: false,
+            message: quotaErr.message
+          });
+        }
+      }
+
       if (driveFolderId) {
         targetDriveFolderId = driveFolderId;
       } else if (folderRecord?.driveFolderId) {
@@ -170,6 +194,9 @@ exports.uploadFiles = async (req, res) => {
       }
 
       if (!targetDriveFolderId) {
+        if (hasQuotaAllocation && reservedTotalBytes > 0n) {
+          await storageQuotaService.release({ projectId, bytes: reservedTotalBytes });
+        }
         return res.status(400).json({
           success: false,
           message: 'Google Drive target folder is not configured yet.'
@@ -179,72 +206,86 @@ exports.uploadFiles = async (req, res) => {
 
     const uploadedRecords = [];
 
-    for (const file of files) {
-      let key, driveFileId = null, storageProvider = 's3', fileMime = file.mimetype, fileSize = BigInt(file.size);
+    try {
+      for (const file of files) {
+        let key, driveFileId = null, storageProvider = 's3', fileMime = file.mimetype, fileSize = BigInt(file.size);
 
-      if (primaryProvider === 'google_drive') {
-        try {
-          const driveRes = await storageService.googleDriveDriver.upload(
-            file.buffer,
-            file.mimetype,
-            file.originalname,
-            targetDriveFolderId
-          );
-          driveFileId = driveRes.driveFileId;
-          key = `gdrive://${driveFileId}`;
-          storageProvider = 'google_drive';
-          if (driveRes.size) fileSize = BigInt(driveRes.size);
-          if (driveRes.mimeType) fileMime = driveRes.mimeType;
-        } catch (uploadErr) {
-          console.error(`Google Drive upload error for ${file.originalname}:`, uploadErr);
-          throw new Error(`Google Drive upload error for ${file.originalname}: ` + uploadErr.message);
-        }
-      } else {
-        key = generateSafeKey(projectId, folderId, file.originalname);
-        try {
-          await storageService.s3Driver.upload(file.buffer, file.mimetype, key);
-          storageProvider = 's3';
-        } catch (uploadErr) {
-          console.error(`Storage error for ${file.originalname}:`, uploadErr);
-          throw new Error(`Storage error for ${file.originalname}: ` + uploadErr.message);
-        }
-      }
-
-      try {
-        const dbFile = await prisma.file.create({
-          data: {
-            name: file.originalname,
-            type: fileMime,
-            size: fileSize,
-            storagePath: key,
-            storageProvider,
-            driveFileId,
-            projectId,
-            folderId: folderId && folderId !== 'null' ? folderId : null,
-            uploaderId: req.userId
-          },
-          include: {
-            uploader: { select: { id: true, name: true, avatarUrl: true } }
+        if (primaryProvider === 'google_drive') {
+          try {
+            const driveRes = await storageService.googleDriveDriver.upload(
+              file.buffer,
+              file.mimetype,
+              file.originalname,
+              targetDriveFolderId
+            );
+            driveFileId = driveRes.driveFileId;
+            key = `gdrive://${driveFileId}`;
+            storageProvider = 'google_drive';
+            if (driveRes.size) fileSize = BigInt(driveRes.size);
+            if (driveRes.mimeType) fileMime = driveRes.mimeType;
+          } catch (uploadErr) {
+            console.error(`Google Drive upload error for ${file.originalname}:`, uploadErr);
+            throw new Error(`Google Drive upload error for ${file.originalname}: ` + uploadErr.message);
           }
-        });
-        uploadedRecords.push(dbFile);
-
-        createAuditLog({
-          userId: req.userId,
-          action: 'Uploaded',
-          entityType: 'File',
-          entityId: dbFile.id,
-          metadata: { name: dbFile.name }
-        });
-      } catch (dbErr) {
-        console.error(`Database error creating File record for ${file.originalname}:`, dbErr);
-        if (storageProvider === 'google_drive' && driveFileId) {
-          await storageService.googleDriveDriver.deleteFile(driveFileId).catch(e => console.error("Failed to cleanup orphaned Drive file:", e));
         } else {
-          await storageService.s3Driver.deleteFile(key).catch(e => console.error("Failed to cleanup orphaned S3 object:", e));
+          key = generateSafeKey(projectId, folderId, file.originalname);
+          try {
+            await storageService.s3Driver.upload(file.buffer, file.mimetype, key);
+            storageProvider = 's3';
+          } catch (uploadErr) {
+            console.error(`Storage error for ${file.originalname}:`, uploadErr);
+            throw new Error(`Storage error for ${file.originalname}: ` + uploadErr.message);
+          }
         }
-        throw dbErr;
+
+        try {
+          const dbFile = await prisma.file.create({
+            data: {
+              name: file.originalname,
+              type: fileMime,
+              size: fileSize,
+              storagePath: key,
+              storageProvider,
+              driveFileId,
+              projectId,
+              folderId: folderId && folderId !== 'null' ? folderId : null,
+              uploaderId: req.userId
+            },
+            include: {
+              uploader: { select: { id: true, name: true, avatarUrl: true } }
+            }
+          });
+          uploadedRecords.push(dbFile);
+
+          if (primaryProvider === 'google_drive' && hasQuotaAllocation) {
+            const storageQuotaService = require('../services/storageQuotaService');
+            await storageQuotaService.finalize({ projectId, bytes: BigInt(file.size || 0) });
+            reservedTotalBytes -= BigInt(file.size || 0);
+          }
+
+          createAuditLog({
+            userId: req.userId,
+            action: 'Uploaded',
+            entityType: 'File',
+            entityId: dbFile.id,
+            metadata: { name: dbFile.name }
+          });
+        } catch (dbErr) {
+          console.error(`Database error creating File record for ${file.originalname}:`, dbErr);
+          if (storageProvider === 'google_drive' && driveFileId) {
+            await storageService.googleDriveDriver.deleteFile(driveFileId).catch(e => console.error("Failed to cleanup orphaned Drive file:", e));
+          } else {
+            await storageService.s3Driver.deleteFile(key).catch(e => console.error("Failed to cleanup orphaned S3 object:", e));
+          }
+          throw dbErr;
+        }
       }
+    } catch (err) {
+      if (primaryProvider === 'google_drive' && hasQuotaAllocation && reservedTotalBytes > 0n) {
+        const storageQuotaService = require('../services/storageQuotaService');
+        await storageQuotaService.release({ projectId, bytes: reservedTotalBytes });
+      }
+      throw err;
     }
 
     res.status(201).json({ success: true, files: uploadedRecords });

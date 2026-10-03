@@ -749,6 +749,7 @@ const s3Driver = {
 };
 
 const driveFolderService = require('./driveFolderService');
+const storageQuotaService = require('./storageQuotaService');
 
 module.exports = {
   getPrimaryStorageProvider,
@@ -764,5 +765,6 @@ module.exports = {
   ensureDriveRoot: driveFolderService.ensureDriveRoot,
   ensureDriveTeamFolder: driveFolderService.ensureDriveTeamFolder,
   ensureProjectDriveFolder: driveFolderService.ensureProjectDriveFolder,
-  ensureDevhubDriveFolder: driveFolderService.ensureDevhubDriveFolder
+  ensureDevhubDriveFolder: driveFolderService.ensureDevhubDriveFolder,
+  storageQuotaService
 };
