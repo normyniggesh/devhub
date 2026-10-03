@@ -1,7 +1,8 @@
 const prisma = require('../db');
 const { createAuditLog } = require('../utils/audit');
 const { checkProjectAccess } = require('../utils/projectAccess');
-const { uploadFile, generateSafeKey } = require('../services/storageService');
+const storageService = require('../services/storageService');
+const { uploadFile, generateSafeKey, getPrimaryStorageProvider, s3Driver, googleDriveDriver } = storageService;
 
 const VALID_PROVIDERS = ['google_drive', 'dropbox', 'onedrive'];
 
@@ -900,9 +901,42 @@ exports.importProviderFile = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Downloaded file is empty' });
     }
 
-    // Generate safe key and upload to DEVHUB AWS S3
-    const s3Key = generateSafeKey(projectId, folderId, actualFileName);
-    await uploadFile(fileBuffer, mimeType, s3Key);
+    const primaryProvider = getPrimaryStorageProvider();
+    let storagePath, storageProvider = 's3', driveFileId = null;
+
+    if (primaryProvider === 'google_drive') {
+      let targetDriveFolderId = null;
+      if (folderId && folderId !== 'null') {
+        const folderRecord = await prisma.folder.findUnique({ where: { id: folderId } });
+        targetDriveFolderId = folderRecord?.driveFolderId;
+      }
+      if (!targetDriveFolderId) {
+        const projectRecord = await prisma.project.findUnique({ where: { id: projectId } });
+        targetDriveFolderId = projectRecord?.driveFolderId;
+      }
+
+      if (!targetDriveFolderId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Google Drive target folder is not configured yet.'
+        });
+      }
+
+      const driveRes = await googleDriveDriver.upload(
+        fileBuffer,
+        mimeType,
+        actualFileName,
+        targetDriveFolderId
+      );
+      driveFileId = driveRes.driveFileId;
+      storagePath = `gdrive://${driveFileId}`;
+      storageProvider = 'google_drive';
+    } else {
+      const s3Key = generateSafeKey(projectId, folderId, actualFileName);
+      await s3Driver.upload(fileBuffer, mimeType, s3Key);
+      storagePath = s3Key;
+      storageProvider = 's3';
+    }
 
     // Save File record in Prisma
     const dbFile = await prisma.file.create({
@@ -910,8 +944,9 @@ exports.importProviderFile = async (req, res) => {
         name: actualFileName,
         type: mimeType,
         size: BigInt(fileBuffer.length),
-        storagePath: s3Key,
-        storageProvider: 's3',
+        storagePath,
+        storageProvider,
+        driveFileId,
         projectId,
         folderId: folderId && folderId !== 'null' ? folderId : null,
         uploaderId: req.userId

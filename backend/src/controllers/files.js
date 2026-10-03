@@ -132,7 +132,7 @@ exports.createFile = async (req, res) => {
 
 exports.uploadFiles = async (req, res) => {
   try {
-    const { projectId, folderId } = req.body || {};
+    const { projectId, folderId, driveFolderId } = req.body || {};
     const files = req.files;
 
     if (!files || files.length === 0) return res.status(400).json({ success: false, message: 'No files uploaded' });
@@ -142,33 +142,79 @@ exports.uploadFiles = async (req, res) => {
     if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
     if (access.role === 'Viewer') return res.status(403).json({ success: false, message: 'Viewers cannot upload files' });
 
+    let folderRecord = null;
     if (folderId && folderId !== 'null') {
-      const folder = await prisma.folder.findUnique({ where: { id: folderId } });
-      if (!folder || folder.projectId !== projectId) {
+      folderRecord = await prisma.folder.findUnique({ where: { id: folderId } });
+      if (!folderRecord || folderRecord.projectId !== projectId) {
         return res.status(409).json({ success: false, message: 'Folder not found or belongs to a different project' });
+      }
+    }
+
+    const primaryProvider = storageService.getPrimaryStorageProvider();
+    let targetDriveFolderId = null;
+
+    if (primaryProvider === 'google_drive') {
+      if (driveFolderId) {
+        targetDriveFolderId = driveFolderId;
+      } else if (folderRecord?.driveFolderId) {
+        targetDriveFolderId = folderRecord.driveFolderId;
+      } else {
+        const projectRecord = await prisma.project.findUnique({ where: { id: projectId } });
+        if (projectRecord?.driveFolderId) {
+          targetDriveFolderId = projectRecord.driveFolderId;
+        }
+      }
+
+      if (!targetDriveFolderId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Google Drive target folder is not configured yet.'
+        });
       }
     }
 
     const uploadedRecords = [];
 
     for (const file of files) {
-      const key = generateSafeKey(projectId, folderId, file.originalname);
-      
-      try {
-        await storageService.uploadFile(file.buffer, file.mimetype, key);
-      } catch (uploadErr) {
-        console.error(`Storage error for ${file.originalname}:`, uploadErr);
-        throw new Error(`Storage error for ${file.originalname}: ` + uploadErr.message);
+      let key, driveFileId = null, storageProvider = 's3', fileMime = file.mimetype, fileSize = BigInt(file.size);
+
+      if (primaryProvider === 'google_drive') {
+        try {
+          const driveRes = await storageService.googleDriveDriver.upload(
+            file.buffer,
+            file.mimetype,
+            file.originalname,
+            targetDriveFolderId
+          );
+          driveFileId = driveRes.driveFileId;
+          key = `gdrive://${driveFileId}`;
+          storageProvider = 'google_drive';
+          if (driveRes.size) fileSize = BigInt(driveRes.size);
+          if (driveRes.mimeType) fileMime = driveRes.mimeType;
+        } catch (uploadErr) {
+          console.error(`Google Drive upload error for ${file.originalname}:`, uploadErr);
+          throw new Error(`Google Drive upload error for ${file.originalname}: ` + uploadErr.message);
+        }
+      } else {
+        key = generateSafeKey(projectId, folderId, file.originalname);
+        try {
+          await storageService.s3Driver.upload(file.buffer, file.mimetype, key);
+          storageProvider = 's3';
+        } catch (uploadErr) {
+          console.error(`Storage error for ${file.originalname}:`, uploadErr);
+          throw new Error(`Storage error for ${file.originalname}: ` + uploadErr.message);
+        }
       }
-      
+
       try {
         const dbFile = await prisma.file.create({
           data: {
             name: file.originalname,
-            type: file.mimetype,
-            size: BigInt(file.size),
+            type: fileMime,
+            size: fileSize,
             storagePath: key,
-            storageProvider: 's3',
+            storageProvider,
+            driveFileId,
             projectId,
             folderId: folderId && folderId !== 'null' ? folderId : null,
             uploaderId: req.userId
@@ -188,7 +234,11 @@ exports.uploadFiles = async (req, res) => {
         });
       } catch (dbErr) {
         console.error(`Database error creating File record for ${file.originalname}:`, dbErr);
-        await storageService.deleteFile(key).catch(e => console.error("Failed to cleanup orphaned S3 object:", e));
+        if (storageProvider === 'google_drive' && driveFileId) {
+          await storageService.googleDriveDriver.deleteFile(driveFileId).catch(e => console.error("Failed to cleanup orphaned Drive file:", e));
+        } else {
+          await storageService.s3Driver.deleteFile(key).catch(e => console.error("Failed to cleanup orphaned S3 object:", e));
+        }
         throw dbErr;
       }
     }
@@ -209,7 +259,29 @@ exports.downloadFile = async (req, res) => {
     const access = await checkProjectAccess(file.projectId, req.userId);
     if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
 
-    const downloadUrl = await storageService.getDownloadUrl(file.storagePath);
+    if (file.storageProvider === 'google_drive') {
+      if (!file.driveFileId) {
+        return res.status(400).json({ success: false, message: 'Missing Google Drive file ID' });
+      }
+
+      // If stream explicitly requested or accessed via browser stream link
+      if (req.query.stream === 'true' || req.query.stream === '1') {
+        const { stream, mimeType, name, size } = await storageService.googleDriveDriver.downloadStream(file.driveFileId);
+        res.setHeader('Content-Type', mimeType || file.type || 'application/octet-stream');
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(name || file.name)}"`);
+        if (size) res.setHeader('Content-Length', size.toString());
+        return stream.pipe(res);
+      }
+
+      // Return download endpoint URL for client
+      return res.json({
+        success: true,
+        url: `/api/files/${file.id}/download?stream=true`
+      });
+    }
+
+    // Default S3 presigned URL
+    const downloadUrl = await storageService.s3Driver.getDownloadUrl(file.storagePath);
     res.json({ success: true, url: downloadUrl });
   } catch (error) {
     console.error('Download Error:', error);
@@ -285,10 +357,16 @@ exports.deleteFile = async (req, res) => {
     }
 
     try {
-      await storageService.deleteFile(file.storagePath);
+      if (file.storageProvider === 'google_drive') {
+        if (file.driveFileId) {
+          await storageService.googleDriveDriver.deleteFile(file.driveFileId);
+        }
+      } else {
+        await storageService.s3Driver.deleteFile(file.storagePath);
+      }
     } catch (e) {
-      console.error('Failed to delete S3 file:', e);
-      return res.status(500).json({ success: false, message: 'Failed to delete file from storage' });
+      console.error('Failed to delete file from storage:', e);
+      return res.status(500).json({ success: false, message: 'Failed to delete file from storage: ' + e.message });
     }
 
     await prisma.file.delete({ where: { id } });
