@@ -275,6 +275,12 @@ async function runStep1Tests() {
       allPassed = false;
     }
 
+    // Restore system storage enabled state for subsequent tests/operations
+    await prisma.userIntegration.updateMany({
+      where: { userId: adminUser.id, provider: 'google_drive' },
+      data: { metadata: { ...deactDb.metadata, isSystemStorage: true } }
+    });
+
     console.log('\n========================================================');
     if (allPassed) {
       console.log('   >>> ALL STEP 1 TESTS PASSED SUCCESSFULLY! <<<');

@@ -158,10 +158,14 @@ exports.uploadFiles = async (req, res) => {
         targetDriveFolderId = driveFolderId;
       } else if (folderRecord?.driveFolderId) {
         targetDriveFolderId = folderRecord.driveFolderId;
+      } else if (folderRecord && (req.body?.autoProvision || req.body?.provisionFolder)) {
+        targetDriveFolderId = await storageService.ensureDevhubDriveFolder(folderRecord.id);
       } else {
         const projectRecord = await prisma.project.findUnique({ where: { id: projectId } });
         if (projectRecord?.driveFolderId) {
           targetDriveFolderId = projectRecord.driveFolderId;
+        } else if (req.body?.autoProvision || req.body?.provisionFolder) {
+          targetDriveFolderId = await storageService.ensureProjectDriveFolder(projectId);
         }
       }
 

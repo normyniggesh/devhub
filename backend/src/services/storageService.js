@@ -748,6 +748,8 @@ const s3Driver = {
   deleteFile: (key) => (module.exports.deleteFile || deleteFile)(key)
 };
 
+const driveFolderService = require('./driveFolderService');
+
 module.exports = {
   getPrimaryStorageProvider,
   s3Driver,
@@ -757,5 +759,10 @@ module.exports = {
   deleteFile,
   generateSafeKey,
   diagnoseS3,
-  getCallerIdentitySafe
+  getCallerIdentitySafe,
+  driveFolderService,
+  ensureDriveRoot: driveFolderService.ensureDriveRoot,
+  ensureDriveTeamFolder: driveFolderService.ensureDriveTeamFolder,
+  ensureProjectDriveFolder: driveFolderService.ensureProjectDriveFolder,
+  ensureDevhubDriveFolder: driveFolderService.ensureDevhubDriveFolder
 };
