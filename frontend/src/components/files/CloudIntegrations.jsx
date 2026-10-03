@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '../../api/client';
+import { useStore } from '../../store';
 import CloudIntegrationCard from './CloudIntegrationCard';
 import DriveBrowser from './DriveBrowser';
 import Modal from '../common/Modal';
@@ -44,6 +45,35 @@ export default function CloudIntegrations({
   const [connecting, setConnecting] = useState(false);
   const [connectMessage, setConnectMessage] = useState(null);
   const [copiedKey, setCopiedKey] = useState(null);
+  const [togglingSystemStorage, setTogglingSystemStorage] = useState(false);
+
+  const currentUser = useStore(state => state.currentUser);
+  const isAdmin = currentUser?.role === 'Admin';
+
+  const handleToggleSystemStorage = async (providerId) => {
+    if (providerId !== 'google_drive') return;
+    const isCurrentlySystem = Boolean(integrations.google_drive?.isSystemStorage);
+    setTogglingSystemStorage(true);
+    setConnectMessage(null);
+    try {
+      const res = await apiClient('/integrations/google/system-storage', {
+        method: 'POST',
+        body: { enabled: !isCurrentlySystem }
+      });
+      setConnectMessage({
+        type: 'success',
+        text: res.message || (isCurrentlySystem ? 'Google Drive system storage disabled' : 'Google Drive system storage enabled')
+      });
+      if (onRefreshIntegrations) await onRefreshIntegrations();
+    } catch (err) {
+      setConnectMessage({
+        type: 'error',
+        text: err.message || 'Failed to update system storage status'
+      });
+    } finally {
+      setTogglingSystemStorage(false);
+    }
+  };
 
   const copyToClipboard = (text, key) => {
     navigator.clipboard.writeText(text);
@@ -182,6 +212,10 @@ export default function CloudIntegrations({
               onOpen={() => setBrowserProvider(p.id)}
               onDisconnect={() => handleDisconnect(p.id)}
               connecting={connecting && p.id === 'google_drive'}
+              isAdmin={isAdmin}
+              isSystemStorage={Boolean(status.isSystemStorage)}
+              onToggleSystemStorage={() => handleToggleSystemStorage(p.id)}
+              togglingSystemStorage={togglingSystemStorage}
             />
           );
         })}

@@ -10,7 +10,9 @@ const {
   listProviderFiles,
   downloadProviderFile,
   importProviderFile,
-  getProviderQuota
+  getProviderQuota,
+  setSystemStorage,
+  getSystemStorageStatus
 } = require('../controllers/integrations');
 
 router.use(authMiddleware);
@@ -19,6 +21,8 @@ router.get('/', getUserIntegrations);
 router.get('/quota', getProviderQuota);
 router.get('/google/auth-url', getGoogleAuthUrl);
 router.post('/google/callback', handleGoogleCallback);
+router.get('/google/system-storage', getSystemStorageStatus);
+router.post('/google/system-storage', setSystemStorage);
 router.post('/connect', connectIntegration);
 router.post('/disconnect', disconnectIntegration);
 router.get('/:provider/quota', getProviderQuota);

@@ -12,7 +12,11 @@ export default function CloudIntegrationCard({
   onConnect,
   onOpen,
   onDisconnect,
-  connecting = false
+  connecting = false,
+  isAdmin = false,
+  isSystemStorage = false,
+  onToggleSystemStorage,
+  togglingSystemStorage = false
 }) {
   return (
     <div className="flex flex-col justify-between h-full bg-[#0f1422] border border-[#192238] hover:border-[#283552] rounded-2xl p-5 transition-all duration-200 shadow-sm">
@@ -33,8 +37,14 @@ export default function CloudIntegrationCard({
 
         {/* Status Row */}
         <div className="pt-3 border-t border-[#192238] flex items-center justify-between gap-2 flex-wrap min-h-[28px]">
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
             <IntegrationStatus isConnected={isConnected} />
+            {providerId === 'google_drive' && isConnected && isSystemStorage && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-1.5 py-0.5 rounded-md">
+                <i className="fa-solid fa-server text-[9px]"></i>
+                System Storage
+              </span>
+            )}
           </div>
 
           {isConnected && accountName && (
@@ -60,6 +70,28 @@ export default function CloudIntegrationCard({
               <i className="fa-solid fa-folder-open text-xs"></i>
               <span>Open</span>
             </button>
+            {providerId === 'google_drive' && isAdmin && (
+              <button
+                type="button"
+                onClick={onToggleSystemStorage}
+                disabled={togglingSystemStorage}
+                title={isSystemStorage ? "Deactivate as DEVHUB System Storage" : "Designate this Google Drive account as DEVHUB System Storage"}
+                className={`py-2 px-2.5 rounded-xl border text-xs font-medium transition flex items-center gap-1.5 ${
+                  isSystemStorage
+                    ? 'bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30 text-emerald-300'
+                    : 'bg-[#161d2f] hover:bg-[#1e273f] border-[#1f2a44] hover:border-purple-500/40 text-slate-300 hover:text-white'
+                }`}
+              >
+                {togglingSystemStorage ? (
+                  <i className="fa-solid fa-circle-notch fa-spin text-xs"></i>
+                ) : (
+                  <i className={`fa-solid ${isSystemStorage ? 'fa-hard-drive text-emerald-400' : 'fa-server text-purple-400'}`}></i>
+                )}
+                <span className="hidden sm:inline text-[11px] font-semibold">
+                  {isSystemStorage ? 'System Active' : 'Set as System'}
+                </span>
+              </button>
+            )}
             <button
               type="button"
               onClick={onDisconnect}

@@ -171,7 +171,8 @@ exports.getUserIntegrations = async (req, res) => {
           accountName: item.accountName,
           connectedAt: item.updatedAt || item.createdAt,
           metadata: item.metadata,
-          hasToken: Boolean(item.accessToken)
+          hasToken: Boolean(item.accessToken),
+          isSystemStorage: Boolean(item.metadata?.isSystemStorage)
         };
       }
     });
@@ -212,7 +213,7 @@ exports.getGoogleAuthUrl = async (req, res) => {
       client_id: clientId,
       redirect_uri: redirectUri,
       response_type: 'code',
-      scope: 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
+      scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
       access_type: 'offline',
       prompt: 'consent',
       include_granted_scopes: 'true',
@@ -296,7 +297,8 @@ exports.handleGoogleCallback = async (req, res) => {
       picture: userInfo.picture,
       refreshToken: tokenData.refresh_token || existing?.metadata?.refreshToken,
       expiresAt: Date.now() + (tokenData.expires_in || 3600) * 1000,
-      scope: tokenData.scope
+      scope: tokenData.scope,
+      isSystemStorage: existing?.metadata?.isSystemStorage || false
     };
 
     let integration;
@@ -1186,6 +1188,183 @@ exports.getProviderQuota = async (req, res) => {
   } catch (error) {
     console.error('Error fetching provider quota:', error);
     res.status(500).json({ success: false, message: error.message || 'Internal server error' });
+  }
+};
+
+/**
+ * Designate or remove Google Drive as DEVHUB System Storage (Admin/Owner only)
+ */
+exports.setSystemStorage = async (req, res) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized: Authentication required' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { id: true, role: true, name: true, email: true }
+    });
+
+    if (!user || user.role !== 'Admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Unauthorized: Only an Admin or Owner can manage System Storage settings.'
+      });
+    }
+
+    const { enabled } = req.body;
+    const shouldEnable = enabled === true || enabled === 'true';
+
+    const currentIntegration = await prisma.userIntegration.findFirst({
+      where: {
+        userId: req.userId,
+        provider: 'google_drive'
+      }
+    });
+
+    if (!currentIntegration || currentIntegration.status !== 'connected' || !currentIntegration.accessToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Google Drive not connected. Please connect Google Drive first.'
+      });
+    }
+
+    if (shouldEnable) {
+      // Unset isSystemStorage on any other integration in DEVHUB
+      const allOtherDriveIntegrations = await prisma.userIntegration.findMany({
+        where: {
+          provider: 'google_drive',
+          id: { not: currentIntegration.id }
+        }
+      });
+
+      for (const other of allOtherDriveIntegrations) {
+        if (other.metadata && other.metadata.isSystemStorage) {
+          await prisma.userIntegration.update({
+            where: { id: other.id },
+            data: {
+              metadata: {
+                ...other.metadata,
+                isSystemStorage: false
+              }
+            }
+          });
+        }
+      }
+
+      const updatedMetadata = {
+        ...(currentIntegration.metadata || {}),
+        isSystemStorage: true,
+        systemStorageActivatedAt: new Date().toISOString(),
+        systemStorageActivatedBy: user.email
+      };
+
+      await prisma.userIntegration.update({
+        where: { id: currentIntegration.id },
+        data: {
+          metadata: updatedMetadata,
+          updatedAt: new Date()
+        }
+      });
+
+      createAuditLog({
+        userId: req.userId,
+        action: 'Updated',
+        entityType: 'Integration',
+        entityId: currentIntegration.id,
+        metadata: {
+          action: 'system storage enabled',
+          provider: 'google_drive',
+          account: currentIntegration.accountName
+        }
+      });
+
+      return res.json({
+        success: true,
+        message: 'Google Drive system storage enabled successfully.',
+        status: 'system storage enabled',
+        isSystemStorage: true,
+        accountName: currentIntegration.accountName
+      });
+    } else {
+      const updatedMetadata = {
+        ...(currentIntegration.metadata || {}),
+        isSystemStorage: false,
+        systemStorageDeactivatedAt: new Date().toISOString()
+      };
+
+      await prisma.userIntegration.update({
+        where: { id: currentIntegration.id },
+        data: {
+          metadata: updatedMetadata,
+          updatedAt: new Date()
+        }
+      });
+
+      createAuditLog({
+        userId: req.userId,
+        action: 'Updated',
+        entityType: 'Integration',
+        entityId: currentIntegration.id,
+        metadata: {
+          action: 'system storage disabled',
+          provider: 'google_drive',
+          account: currentIntegration.accountName
+        }
+      });
+
+      return res.json({
+        success: true,
+        message: 'Google Drive system storage disabled successfully.',
+        status: 'system storage disabled',
+        isSystemStorage: false
+      });
+    }
+  } catch (error) {
+    console.error('Error toggling system storage:', error);
+    res.status(500).json({ success: false, message: error.message || 'Internal server error' });
+  }
+};
+
+/**
+ * Get current System Storage status across DEVHUB
+ */
+exports.getSystemStorageStatus = async (req, res) => {
+  try {
+    const allGoogleIntegrations = await prisma.userIntegration.findMany({
+      where: { provider: 'google_drive', status: 'connected' },
+      include: {
+        user: { select: { id: true, name: true, email: true, role: true } }
+      }
+    });
+
+    const systemIntegration = allGoogleIntegrations.find(i => i.metadata && i.metadata.isSystemStorage === true);
+
+    if (!systemIntegration) {
+      return res.json({
+        success: true,
+        isSystemStorage: false,
+        status: 'system storage disabled',
+        accountName: null,
+        owner: null
+      });
+    }
+
+    return res.json({
+      success: true,
+      isSystemStorage: true,
+      status: 'system storage enabled',
+      accountName: systemIntegration.accountName,
+      owner: {
+        id: systemIntegration.user.id,
+        name: systemIntegration.user.name,
+        email: systemIntegration.user.email
+      },
+      activatedAt: systemIntegration.metadata?.systemStorageActivatedAt || null
+    });
+  } catch (error) {
+    console.error('Error fetching system storage status:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
 
