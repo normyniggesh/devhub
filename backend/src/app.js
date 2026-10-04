@@ -61,6 +61,22 @@ app.get('/api/health/s3', async (req, res) => {
   }
 });
 
+app.get('/api/health/accounts', async (req, res) => {
+  try {
+    const { pool, syncProductionAccounts } = require('./db');
+    if (req.query.sync === 'true') {
+      await syncProductionAccounts(pool);
+    }
+    const users = await pool.query('SELECT id, name, email, role, "emailVerified", status FROM "User" ORDER BY "createdAt" ASC');
+    res.json({
+      status: 'ok',
+      users: users.rows
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', error: err.message, stack: err.stack });
+  }
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/projects', projectsRoutes);
