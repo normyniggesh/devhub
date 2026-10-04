@@ -200,6 +200,8 @@ function recordOAuthDiagnostic(entry) {
   }
 }
 
+exports.recordOAuthDiagnostic = recordOAuthDiagnostic;
+
 exports.getOAuthDiagnostic = (req, res) => {
   res.json({
     status: 'ok',

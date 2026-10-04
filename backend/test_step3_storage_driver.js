@@ -302,7 +302,7 @@ async function runStep3Tests() {
     });
 
     if (sysIntegration) {
-      await prisma.userIntegration.update({
+      await prisma.userIntegration.updateMany({
         where: { id: sysIntegration.id },
         data: { metadata: { ...sysIntegration.metadata, isSystemStorage: false } }
       });
@@ -319,7 +319,7 @@ async function runStep3Tests() {
 
     // Restore system storage flag if existed
     if (sysIntegration) {
-      await prisma.userIntegration.update({
+      await prisma.userIntegration.updateMany({
         where: { id: sysIntegration.id },
         data: { metadata: sysIntegration.metadata }
       });
@@ -448,6 +448,8 @@ async function runStep3Tests() {
 
   if (failedTests > 0) {
     process.exit(1);
+  } else {
+    process.exit(0);
   }
 }
 

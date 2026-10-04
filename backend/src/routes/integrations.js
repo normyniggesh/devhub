@@ -14,7 +14,8 @@ const {
   getProviderQuota,
   setSystemStorage,
   getSystemStorageStatus,
-  getOAuthDiagnostic
+  getOAuthDiagnostic,
+  recordOAuthDiagnostic
 } = require('../controllers/integrations');
 
 // Dedicated OAuth callback auth resolver:
@@ -34,6 +35,12 @@ const oauthCallbackAuth = (req, res, next) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       if (decoded?.userId) {
         req.userId = decoded.userId;
+        if (recordOAuthDiagnostic) {
+          recordOAuthDiagnostic({
+            event: 'callback_auth_session_success',
+            userId: req.userId
+          });
+        }
         return next();
       }
     } catch (e) {
@@ -49,6 +56,12 @@ const oauthCallbackAuth = (req, res, next) => {
       if (decodedState?.userId) {
         req.userId = decodedState.userId;
         req.authenticatedViaState = true;
+        if (recordOAuthDiagnostic) {
+          recordOAuthDiagnostic({
+            event: 'callback_auth_state_fallback_success',
+            userId: req.userId
+          });
+        }
         return next();
       }
     } catch (jwtErr) {
@@ -57,12 +70,27 @@ const oauthCallbackAuth = (req, res, next) => {
         if (parsed?.userId) {
           req.userId = parsed.userId;
           req.authenticatedViaState = true;
+          if (recordOAuthDiagnostic) {
+            recordOAuthDiagnostic({
+              event: 'callback_auth_base64_state_fallback_success',
+              userId: req.userId
+            });
+          }
           return next();
         }
       } catch (b64Err) {
         // invalid state
       }
     }
+  }
+
+  if (recordOAuthDiagnostic) {
+    recordOAuthDiagnostic({
+      event: 'callback_auth_failed',
+      hasCookie: Boolean(req.cookies?.devhub_auth_token),
+      hasBearer: Boolean(req.headers.authorization),
+      hasState: Boolean(state)
+    });
   }
 
   return res.status(401).json({ success: false, error: 'Authentication required' });

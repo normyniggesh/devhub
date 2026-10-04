@@ -296,6 +296,8 @@ async function runStep1Tests() {
 
   if (!allPassed) {
     process.exit(1);
+  } else {
+    process.exit(0);
   }
 }
 
