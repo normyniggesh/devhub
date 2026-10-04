@@ -131,6 +131,11 @@ app.get('/api/health/drive-auth-scope', async (req, res) => {
   }
 });
 
+app.get('/api/health/oauth-diagnostic', (req, res) => {
+  const { getOAuthDiagnostic } = require('./controllers/integrations');
+  return getOAuthDiagnostic(req, res);
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/projects', projectsRoutes);

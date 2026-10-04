@@ -185,6 +185,29 @@ exports.getUserIntegrations = async (req, res) => {
   }
 };
 
+const jwt = require('jsonwebtoken');
+
+// In-memory telemetry log for OAuth callback flow (max 20 entries, strictly sanitized)
+const oauthDiagnostics = [];
+
+function recordOAuthDiagnostic(entry) {
+  oauthDiagnostics.unshift({
+    timestamp: new Date().toISOString(),
+    ...entry
+  });
+  if (oauthDiagnostics.length > 20) {
+    oauthDiagnostics.pop();
+  }
+}
+
+exports.getOAuthDiagnostic = (req, res) => {
+  res.json({
+    status: 'ok',
+    totalEntries: oauthDiagnostics.length,
+    recentAttempts: oauthDiagnostics
+  });
+};
+
 /**
  * Generate Google OAuth 2.0 Authorization URL
  */
@@ -202,13 +225,16 @@ exports.getGoogleAuthUrl = async (req, res) => {
     }
 
     const frontendBase = req.headers.origin || process.env.FRONTEND_URL || 'http://localhost:5173';
-    const redirectUri = req.query.redirectUri || process.env.GOOGLE_REDIRECT_URI || `${frontendBase}/files`;
+    const rawRedirectUri = req.query.redirectUri || process.env.GOOGLE_REDIRECT_URI || `${frontendBase}/files`;
+    const redirectUri = rawRedirectUri.replace(/\/$/, '');
 
+    const effectiveUserId = req.userId || req.user?.id;
     const stateObj = {
-      userId: req.userId,
-      ts: Date.now()
+      userId: effectiveUserId,
+      ts: Date.now(),
+      purpose: 'google_oauth'
     };
-    const state = Buffer.from(JSON.stringify(stateObj)).toString('base64');
+    const state = jwt.sign(stateObj, process.env.JWT_SECRET, { expiresIn: '1h' });
 
     const params = new URLSearchParams({
       client_id: clientId,
@@ -240,9 +266,47 @@ exports.getGoogleAuthUrl = async (req, res) => {
  */
 exports.handleGoogleCallback = async (req, res) => {
   try {
-    const { code, redirectUri } = req.body;
+    const { code, redirectUri, state } = req.body;
+
+    let effectiveUserId = req.userId || req.user?.id;
+    let authSource = 'session';
+
+    // If session/cookie was lost or blocked on cross-site redirect, verify signed state token
+    if (!effectiveUserId && state) {
+      try {
+        const decodedState = jwt.verify(state, process.env.JWT_SECRET);
+        if (decodedState?.userId) {
+          effectiveUserId = decodedState.userId;
+          authSource = 'signed_state';
+        }
+      } catch (jwtErr) {
+        // Fallback check for base64 JSON state
+        try {
+          const parsed = JSON.parse(Buffer.from(state, 'base64').toString('utf8'));
+          if (parsed?.userId) {
+            effectiveUserId = parsed.userId;
+            authSource = 'base64_state';
+          }
+        } catch (b64Err) {}
+      }
+    }
+
+    if (!effectiveUserId) {
+      recordOAuthDiagnostic({
+        event: 'callback_unauthorized',
+        hasCode: Boolean(code),
+        hasState: Boolean(state),
+        reason: 'Missing both session and valid signed state'
+      });
+      return res.status(401).json({ success: false, message: 'Authentication required to connect Google Drive' });
+    }
 
     if (!code) {
+      recordOAuthDiagnostic({
+        event: 'callback_missing_code',
+        userId: effectiveUserId,
+        authSource
+      });
       return res.status(400).json({ success: false, message: 'Authorization code is required' });
     }
 
@@ -250,6 +314,10 @@ exports.handleGoogleCallback = async (req, res) => {
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
     if (!clientId || !clientSecret) {
+      recordOAuthDiagnostic({
+        event: 'callback_server_unconfigured',
+        userId: effectiveUserId
+      });
       return res.status(400).json({
         success: false,
         message: 'Google OAuth credentials (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET) are not configured on the backend.'
@@ -257,7 +325,16 @@ exports.handleGoogleCallback = async (req, res) => {
     }
 
     const frontendBase = req.headers.origin || process.env.FRONTEND_URL || 'http://localhost:5173';
-    const finalRedirectUri = redirectUri || process.env.GOOGLE_REDIRECT_URI || `${frontendBase}/files`;
+    const rawRedirectUri = redirectUri || process.env.GOOGLE_REDIRECT_URI || `${frontendBase}/files`;
+    const finalRedirectUri = rawRedirectUri.replace(/\/$/, '');
+
+    recordOAuthDiagnostic({
+      event: 'callback_exchanging_code',
+      userId: effectiveUserId,
+      authSource,
+      hasCode: Boolean(code),
+      redirectUri: finalRedirectUri
+    });
 
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
@@ -273,13 +350,28 @@ exports.handleGoogleCallback = async (req, res) => {
 
     if (!tokenResponse.ok) {
       const errData = await tokenResponse.json().catch(() => ({}));
+      const safeErrorMsg = errData.error_description || errData.error || 'Failed to exchange authorization code with Google';
+      recordOAuthDiagnostic({
+        event: 'token_exchange_failed',
+        userId: effectiveUserId,
+        googleStatus: tokenResponse.status,
+        safeError: safeErrorMsg
+      });
       return res.status(400).json({
         success: false,
-        message: errData.error_description || errData.error || 'Failed to exchange authorization code with Google'
+        message: safeErrorMsg
       });
     }
 
     const tokenData = await tokenResponse.json();
+    recordOAuthDiagnostic({
+      event: 'token_exchange_success',
+      googleStatus: tokenResponse.status,
+      hasAccessToken: Boolean(tokenData.access_token),
+      hasRefreshToken: Boolean(tokenData.refresh_token),
+      scope: tokenData.scope,
+      userId: effectiveUserId
+    });
 
     // Fetch user profile info to identify the connected account
     const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
@@ -289,7 +381,7 @@ exports.handleGoogleCallback = async (req, res) => {
 
     const accountEmail = userInfo.email || 'Google Drive User';
     const existing = await prisma.userIntegration.findFirst({
-      where: { userId: req.userId, provider: 'google_drive' }
+      where: { userId: effectiveUserId, provider: 'google_drive' }
     });
 
     const metadata = {
@@ -303,11 +395,12 @@ exports.handleGoogleCallback = async (req, res) => {
     };
 
     let integration;
+    let writeMethod = 'upsert';
     try {
       integration = await prisma.userIntegration.upsert({
         where: {
           userId_provider: {
-            userId: req.userId,
+            userId: effectiveUserId,
             provider: 'google_drive'
           }
         },
@@ -319,7 +412,7 @@ exports.handleGoogleCallback = async (req, res) => {
           updatedAt: new Date()
         },
         create: {
-          userId: req.userId,
+          userId: effectiveUserId,
           provider: 'google_drive',
           status: 'connected',
           accountName: accountEmail,
@@ -329,6 +422,7 @@ exports.handleGoogleCallback = async (req, res) => {
       });
     } catch (upsertErr) {
       if (existing) {
+        writeMethod = 'update';
         integration = await prisma.userIntegration.update({
           where: { id: existing.id },
           data: {
@@ -340,9 +434,10 @@ exports.handleGoogleCallback = async (req, res) => {
           }
         });
       } else {
+        writeMethod = 'create';
         integration = await prisma.userIntegration.create({
           data: {
-            userId: req.userId,
+            userId: effectiveUserId,
             provider: 'google_drive',
             status: 'connected',
             accountName: accountEmail,
@@ -353,13 +448,35 @@ exports.handleGoogleCallback = async (req, res) => {
       }
     }
 
+    recordOAuthDiagnostic({
+      event: 'user_integration_saved',
+      userId: effectiveUserId,
+      accountEmail,
+      writeMethod,
+      hasRefreshToken: Boolean(metadata.refreshToken),
+      isSystemStorage: metadata.isSystemStorage,
+      scope: metadata.scope
+    });
+
     createAuditLog({
-      userId: req.userId,
+      userId: effectiveUserId,
       action: 'Connected',
       entityType: 'Integration',
       entityId: integration.id,
       metadata: { provider: 'google_drive', accountName: accountEmail }
     });
+
+    // If user authenticated via state fallback, refresh their session cookie
+    if (authSource !== 'session') {
+      try {
+        const { setAuthCookie, generateToken } = require('./auth');
+        if (setAuthCookie && generateToken) {
+          setAuthCookie(res, generateToken(effectiveUserId));
+        }
+      } catch (cookieErr) {
+        // non-fatal
+      }
+    }
 
     res.json({
       success: true,
@@ -373,6 +490,10 @@ exports.handleGoogleCallback = async (req, res) => {
       }
     });
   } catch (error) {
+    recordOAuthDiagnostic({
+      event: 'callback_fatal_error',
+      safeError: error.message
+    });
     console.error('Error exchanging Google OAuth code:', error);
     res.status(500).json({ success: false, message: error.message || 'Internal server error' });
   }

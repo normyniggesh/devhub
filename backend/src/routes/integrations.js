@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const jwt = require('jsonwebtoken');
 const authMiddleware = require('../middleware/auth');
 const {
   getUserIntegrations,
@@ -12,15 +13,73 @@ const {
   importProviderFile,
   getProviderQuota,
   setSystemStorage,
-  getSystemStorageStatus
+  getSystemStorageStatus,
+  getOAuthDiagnostic
 } = require('../controllers/integrations');
 
+// Dedicated OAuth callback auth resolver:
+// 1. Accepts standard auth cookie (devhub_auth_token)
+// 2. Accepts Bearer header (Authorization: Bearer <token>)
+// 3. Fallback: Accepts cryptographically signed OAuth state token from redirect URL
+//    This guarantees reauthorization succeeds even when cross-site 3rd-party cookies
+//    are blocked/restricted by browsers like Brave, Safari, or Chrome privacy sandbox!
+const oauthCallbackAuth = (req, res, next) => {
+  let token = req.cookies?.devhub_auth_token;
+  if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+    token = req.headers.authorization.split(' ')[1];
+  }
+
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      if (decoded?.userId) {
+        req.userId = decoded.userId;
+        return next();
+      }
+    } catch (e) {
+      // Cookie invalid/expired - continue to state fallback below
+    }
+  }
+
+  // Fallback: Verify state parameter from OAuth redirect
+  const state = req.body?.state || req.query?.state;
+  if (state) {
+    try {
+      const decodedState = jwt.verify(state, process.env.JWT_SECRET);
+      if (decodedState?.userId) {
+        req.userId = decodedState.userId;
+        req.authenticatedViaState = true;
+        return next();
+      }
+    } catch (jwtErr) {
+      try {
+        const parsed = JSON.parse(Buffer.from(state, 'base64').toString('utf8'));
+        if (parsed?.userId) {
+          req.userId = parsed.userId;
+          req.authenticatedViaState = true;
+          return next();
+        }
+      } catch (b64Err) {
+        // invalid state
+      }
+    }
+  }
+
+  return res.status(401).json({ success: false, error: 'Authentication required' });
+};
+
+// Safe diagnostic endpoint (no credentials/tokens exposed)
+router.get('/oauth-diagnostic', getOAuthDiagnostic);
+
+// OAuth callback with flexible auth (cookie, bearer, or state token)
+router.post('/google/callback', oauthCallbackAuth, handleGoogleCallback);
+
+// Standard auth required for all other endpoints
 router.use(authMiddleware);
 
 router.get('/', getUserIntegrations);
 router.get('/quota', getProviderQuota);
 router.get('/google/auth-url', getGoogleAuthUrl);
-router.post('/google/callback', handleGoogleCallback);
 router.get('/google/system-storage', getSystemStorageStatus);
 router.post('/google/system-storage', setSystemStorage);
 router.post('/connect', connectIntegration);

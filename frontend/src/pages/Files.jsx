@@ -515,7 +515,20 @@ export default function Files() {
         {/* Cloud Storage Integrations Section (Equal Card Heights, Clear Statuses, Real OAuth) */}
         <CloudIntegrations
           integrations={integrations}
-          onRefreshIntegrations={async () => {
+          onRefreshIntegrations={async (updatedIntegration) => {
+            if (updatedIntegration?.provider) {
+              setIntegrations(prev => ({
+                ...prev,
+                [updatedIntegration.provider]: {
+                  connected: updatedIntegration.status === 'connected',
+                  accountName: updatedIntegration.accountName,
+                  connectedAt: updatedIntegration.connectedAt || new Date().toISOString(),
+                  metadata: updatedIntegration.metadata,
+                  hasToken: true,
+                  isSystemStorage: Boolean(updatedIntegration.metadata?.isSystemStorage)
+                }
+              }));
+            }
             await loadData();
             await fetchQuotas();
           }}
@@ -629,7 +642,7 @@ export default function Files() {
                   <button
                     type="button"
                     onClick={async () => {
-                      const redirectUri = `${window.location.origin}${window.location.pathname}`;
+                      const redirectUri = `${window.location.origin}${window.location.pathname}`.replace(/\/$/, '');
                       const res = await apiClient(`/integrations/google/auth-url?redirectUri=${encodeURIComponent(redirectUri)}`);
                       if (res.url) window.location.href = res.url;
                     }}

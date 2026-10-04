@@ -85,26 +85,28 @@ export default function CloudIntegrations({
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
+    const state = urlParams.get('state');
 
     if (code) {
       setConnecting(true);
-      // Clean query params from URL to prevent duplicate exchange
-      window.history.replaceState({}, document.title, window.location.pathname);
 
-      const redirectUri = `${window.location.origin}${window.location.pathname}`;
+      const redirectUri = `${window.location.origin}${window.location.pathname}`.replace(/\/$/, '');
 
       apiClient('/integrations/google/callback', {
         method: 'POST',
-        body: { code, redirectUri }
+        body: { code, redirectUri, state }
       })
         .then(async (res) => {
+          // Clean query params from URL only after successful exchange
+          window.history.replaceState({}, document.title, window.location.pathname);
           setConnectMessage({
             type: 'success',
             text: res.message || 'Google Drive connected successfully!'
           });
-          if (onRefreshIntegrations) await onRefreshIntegrations();
+          if (onRefreshIntegrations) await onRefreshIntegrations(res.integration);
         })
         .catch(err => {
+          console.error('[Google OAuth] Callback exchange failed:', err);
           setConnectMessage({
             type: 'error',
             text: err.message || 'Failed to complete Google OAuth connection'
@@ -122,7 +124,7 @@ export default function CloudIntegrations({
     if (providerId === 'google_drive') {
       try {
         setConnecting(true);
-        const redirectUri = `${window.location.origin}${window.location.pathname}`;
+        const redirectUri = `${window.location.origin}${window.location.pathname}`.replace(/\/$/, '');
         const res = await apiClient(`/integrations/google/auth-url?redirectUri=${encodeURIComponent(redirectUri)}`);
 
         if (res.configured && res.url) {
