@@ -71,42 +71,12 @@ export default function Files() {
   const menuRef = useRef(null);
   useClickOutside(menuRef, () => setOpenMenuId(null));
 
-  // 1. Fetch initial data and storage quota
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const [projRes, foldRes, fileRes, dashRes, intRes] = await Promise.all([
-        apiClient('/projects'),
-        apiClient('/folders'),
-        apiClient('/files'),
-        apiClient('/dashboard').catch(() => ({ dashboard: { recentActivity: [] } })),
-        apiClient('/integrations').catch(() => ({ integrations: {} }))
-      ]);
-
-      setProjects(projRes.projects || []);
-      setFolders(foldRes.folders || []);
-      setFiles(fileRes.files || []);
-      setIntegrations(intRes.integrations || {
-        google_drive: { connected: false },
-        dropbox: { connected: false },
-        onedrive: { connected: false }
-      });
-
-      const allAct = dashRes.dashboard?.recentActivity || [];
-      setRecentActivity(allAct.filter(a => a.entityType === 'File' || a.entityType === 'Folder'));
-    } catch (err) {
-      setError(err.message || 'Unable to load files');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const projectsRef = useRef([]);
 
   const fetchQuotas = useCallback(async (projId) => {
     try {
       setQuotasLoading(true);
-      const targetProjId = projId || (projects.length > 0 ? projects[0].id : null);
+      const targetProjId = projId || (projectsRef.current.length > 0 ? projectsRef.current[0].id : null);
       const [res, projQuotaRes] = await Promise.all([
         apiClient('/integrations/quota').catch(() => ({ quotas: {} })),
         targetProjId ? apiClient(`/files/quota?projectId=${targetProjId}`).catch(() => null) : null
@@ -121,12 +91,48 @@ export default function Files() {
     } finally {
       setQuotasLoading(false);
     }
-  }, [projects]);
+  }, []);
+
+  // 1. Fetch initial data and storage quota
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const [projRes, foldRes, fileRes, dashRes, intRes] = await Promise.all([
+        apiClient('/projects'),
+        apiClient('/folders'),
+        apiClient('/files'),
+        apiClient('/dashboard').catch(() => ({ dashboard: { recentActivity: [] } })),
+        apiClient('/integrations').catch(() => ({ integrations: {} }))
+      ]);
+
+      const loadedProjects = projRes.projects || [];
+      projectsRef.current = loadedProjects;
+      setProjects(loadedProjects);
+      setFolders(foldRes.folders || []);
+      setFiles(fileRes.files || []);
+      setIntegrations(intRes.integrations || {
+        google_drive: { connected: false },
+        dropbox: { connected: false },
+        onedrive: { connected: false }
+      });
+
+      const allAct = dashRes.dashboard?.recentActivity || [];
+      setRecentActivity(allAct.filter(a => a.entityType === 'File' || a.entityType === 'Folder'));
+
+      // Fetch quota for the first project directly from the fresh response without state dependencies
+      await fetchQuotas(loadedProjects[0]?.id);
+    } catch (err) {
+      setError(err.message || 'Unable to load files');
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchQuotas]);
 
   useEffect(() => {
     loadData();
-    fetchQuotas();
-  }, [loadData, fetchQuotas]);
+  }, [loadData]);
 
   // 2. Fetch cloud provider items when activeTab is a cloud provider
   const currentCloudFolder = cloudBreadcrumbs[cloudBreadcrumbs.length - 1];
