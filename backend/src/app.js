@@ -77,6 +77,54 @@ app.get('/api/health/accounts', async (req, res) => {
   }
 });
 
+app.get('/api/health/drive-auth-scope', async (req, res) => {
+  try {
+    const { pool } = require('./db');
+    const result = await pool.query(`
+      SELECT "id", "userId", provider, status, "accountName", "accessToken", metadata
+      FROM "UserIntegration"
+      WHERE provider = 'google_drive' AND status = 'connected'
+      ORDER BY "updatedAt" DESC LIMIT 1
+    `);
+    if (result.rows.length === 0) {
+      return res.json({ status: 'ok', connected: false });
+    }
+    const row = result.rows[0];
+    const metadata = row.metadata || {};
+    let googleScope = null;
+    let googleError = null;
+
+    if (row.accessToken) {
+      try {
+        const tokeninfoRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(row.accessToken)}`);
+        const tokeninfo = await tokeninfoRes.json();
+        if (tokeninfoRes.ok) {
+          googleScope = tokeninfo.scope;
+        } else {
+          googleError = tokeninfo.error_description || tokeninfo.error || 'Token invalid';
+        }
+      } catch (e) {
+        googleError = e.message;
+      }
+    }
+
+    const hasDriveFileScope = Boolean(googleScope && googleScope.includes('https://www.googleapis.com/auth/drive.file'));
+
+    res.json({
+      status: 'ok',
+      connected: true,
+      accountName: row.accountName,
+      isSystemStorage: Boolean(metadata.isSystemStorage),
+      storedScope: metadata.scope || null,
+      googleValidatedScope: googleScope,
+      googleError,
+      hasDriveFileScope
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/projects', projectsRoutes);
