@@ -25,10 +25,15 @@ router.patch('/projects/:id/members/:userId', adminController.updateProjectMembe
 // Cloud Connections Monitoring
 router.get('/cloud-connections', adminController.getCloudConnections);
 
-// Storage Quota Allocations Management
+// Storage Quota Allocations Management (New User/Team Foundation)
 const quotaController = require('../controllers/adminQuotas');
 router.get('/quotas', quotaController.listAllocations);
-router.post('/quotas', quotaController.setQuota);
+router.get('/quotas/user/:userId', quotaController.getUserQuota);
+router.post('/quotas/user', quotaController.setUserQuota);
+router.get('/quotas/team/:teamId', quotaController.getTeamQuota);
+router.post('/quotas/team', quotaController.setTeamQuota);
+
+// Deprecated project quota stubs
 router.get('/quotas/:projectId', quotaController.getQuota);
 router.patch('/quotas/:projectId', quotaController.updateQuota);
 router.delete('/quotas/:projectId', quotaController.deactivateQuota);

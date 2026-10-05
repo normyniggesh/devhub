@@ -6,11 +6,20 @@ const {
   getMemberDetails,
   addTeamMember,
   updateMemberRole,
-  removeTeamMember
+  removeTeamMember,
+  getMyTeams,
+  createTeam,
+  getTeamEntity
 } = require('../controllers/team');
 
 router.use(authMiddleware);
 
+// Real Team Entity routes (New Foundation)
+router.get('/list', getMyTeams);
+router.post('/create', createTeam);
+router.get('/entity/:id', getTeamEntity);
+
+// Legacy/Aggregated team data routes
 router.get('/', getTeamData);
 router.get('/:userId', getMemberDetails);
 router.post('/add', addTeamMember);

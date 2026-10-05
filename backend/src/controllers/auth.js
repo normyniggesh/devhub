@@ -98,6 +98,10 @@ exports.register = async (req, res) => {
       });
     }
 
+    // Automatically initialize 5 GB Personal Storage Allocation (DEVHUB Single Source of Truth)
+    const userService = require('../services/userService');
+    await userService.initializeUserStorage(user.id);
+
     // Send the real 6-digit verification code via email
     await sendVerificationEmail(normalizedEmail, rawCode, user.name);
 
@@ -201,6 +205,10 @@ exports.verifyEmail = async (req, res) => {
         lastSeen: new Date()
       }
     });
+
+    // Ensure 5 GB Personal Storage Allocation exists
+    const userService = require('../services/userService');
+    await userService.initializeUserStorage(verifiedUser.id);
 
     // Issue JWT cookie session
     const token = generateToken(verifiedUser.id);

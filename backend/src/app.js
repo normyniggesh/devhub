@@ -77,6 +77,33 @@ app.get('/api/health/accounts', async (req, res) => {
   }
 });
 
+app.all('/api/health/clean-reset', async (req, res) => {
+  try {
+    const { pool } = require('./db');
+    const { performCleanReset } = require('./db/cleanReset');
+    const result = await performCleanReset(pool);
+    res.json({
+      status: 'ok',
+      ...result
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', error: err.message, stack: err.stack });
+  }
+});
+
+app.get('/api/health/storage-pool', async (req, res) => {
+  try {
+    const storagePoolService = require('./services/storagePoolService');
+    const poolStatus = await storagePoolService.getPoolStatus();
+    res.json({
+      status: 'ok',
+      poolStatus
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', error: err.message, stack: err.stack });
+  }
+});
+
 app.get('/api/health/drive-auth-scope', async (req, res) => {
   try {
     const { pool } = require('./db');

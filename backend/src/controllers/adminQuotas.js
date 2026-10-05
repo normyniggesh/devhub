@@ -1,14 +1,40 @@
+const prisma = require('../db');
 const storageQuotaService = require('../services/storageQuotaService');
-const { checkProjectAccess } = require('../utils/projectAccess');
+const storagePoolService = require('../services/storagePoolService');
 const { createAuditLog } = require('../utils/audit');
 
 /**
- * List all storage allocations and total DEVHUB storage pool summary (Admin only)
+ * List global storage pool summary, personal allocations, and team allocations (Admin only)
  */
 exports.listAllocations = async (req, res) => {
   try {
-    const data = await storageQuotaService.listAllocations();
-    res.json({ success: true, ...data });
+    const poolStatus = await storagePoolService.getPoolStatus();
+
+    const [personalAllocations, teamAllocations] = await Promise.all([
+      prisma.personalStorageAllocation.findMany({
+        include: {
+          user: {
+            select: { id: true, name: true, email: true, role: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.teamStorageAllocation.findMany({
+        include: {
+          team: {
+            select: { id: true, name: true, createdById: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      })
+    ]);
+
+    res.json({
+      success: true,
+      poolStatus,
+      personalAllocations,
+      teamAllocations
+    });
   } catch (err) {
     console.error('[AdminQuotas] listAllocations error:', err);
     res.status(500).json({ success: false, message: err.message || 'Internal server error' });
@@ -16,180 +42,126 @@ exports.listAllocations = async (req, res) => {
 };
 
 /**
- * Get quota for a specific project (Admin only)
+ * Get quota for a specific user (Personal Storage)
  */
-exports.getQuota = async (req, res) => {
+exports.getUserQuota = async (req, res) => {
   try {
-    const { projectId } = req.params;
-    const quota = await storageQuotaService.getQuota(projectId);
-    if (!quota) {
-      return res.status(404).json({ success: false, message: 'No storage allocation found for this project' });
+    const { userId } = req.params;
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'userId is required' });
     }
+    const quota = await storageQuotaService.getPersonalQuota(userId);
     res.json({ success: true, quota });
   } catch (err) {
-    console.error('[AdminQuotas] getQuota error:', err);
+    console.error('[AdminQuotas] getUserQuota error:', err);
     res.status(500).json({ success: false, message: err.message || 'Internal server error' });
   }
 };
 
 /**
- * Create or set quota for a project (Admin only)
+ * Admin-only: Update personal storage quota for a user
  */
-exports.setQuota = async (req, res) => {
+exports.setUserQuota = async (req, res) => {
   try {
-    const { projectId, allocatedBytes, name, isActive, allowUsageTruncate } = req.body || {};
-
-    if (!projectId) {
-      return res.status(400).json({ success: false, message: 'projectId is required' });
+    const { userId, allocatedBytes } = req.body || {};
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'userId is required' });
     }
     if (allocatedBytes === undefined || allocatedBytes === null) {
       return res.status(400).json({ success: false, message: 'allocatedBytes is required' });
     }
 
-    let parsedBytes;
-    try {
-      parsedBytes = BigInt(allocatedBytes);
-    } catch (_) {
-      return res.status(400).json({ success: false, message: 'allocatedBytes must be a valid integer or BigInt string' });
-    }
-
-    if (parsedBytes < 0n) {
-      return res.status(400).json({ success: false, message: 'Storage quota cannot be negative.' });
-    }
-
-    if ((isActive === undefined || isActive === true) && parsedBytes === 0n) {
-      return res.status(400).json({ success: false, message: 'Storage quota cannot be zero for an active allocation.' });
-    }
-
-    const quota = await storageQuotaService.setQuota({
-      projectId,
-      allocatedBytes: parsedBytes,
-      name,
-      isActive: isActive !== undefined ? Boolean(isActive) : true,
-      allowUsageTruncate: Boolean(allowUsageTruncate)
-    });
+    const quota = await storageQuotaService.setPersonalQuota(userId, allocatedBytes);
 
     createAuditLog({
       userId: req.userId,
       action: 'Updated',
-      entityType: 'StorageAllocation',
-      entityId: quota.id,
-      metadata: { projectId, allocatedBytes: quota.allocatedBytes }
+      entityType: 'PersonalStorageAllocation',
+      entityId: userId,
+      metadata: { targetUserId: userId, allocatedBytes: quota.allocatedBytes }
     });
 
     res.json({
       success: true,
-      message: 'Storage allocation configured successfully.',
+      message: 'Personal storage quota updated successfully.',
       quota
     });
   } catch (err) {
-    console.error('[AdminQuotas] setQuota error:', err);
-    const status = err.message.includes('exceeds available') || err.message.includes('Cannot reduce quota') ? 400 : 500;
-    res.status(status).json({ success: false, message: err.message || 'Internal server error' });
+    console.error('[AdminQuotas] setUserQuota error:', err);
+    res.status(400).json({ success: false, message: err.message || 'Bad request' });
   }
 };
 
 /**
- * Update an existing quota for a project (Admin only)
+ * Get quota for a specific team (Team Storage)
  */
+exports.getTeamQuota = async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    if (!teamId) {
+      return res.status(400).json({ success: false, message: 'teamId is required' });
+    }
+    const quota = await storageQuotaService.getTeamQuota(teamId);
+    res.json({ success: true, quota });
+  } catch (err) {
+    console.error('[AdminQuotas] getTeamQuota error:', err);
+    res.status(500).json({ success: false, message: err.message || 'Internal server error' });
+  }
+};
+
+/**
+ * Admin-only: Update team storage quota for a team
+ */
+exports.setTeamQuota = async (req, res) => {
+  try {
+    const { teamId, allocatedBytes } = req.body || {};
+    if (!teamId) {
+      return res.status(400).json({ success: false, message: 'teamId is required' });
+    }
+    if (allocatedBytes === undefined || allocatedBytes === null) {
+      return res.status(400).json({ success: false, message: 'allocatedBytes is required' });
+    }
+
+    const quota = await storageQuotaService.setTeamQuota(teamId, allocatedBytes);
+
+    createAuditLog({
+      userId: req.userId,
+      action: 'Updated',
+      entityType: 'TeamStorageAllocation',
+      entityId: teamId,
+      metadata: { targetTeamId: teamId, allocatedBytes: quota.allocatedBytes }
+    });
+
+    res.json({
+      success: true,
+      message: 'Team storage quota updated successfully.',
+      quota
+    });
+  } catch (err) {
+    console.error('[AdminQuotas] setTeamQuota error:', err);
+    res.status(400).json({ success: false, message: err.message || 'Bad request' });
+  }
+};
+
+// ==========================================
+// Backwards Compatibility Shims (Deprecated)
+// ==========================================
+exports.getQuota = async (req, res) => {
+  res.json({ success: true, message: 'Project-based quotas are deprecated. Quotas are allocated per User or Team.' });
+};
+
+exports.setQuota = async (req, res) => {
+  res.json({ success: true, message: 'Project-based quotas are deprecated. Quotas are allocated per User or Team.' });
+};
+
 exports.updateQuota = async (req, res) => {
-  try {
-    const { projectId } = req.params;
-    const { allocatedBytes, name, isActive, allowUsageTruncate } = req.body || {};
-
-    const existing = await storageQuotaService.getQuota(projectId);
-    if (!existing) {
-      return res.status(404).json({ success: false, message: 'No storage allocation found for this project' });
-    }
-
-    const targetBytes = allocatedBytes !== undefined ? BigInt(allocatedBytes) : BigInt(existing.allocatedBytes);
-    const targetActive = isActive !== undefined ? Boolean(isActive) : existing.isActive;
-
-    if (targetBytes < 0n) {
-      return res.status(400).json({ success: false, message: 'Storage quota cannot be negative.' });
-    }
-    if (targetActive && targetBytes === 0n) {
-      return res.status(400).json({ success: false, message: 'Storage quota cannot be zero for an active allocation.' });
-    }
-
-    const quota = await storageQuotaService.setQuota({
-      projectId,
-      allocatedBytes: targetBytes,
-      name: name !== undefined ? name : existing.name,
-      isActive: targetActive,
-      allowUsageTruncate: Boolean(allowUsageTruncate)
-    });
-
-    createAuditLog({
-      userId: req.userId,
-      action: 'Updated',
-      entityType: 'StorageAllocation',
-      entityId: quota.id,
-      metadata: { projectId, allocatedBytes: quota.allocatedBytes, isActive: targetActive }
-    });
-
-    res.json({
-      success: true,
-      message: 'Storage allocation updated successfully.',
-      quota
-    });
-  } catch (err) {
-    console.error('[AdminQuotas] updateQuota error:', err);
-    const status = err.message.includes('exceeds available') || err.message.includes('Cannot reduce quota') ? 400 : 500;
-    res.status(status).json({ success: false, message: err.message || 'Internal server error' });
-  }
+  res.json({ success: true, message: 'Project-based quotas are deprecated. Quotas are allocated per User or Team.' });
 };
 
-/**
- * Deactivate a project storage quota allocation (Admin only)
- */
 exports.deactivateQuota = async (req, res) => {
-  try {
-    const { projectId } = req.params;
-    const quota = await storageQuotaService.deactivateQuota(projectId);
-
-    createAuditLog({
-      userId: req.userId,
-      action: 'Deactivated',
-      entityType: 'StorageAllocation',
-      entityId: quota.id,
-      metadata: { projectId }
-    });
-
-    res.json({
-      success: true,
-      message: 'Storage allocation deactivated successfully.',
-      quota
-    });
-  } catch (err) {
-    console.error('[AdminQuotas] deactivateQuota error:', err);
-    res.status(500).json({ success: false, message: err.message || 'Internal server error' });
-  }
+  res.json({ success: true, message: 'Project-based quotas are deprecated. Quotas are allocated per User or Team.' });
 };
 
-/**
- * Get quota for a project for current member (Authenticated project members)
- */
 exports.getProjectQuotaForUser = async (req, res) => {
-  try {
-    const { projectId } = req.query;
-    if (!projectId) {
-      return res.status(400).json({ success: false, message: 'projectId is required' });
-    }
-
-    const access = await checkProjectAccess(projectId, req.userId);
-    if (!access.accessible) {
-      return res.status(403).json({ success: false, message: 'Forbidden' });
-    }
-
-    const quota = await storageQuotaService.getQuota(projectId);
-    res.json({
-      success: true,
-      hasQuota: !!quota,
-      quota: quota || null
-    });
-  } catch (err) {
-    console.error('[AdminQuotas] getProjectQuotaForUser error:', err);
-    res.status(500).json({ success: false, message: err.message || 'Internal server error' });
-  }
+  res.json({ success: true, message: 'Project-based quotas are deprecated. Quotas are allocated per User or Team.' });
 };

@@ -558,3 +558,62 @@ exports.removeTeamMember = async (req, res) => {
     res.status(500).json({ success: false, message: error.message || 'Internal server error' });
   }
 };
+
+/**
+ * =========================================================================
+ * REAL TEAM ENTITY CONTROLLERS (New User/Team Foundation)
+ * =========================================================================
+ */
+const teamService = require('../services/teamService');
+
+/**
+ * List teams for current user
+ */
+exports.getMyTeams = async (req, res) => {
+  try {
+    const teams = await teamService.getUserTeams(req.userId);
+    res.json({ success: true, teams });
+  } catch (err) {
+    console.error('Error getting user teams:', err);
+    res.status(500).json({ success: false, message: err.message || 'Internal server error' });
+  }
+};
+
+/**
+ * Create a new team (auto-allocates 10 GB)
+ */
+exports.createTeam = async (req, res) => {
+  try {
+    const { name, description } = req.body || {};
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: 'Team name is required' });
+    }
+    const team = await teamService.createTeam({
+      name,
+      description,
+      createdById: req.userId
+    });
+    res.status(201).json({ success: true, team });
+  } catch (err) {
+    console.error('Error creating team:', err);
+    res.status(400).json({ success: false, message: err.message || 'Bad request' });
+  }
+};
+
+/**
+ * Get single team by ID with quota and members
+ */
+exports.getTeamEntity = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const team = await teamService.getTeamById(id);
+    if (!team) {
+      return res.status(404).json({ success: false, message: 'Team not found' });
+    }
+    res.json({ success: true, team });
+  } catch (err) {
+    console.error('Error getting team entity:', err);
+    res.status(500).json({ success: false, message: err.message || 'Internal server error' });
+  }
+};
+

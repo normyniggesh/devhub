@@ -1,421 +1,210 @@
-const crypto = require('crypto');
 const prisma = require('../db');
-
-// Owner Google Drive DEVHUB Pool Limit: 5 TB
-const TOTAL_DEVHUB_POOL_BYTES = process.env.TOTAL_STORAGE_POOL_BYTES
-  ? BigInt(process.env.TOTAL_STORAGE_POOL_BYTES)
-  : 5n * 1024n * 1024n * 1024n * 1024n; // 5,497,558,138,880 bytes (5 TB)
-
-/**
- * Format a quota allocation object for API consumption with serializable strings and numbers.
- */
-function formatQuotaForApi(allocation, usedBytes) {
-  if (!allocation) return null;
-  const allocated = BigInt(allocation.allocatedBytes);
-  const reserved = BigInt(allocation.reservedBytes || 0n);
-  const used = BigInt(usedBytes !== undefined ? usedBytes : 0n);
-  const occupied = used + reserved;
-  const remaining = allocated > occupied ? allocated - occupied : 0n;
-  const percentage = allocated > 0n ? Number((used * 10000n) / allocated) / 100 : 0;
-
-  return {
-    id: allocation.id,
-    projectId: allocation.projectId,
-    name: allocation.name || allocation.project?.name || null,
-    allocatedBytes: allocated.toString(),
-    usedBytes: used.toString(),
-    reservedBytes: reserved.toString(),
-    remainingBytes: remaining.toString(),
-    allocatedNumber: Number(allocated),
-    usedNumber: Number(used),
-    remainingNumber: Number(remaining),
-    percentage,
-    isActive: allocation.isActive,
-    project: allocation.project ? {
-      id: allocation.project.id,
-      name: allocation.project.name,
-      owner: allocation.project.owner ? {
-        id: allocation.project.owner.id,
-        name: allocation.project.owner.name,
-        email: allocation.project.owner.email
-      } : undefined
-    } : undefined,
-    createdAt: allocation.createdAt,
-    updatedAt: allocation.updatedAt
-  };
-}
+const {
+  DEFAULT_PERSONAL_STORAGE_BYTES,
+  DEFAULT_TEAM_STORAGE_BYTES,
+  STORAGE_SCOPES
+} = require('../constants/storage');
+const storagePoolService = require('./storagePoolService');
 
 /**
- * Calculates current Google Drive-backed storage usage for a DEVHUB project.
- * Only files with storageProvider = 'google_drive' are counted.
+ * Authoritative Storage Quota Service
  *
- * @param {string} projectId
- * @returns {Promise<bigint>}
+ * Manages:
+ * 1. PersonalStorageAllocation (per User, default 5 GB)
+ * 2. TeamStorageAllocation (per Team, default 10 GB)
+ * 3. Logical quota checks against user / team allocations
+ * 4. Combined check with GlobalStoragePoolService
  */
-async function getUsage(projectId) {
-  if (!projectId) return 0n;
-  const agg = await prisma.file.aggregate({
-    where: {
-      projectId,
-      storageProvider: 'google_drive'
-    },
-    _sum: {
-      size: true
-    }
-  });
-  return agg._sum.size !== null && agg._sum.size !== undefined ? BigInt(agg._sum.size) : 0n;
-}
+class StorageQuotaService {
+  /**
+   * Ensure a user has a PersonalStorageAllocation (creates default 5 GB if missing)
+   */
+  async ensurePersonalAllocation(userId, defaultBytes = DEFAULT_PERSONAL_STORAGE_BYTES) {
+    if (!userId) throw new Error('userId is required');
 
-/**
- * Retrieves the storage quota, usage, and remaining capacity for a project.
- *
- * @param {string} projectId
- * @returns {Promise<object|null>}
- */
-async function getQuota(projectId) {
-  if (!projectId) return null;
-  const allocation = await prisma.storageAllocation.findUnique({
-    where: { projectId },
-    include: {
-      project: {
-        select: {
-          id: true,
-          name: true,
-          owner: { select: { id: true, name: true, email: true } }
+    let allocation = await prisma.personalStorageAllocation.findUnique({
+      where: { userId }
+    });
+
+    if (!allocation) {
+      allocation = await prisma.personalStorageAllocation.create({
+        data: {
+          userId,
+          allocatedBytes: BigInt(defaultBytes),
+          usedBytes: 0n
         }
-      }
+      });
     }
-  });
 
-  if (!allocation) return null;
+    return allocation;
+  }
 
-  const used = await getUsage(projectId);
-  return formatQuotaForApi(allocation, used);
-}
+  /**
+   * Ensure a team has a TeamStorageAllocation (creates default 10 GB if missing)
+   */
+  async ensureTeamAllocation(teamId, defaultBytes = DEFAULT_TEAM_STORAGE_BYTES) {
+    if (!teamId) throw new Error('teamId is required');
 
-/**
- * Retrieves the total DEVHUB Google Drive storage pool status across all projects.
- */
-async function getPoolSummary() {
-  const allocations = await prisma.storageAllocation.findMany({
-    where: { isActive: true }
-  });
+    let allocation = await prisma.teamStorageAllocation.findUnique({
+      where: { teamId }
+    });
 
-  const totalAllocated = allocations.reduce((sum, a) => sum + BigInt(a.allocatedBytes), 0n);
-  const remainingPool = TOTAL_DEVHUB_POOL_BYTES > totalAllocated
-    ? TOTAL_DEVHUB_POOL_BYTES - totalAllocated
-    : 0n;
-
-  return {
-    totalPoolBytes: TOTAL_DEVHUB_POOL_BYTES.toString(),
-    totalAllocatedBytes: totalAllocated.toString(),
-    remainingPoolBytes: remainingPool.toString(),
-    totalPoolNumber: Number(TOTAL_DEVHUB_POOL_BYTES),
-    totalAllocatedNumber: Number(totalAllocated),
-    remainingPoolNumber: Number(remainingPool),
-    totalAllocationsCount: allocations.length,
-    poolPercentage: Number((totalAllocated * 10000n) / TOTAL_DEVHUB_POOL_BYTES) / 100
-  };
-}
-
-/**
- * Lists all project storage allocations with current usage and available bytes.
- */
-async function listAllocations() {
-  const allocations = await prisma.storageAllocation.findMany({
-    include: {
-      project: {
-        select: {
-          id: true,
-          name: true,
-          owner: { select: { id: true, name: true, email: true } }
+    if (!allocation) {
+      allocation = await prisma.teamStorageAllocation.create({
+        data: {
+          teamId,
+          allocatedBytes: BigInt(defaultBytes),
+          usedBytes: 0n
         }
-      }
-    },
-    orderBy: { createdAt: 'desc' }
-  });
-
-  const results = [];
-  for (const alloc of allocations) {
-    const used = await getUsage(alloc.projectId);
-    results.push(formatQuotaForApi(alloc, used));
-  }
-
-  const poolSummary = await getPoolSummary();
-
-  return {
-    allocations: results,
-    pool: poolSummary
-  };
-}
-
-/**
- * Sets, creates, or updates a storage quota for a project.
- * Enforces validation:
- * - quota >= 0
- * - quota > 0 if active
- * - does not exceed total pool
- * - does not reduce below current usage (unless allowUsageTruncate is true)
- */
-async function setQuota({ projectId, allocatedBytes, name, isActive = true, allowUsageTruncate = false }) {
-  if (!projectId) throw new Error('projectId is required');
-  const bytes = BigInt(allocatedBytes);
-
-  if (bytes < 0n) {
-    throw new Error('Storage quota cannot be negative.');
-  }
-
-  if (isActive && bytes === 0n) {
-    throw new Error('Storage quota cannot be zero for an active allocation.');
-  }
-
-  const project = await prisma.project.findUnique({
-    where: { id: projectId }
-  });
-  if (!project) {
-    throw new Error(`Project not found: ${projectId}`);
-  }
-
-  // Check current usage
-  const currentUsage = await getUsage(projectId);
-  if (!allowUsageTruncate && bytes < currentUsage) {
-    throw new Error(`Cannot reduce quota to ${bytes} bytes because current Google Drive usage is ${currentUsage} bytes.`);
-  }
-
-  // Check total DEVHUB storage pool limit
-  const otherAllocations = await prisma.storageAllocation.findMany({
-    where: {
-      projectId: { not: projectId },
-      isActive: true
-    }
-  });
-
-  const totalOther = otherAllocations.reduce((acc, a) => acc + BigInt(a.allocatedBytes), 0n);
-  const projectedTotal = isActive ? totalOther + bytes : totalOther;
-
-  if (projectedTotal > TOTAL_DEVHUB_POOL_BYTES) {
-    const availablePool = TOTAL_DEVHUB_POOL_BYTES > totalOther ? TOTAL_DEVHUB_POOL_BYTES - totalOther : 0n;
-    throw new Error(`Requested quota (${bytes} bytes) exceeds available DEVHUB pool (${availablePool} bytes remaining of 5 TB).`);
-  }
-
-  const allocationName = name ? name.trim() : project.name;
-
-  const allocation = await prisma.storageAllocation.upsert({
-    where: { projectId },
-    create: {
-      projectId,
-      name: allocationName,
-      allocatedBytes: bytes,
-      reservedBytes: 0n,
-      isActive
-    },
-    update: {
-      name: allocationName,
-      allocatedBytes: bytes,
-      isActive
-    },
-    include: {
-      project: {
-        select: {
-          id: true,
-          name: true,
-          owner: { select: { id: true, name: true, email: true } }
-        }
-      }
-    }
-  });
-
-  return formatQuotaForApi(allocation, currentUsage);
-}
-
-/**
- * Deactivates an existing storage allocation.
- */
-async function deactivateQuota(projectId) {
-  if (!projectId) throw new Error('projectId is required');
-  const allocation = await prisma.storageAllocation.update({
-    where: { projectId },
-    data: { isActive: false },
-    include: {
-      project: {
-        select: {
-          id: true,
-          name: true,
-          owner: { select: { id: true, name: true, email: true } }
-        }
-      }
-    }
-  });
-  const used = await getUsage(projectId);
-  return formatQuotaForApi(allocation, used);
-}
-
-/**
- * Validates whether an incoming upload would fit within the project's allocation without reserving.
- */
-async function validateUpload({ projectId, incomingBytes }) {
-  if (!projectId) throw new Error('projectId is required');
-  const bytes = BigInt(incomingBytes);
-
-  const allocation = await prisma.storageAllocation.findUnique({
-    where: { projectId }
-  });
-
-  // If no quota record exists, project has no Google Drive allocation
-  if (!allocation) {
-    return {
-      allowed: false,
-      reason: 'No Google Drive storage allocation configured for this project.'
-    };
-  }
-
-  if (!allocation.isActive) {
-    return {
-      allowed: false,
-      reason: 'Storage allocation for this project is inactive.'
-    };
-  }
-
-  const used = await getUsage(projectId);
-  const occupied = used + BigInt(allocation.reservedBytes || 0n);
-  const available = BigInt(allocation.allocatedBytes) > occupied
-    ? BigInt(allocation.allocatedBytes) - occupied
-    : 0n;
-
-  if (bytes > available) {
-    return {
-      allowed: false,
-      reason: `Storage quota exceeded. Available: ${available} bytes, Requested: ${bytes} bytes.`,
-      available: available.toString(),
-      requested: bytes.toString()
-    };
-  }
-
-  return {
-    allowed: true,
-    available: available.toString(),
-    requested: bytes.toString()
-  };
-}
-
-/**
- * Reserves quota for an in-flight upload using a PostgreSQL transaction with row-level locking.
- * Prevents concurrent uploads from exceeding the allocation.
- *
- * @param {object} params
- * @param {string} params.projectId
- * @param {bigint|number|string} params.incomingBytes
- * @returns {Promise<object>} reservation details
- */
-async function reserve({ projectId, incomingBytes }) {
-  if (!projectId) throw new Error('projectId is required');
-  const bytes = BigInt(incomingBytes);
-
-  return await prisma.$transaction(async (tx) => {
-    // 1. Acquire row lock on StorageAllocation
-    const lockedRows = await tx.$queryRaw`
-      SELECT id, "projectId", "allocatedBytes", "reservedBytes", "isActive"
-      FROM "StorageAllocation"
-      WHERE "projectId" = ${projectId}
-      FOR UPDATE;
-    `;
-
-    if (!lockedRows || lockedRows.length === 0) {
-      throw new Error('No Google Drive storage allocation found for this project.');
+      });
     }
 
-    const row = lockedRows[0];
-    if (!row.isActive) {
-      throw new Error('Google Drive storage allocation for this project is inactive.');
-    }
+    return allocation;
+  }
 
-    const allocated = BigInt(row.allocatedBytes);
-    const reserved = BigInt(row.reservedBytes);
+  /**
+   * Get quota summary for a specific user (Personal Storage)
+   */
+  async getPersonalQuota(userId) {
+    const allocation = await this.ensurePersonalAllocation(userId);
+    const allocated = BigInt(allocation.allocatedBytes);
 
-    // 2. Compute current used bytes inside transaction
-    const usedAgg = await tx.file.aggregate({
+    // Calculate actual personal usage from File records owned by this user
+    const agg = await prisma.file.aggregate({
       where: {
-        projectId,
-        storageProvider: 'google_drive'
+        uploaderId: userId,
+        storageScope: STORAGE_SCOPES.PERSONAL
       },
       _sum: { size: true }
     });
-    const used = usedAgg._sum.size !== null && usedAgg._sum.size !== undefined ? BigInt(usedAgg._sum.size) : 0n;
+    const used = BigInt(agg._sum.size || 0);
+    const remaining = allocated > used ? allocated - used : 0n;
+    const percentage = allocated > 0n ? Number((used * 10000n) / allocated) / 100 : 0;
 
-    // 3. Verify that used + reserved + incomingBytes <= allocated
-    if (used + reserved + bytes > allocated) {
-      const remaining = allocated > (used + reserved) ? allocated - (used + reserved) : 0n;
-      throw new Error(`Storage quota exceeded for this project. Requested: ${bytes} bytes, Remaining: ${remaining} bytes.`);
+    return {
+      scope: STORAGE_SCOPES.PERSONAL,
+      userId,
+      allocatedBytes: allocated.toString(),
+      usedBytes: used.toString(),
+      remainingBytes: remaining.toString(),
+      percentage,
+      allocatedGB: Number(allocated / (1024n * 1024n * 1024n)),
+      usedGB: (Number(used) / (1024 * 1024 * 1024)).toFixed(3),
+      remainingGB: (Number(remaining) / (1024 * 1024 * 1024)).toFixed(3)
+    };
+  }
+
+  /**
+   * Get quota summary for a specific team (Team Storage)
+   */
+  async getTeamQuota(teamId) {
+    const allocation = await this.ensureTeamAllocation(teamId);
+    const allocated = BigInt(allocation.allocatedBytes);
+
+    // Calculate actual team usage from File records assigned to this team
+    const agg = await prisma.file.aggregate({
+      where: {
+        teamId,
+        storageScope: STORAGE_SCOPES.TEAM
+      },
+      _sum: { size: true }
+    });
+    const used = BigInt(agg._sum.size || 0);
+    const remaining = allocated > used ? allocated - used : 0n;
+    const percentage = allocated > 0n ? Number((used * 10000n) / allocated) / 100 : 0;
+
+    return {
+      scope: STORAGE_SCOPES.TEAM,
+      teamId,
+      allocatedBytes: allocated.toString(),
+      usedBytes: used.toString(),
+      remainingBytes: remaining.toString(),
+      percentage,
+      allocatedGB: Number(allocated / (1024n * 1024n * 1024n)),
+      usedGB: (Number(used) / (1024 * 1024 * 1024)).toFixed(3),
+      remainingGB: (Number(remaining) / (1024 * 1024 * 1024)).toFixed(3)
+    };
+  }
+
+  /**
+   * Admin-only: Set personal storage quota
+   */
+  async setPersonalQuota(userId, newAllocatedBytes) {
+    const bytes = BigInt(newAllocatedBytes);
+    if (bytes <= 0n) throw new Error('Allocated bytes must be greater than zero');
+
+    const updated = await prisma.personalStorageAllocation.upsert({
+      where: { userId },
+      update: { allocatedBytes: bytes },
+      create: { userId, allocatedBytes: bytes, usedBytes: 0n }
+    });
+
+    return await this.getPersonalQuota(userId);
+  }
+
+  /**
+   * Admin-only: Set team storage quota
+   */
+  async setTeamQuota(teamId, newAllocatedBytes) {
+    const bytes = BigInt(newAllocatedBytes);
+    if (bytes <= 0n) throw new Error('Allocated bytes must be greater than zero');
+
+    const updated = await prisma.teamStorageAllocation.upsert({
+      where: { teamId },
+      update: { allocatedBytes: bytes },
+      create: { teamId, allocatedBytes: bytes, usedBytes: 0n }
+    });
+
+    return await this.getTeamQuota(teamId);
+  }
+
+  /**
+   * Validate if an upload can proceed.
+   * Checks BOTH:
+   * 1. Target logical quota (Personal or Team)
+   * 2. Global DEVHUB physical capacity (5 TB pool)
+   */
+  async validateUpload({ scope, userId, teamId, incomingBytes }) {
+    const bytes = BigInt(incomingBytes || 0);
+
+    // 1. Check Global Physical Capacity
+    const poolCheck = await storagePoolService.canAcceptUpload(bytes);
+    if (!poolCheck.allowed) {
+      return poolCheck;
     }
 
-    // 4. Update reservedBytes
-    const newReserved = reserved + bytes;
-    await tx.$executeRaw`
-      UPDATE "StorageAllocation"
-      SET "reservedBytes" = ${newReserved}, "updatedAt" = CURRENT_TIMESTAMP
-      WHERE "id" = ${row.id};
-    `;
-
-    const reservationId = crypto.randomUUID();
-    return {
-      reservationId,
-      projectId,
-      bytes: bytes.toString(),
-      reservedNumber: Number(bytes)
-    };
-  });
-}
-
-/**
- * Releases reserved bytes when an upload fails or is cancelled.
- */
-async function release({ projectId, bytes }) {
-  if (!projectId || !bytes) return;
-  const releaseBytes = BigInt(bytes);
-
-  try {
-    await prisma.$transaction(async (tx) => {
-      const lockedRows = await tx.$queryRaw`
-        SELECT id, "reservedBytes"
-        FROM "StorageAllocation"
-        WHERE "projectId" = ${projectId}
-        FOR UPDATE;
-      `;
-
-      if (lockedRows && lockedRows.length > 0) {
-        const curReserved = BigInt(lockedRows[0].reservedBytes);
-        const newReserved = curReserved > releaseBytes ? curReserved - releaseBytes : 0n;
-        await tx.$executeRaw`
-          UPDATE "StorageAllocation"
-          SET "reservedBytes" = ${newReserved}, "updatedAt" = CURRENT_TIMESTAMP
-          WHERE "id" = ${lockedRows[0].id};
-        `;
+    // 2. Check Logical Quota
+    if (scope === STORAGE_SCOPES.TEAM) {
+      if (!teamId) return { allowed: false, reason: 'teamId is required for team storage' };
+      const teamQuota = await this.getTeamQuota(teamId);
+      const remaining = BigInt(teamQuota.remainingBytes);
+      if (bytes > remaining) {
+        return {
+          allowed: false,
+          reason: `Team storage quota exceeded. Required: ${Number(bytes)} bytes, Remaining: ${teamQuota.remainingBytes} bytes`
+        };
       }
-    });
-  } catch (err) {
-    console.error(`[StorageQuotaService] Error releasing reservation for project ${projectId}:`, err.message);
+    } else {
+      // Personal storage
+      if (!userId) return { allowed: false, reason: 'userId is required for personal storage' };
+      const personalQuota = await this.getPersonalQuota(userId);
+      const remaining = BigInt(personalQuota.remainingBytes);
+      if (bytes > remaining) {
+        return {
+          allowed: false,
+          reason: `Personal storage quota exceeded. Required: ${Number(bytes)} bytes, Remaining: ${personalQuota.remainingBytes} bytes`
+        };
+      }
+    }
+
+    return { allowed: true };
   }
+
+  // Deprecated project-based quota methods (kept as no-ops to prevent crashes)
+  async getQuota() { return null; }
+  async setQuota() { return null; }
+  async deactivateQuota() { return null; }
+  async listAllocations() { return { poolStatus: await storagePoolService.getPoolStatus(), allocations: [] }; }
 }
 
-/**
- * Finalizes quota usage after a successful Google Drive file upload.
- * Decrements the reserved bytes (as the created File row now represents permanent usedBytes).
- */
-async function finalize({ projectId, bytes }) {
-  await release({ projectId, bytes });
-}
-
-module.exports = {
-  TOTAL_DEVHUB_POOL_BYTES,
-  getUsage,
-  getQuota,
-  getPoolSummary,
-  listAllocations,
-  setQuota,
-  deactivateQuota,
-  validateUpload,
-  reserve,
-  release,
-  finalize,
-  formatQuotaForApi
-};
+module.exports = new StorageQuotaService();
