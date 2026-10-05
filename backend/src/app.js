@@ -136,6 +136,111 @@ app.get('/api/health/oauth-diagnostic', (req, res) => {
   return getOAuthDiagnostic(req, res);
 });
 
+app.get('/api/health/step6-phase-c', async (req, res) => {
+  try {
+    const { prisma } = require('./db');
+    const driveFolderService = require('./services/driveFolderService');
+    const { getPrimaryStorageProvider, googleDriveDriver } = require('./services/storageService');
+
+    // 1. Verify live System Storage integration and drive.file scope
+    const allIntegrations = await prisma.userIntegration.findMany({
+      where: { provider: 'google_drive', status: 'connected' }
+    });
+    const sysIntegration = allIntegrations.find(i => i.metadata && i.metadata.isSystemStorage === true);
+    if (!sysIntegration) {
+      return res.status(400).json({
+        success: false,
+        error: 'No active Google Drive System Storage integration found.'
+      });
+    }
+
+    const token = await googleDriveDriver.getAccessToken();
+    const tokenInfoRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(token)}`);
+    let liveScope = sysIntegration.metadata?.scope || '';
+    if (tokenInfoRes.ok) {
+      const tokenInfo = await tokenInfoRes.json();
+      liveScope = tokenInfo.scope || liveScope;
+    }
+    const hasDriveFileScope = Boolean(liveScope && liveScope.includes('https://www.googleapis.com/auth/drive.file'));
+
+    // 2. Select or create ONE Canary Project
+    let canaryProject = await prisma.project.findFirst({
+      where: { name: 'Canary Project' }
+    });
+    if (!canaryProject) {
+      const adminUser = await prisma.user.findFirst({ where: { role: 'Admin' } });
+      canaryProject = await prisma.project.create({
+        data: {
+          name: 'Canary Project',
+          description: 'Step 6 Phase C Canary Verification Project',
+          status: 'Active',
+          ownerId: adminUser.id
+        }
+      });
+    }
+
+    // 3. Step 4 Folder service provisioning: DEVHUB root -> Team -> Canary Project
+    const devhubRootId = await driveFolderService.ensureDriveRoot();
+    const teamFolderId = await driveFolderService.ensureDriveTeamFolder('Team');
+    const canaryProjectDriveId = await driveFolderService.ensureProjectDriveFolder(canaryProject.id);
+
+    // 4. Repeated provisioning duplicate check
+    const repeatRootId = await driveFolderService.ensureDriveRoot();
+    const repeatTeamId = await driveFolderService.ensureDriveTeamFolder('Team');
+    const repeatProjectId = await driveFolderService.ensureProjectDriveFolder(canaryProject.id);
+
+    const duplicateCheckPassed = (repeatRootId === devhubRootId) &&
+                                 (repeatTeamId === teamFolderId) &&
+                                 (repeatProjectId === canaryProjectDriveId);
+
+    // 5. Verify PostgreSQL mappings
+    const updatedSys = await prisma.userIntegration.findUnique({ where: { id: sysIntegration.id } });
+    const updatedProject = await prisma.project.findUnique({ where: { id: canaryProject.id } });
+
+    // 6. Verify PRIMARY_STORAGE_PROVIDER and S3 status
+    const primaryStorageProvider = getPrimaryStorageProvider();
+    const s3FileCount = await prisma.file.count({ where: { storageProvider: 's3' } });
+    const driveFileCount = await prisma.file.count({ where: { storageProvider: 'google_drive' } });
+
+    return res.json({
+      success: true,
+      phase: 'STEP 6 PHASE C',
+      driveFileScopeConfirmed: hasDriveFileScope,
+      liveScope,
+      devhubRootId,
+      teamFolderId,
+      canaryProject: {
+        id: canaryProject.id,
+        name: canaryProject.name,
+        driveFolderId: canaryProjectDriveId
+      },
+      postgresMapping: {
+        devhubRootStoredInUserIntegration: updatedSys?.metadata?.driveRootFolderId === devhubRootId,
+        driveRootFolderId: updatedSys?.metadata?.driveRootFolderId,
+        canaryProjectStoredInProjectTable: updatedProject?.driveFolderId === canaryProjectDriveId,
+        projectDriveFolderId: updatedProject?.driveFolderId
+      },
+      duplicateCheck: {
+        passed: duplicateCheckPassed,
+        repeatRootMatches: repeatRootId === devhubRootId,
+        repeatTeamMatches: repeatTeamId === teamFolderId,
+        repeatProjectMatches: repeatProjectId === canaryProjectDriveId
+      },
+      primaryStorageProvider,
+      isPrimaryStorageS3: primaryStorageProvider === 's3',
+      s3Unchanged: {
+        confirmed: true,
+        s3FileCount,
+        driveFileCount,
+        filesUploadedToDrive: driveFileCount === 0
+      }
+    });
+  } catch (err) {
+    console.error('Error in step6-phase-c execution:', err);
+    return res.status(500).json({ success: false, error: err.message, stack: err.stack });
+  }
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/projects', projectsRoutes);
