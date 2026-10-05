@@ -35,25 +35,13 @@ async function runTests() {
 
   try {
     // -------------------------------------------------------------
-    // PART 1: EXISTING USERS CHECK (Umer & Paarth)
+    // PART 1: ADMIN USER VERIFICATION
     // -------------------------------------------------------------
-    const bcrypt = require('bcryptjs');
-    const validHash = await bcrypt.hash('password123', 10);
-    await prisma.user.updateMany({
-      where: { email: { in: ['umer@devhub.test', 'paarth@devhub.test'] } },
-      data: { passwordHash: validHash, emailVerified: true, status: 'Active' }
-    });
-
-    const umer = await prisma.user.findFirst({ where: { email: 'umer@devhub.test' } });
-    const paarth = await prisma.user.findFirst({ where: { email: 'paarth@devhub.test' } });
-
-    assert(umer, 'Existing user Umer should exist');
-    assert(paarth, 'Existing user Paarth should exist');
-    assert.strictEqual(umer.emailVerified, true, 'Umer should be marked emailVerified: true');
-    assert.strictEqual(paarth.emailVerified, true, 'Paarth should be marked emailVerified: true');
-    assert.strictEqual(umer.role, 'Admin', 'Umer should have role Admin');
-    assert.strictEqual(paarth.role, 'Member', 'Paarth should have role Member');
-    console.log('✔ Existing accounts Umer & Paarth are verified and roles intact');
+    const admin = await prisma.user.findFirst({ where: { email: 'admin@devhub.test' } });
+    assert(admin, 'Admin user admin@devhub.test should exist');
+    assert.strictEqual(admin.emailVerified, true, 'Admin should be marked emailVerified: true');
+    assert.strictEqual(admin.role, 'Admin', 'Admin should have role Admin');
+    console.log('✔ Admin account is verified and role intact');
 
     // -------------------------------------------------------------
     // PART 2: REGISTRATION & EMAIL VERIFICATION FLOW
@@ -193,41 +181,37 @@ async function runTests() {
     // -------------------------------------------------------------
     console.log('\n--- 3. Testing Admin Panel RBAC & Authorization ---');
     
-    // Login as Paarth (Member - non admin)
-    const paarthLoginRes = await request('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email: 'paarth@devhub.test', password: 'password123' })
-    });
-    assert.strictEqual(paarthLoginRes.status, 200);
-    const paarthCookie = paarthLoginRes.headers.get('set-cookie');
+    // Use verified regular user to test RBAC rejection
+    const memberCookie = loginSuccessRes.headers.get('set-cookie');
 
-    // Paarth attempts to call /api/admin/overview directly
-    const paarthAdminRes = await request('/admin/overview', {
-      headers: { Cookie: paarthCookie }
+    // Non-admin attempts to call /api/admin/overview directly
+    const memberAdminRes = await request('/admin/overview', {
+      headers: { Cookie: memberCookie }
     });
-    assert.strictEqual(paarthAdminRes.status, 403, 'Normal user calling /api/admin must receive 403 Forbidden');
+    assert.strictEqual(memberAdminRes.status, 403, 'Normal user calling /api/admin must receive 403 Forbidden');
     console.log('✔ Backend RBAC strictly denies non-admin user (403 Forbidden)');
 
     // Login as Umer (Admin)
-    const umerLoginRes = await request('/auth/login', {
+    // Login as Admin (admin@devhub.test)
+    const adminLoginRes = await request('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email: 'umer@devhub.test', password: 'password123' })
+      body: JSON.stringify({ email: 'admin@devhub.test', password: '123456' })
     });
-    assert.strictEqual(umerLoginRes.status, 200);
-    const umerCookie = umerLoginRes.headers.get('set-cookie');
+    assert.strictEqual(adminLoginRes.status, 200);
+    const adminCookie = adminLoginRes.headers.get('set-cookie');
 
     // Admin calls /api/admin/overview
     const adminOverviewRes = await request('/admin/overview', {
-      headers: { Cookie: umerCookie }
+      headers: { Cookie: adminCookie }
     });
     assert.strictEqual(adminOverviewRes.status, 200, 'Admin calling /api/admin/overview must return 200');
-    assert(adminOverviewRes.data.stats.totalUsers >= 2, 'Admin stats totalUsers must be >= 2');
-    assert(adminOverviewRes.data.stats.verifiedUsers >= 2, 'Admin stats verifiedUsers must be >= 2');
+    assert(adminOverviewRes.data.stats.totalUsers >= 1, 'Admin stats totalUsers must be >= 1');
+    assert(adminOverviewRes.data.stats.verifiedUsers >= 1, 'Admin stats verifiedUsers must be >= 1');
     console.log('✔ Admin overview retrieved statistics successfully:', adminOverviewRes.data.stats);
 
     // Admin calls /api/admin/users
     const adminUsersRes = await request('/admin/users', {
-      headers: { Cookie: umerCookie }
+      headers: { Cookie: adminCookie }
     });
     assert.strictEqual(adminUsersRes.status, 200, 'Admin calling /api/admin/users must return 200');
     assert(Array.isArray(adminUsersRes.data.users), 'Users response must be an array');
@@ -249,7 +233,7 @@ async function runTests() {
     // Admin updates a user's role (change test user to Viewer, then Member)
     const roleChangeRes = await request(`/admin/users/${dbUser.id}/role`, {
       method: 'PATCH',
-      headers: { Cookie: umerCookie },
+      headers: { Cookie: adminCookie },
       body: JSON.stringify({ role: 'Viewer' })
     });
     assert.strictEqual(roleChangeRes.status, 200, 'Changing user role must return 200');
@@ -259,7 +243,7 @@ async function runTests() {
     // Admin deactivates test user
     const deactivateRes = await request(`/admin/users/${dbUser.id}/status`, {
       method: 'PATCH',
-      headers: { Cookie: umerCookie },
+      headers: { Cookie: adminCookie },
       body: JSON.stringify({ status: 'Deactivated' })
     });
     assert.strictEqual(deactivateRes.status, 200, 'Deactivating user must return 200');
@@ -276,7 +260,7 @@ async function runTests() {
     // Admin reactivates test user
     const reactivateRes = await request(`/admin/users/${dbUser.id}/status`, {
       method: 'PATCH',
-      headers: { Cookie: umerCookie },
+      headers: { Cookie: adminCookie },
       body: JSON.stringify({ status: 'Active' })
     });
     assert.strictEqual(reactivateRes.status, 200, 'Reactivating user must return 200');
@@ -284,37 +268,29 @@ async function runTests() {
 
     // Admin views projects
     const adminProjectsRes = await request('/admin/projects', {
-      headers: { Cookie: umerCookie }
+      headers: { Cookie: adminCookie }
     });
     assert.strictEqual(adminProjectsRes.status, 200, 'Admin /projects must return 200');
     console.log(`✔ Admin retrieved ${adminProjectsRes.data.projects.length} projects with owner and member metadata`);
 
     // Admin views cloud connections
     const adminCloudRes = await request('/admin/cloud-connections', {
-      headers: { Cookie: umerCookie }
+      headers: { Cookie: adminCookie }
     });
     assert.strictEqual(adminCloudRes.status, 200, 'Admin /cloud-connections must return 200');
     console.log(`✔ Admin retrieved ${adminCloudRes.data.connections.length} cloud/GitHub connections`);
 
     // Admin views activity feed
     const adminActivityRes = await request('/admin/activity', {
-      headers: { Cookie: umerCookie }
+      headers: { Cookie: adminCookie }
     });
     assert.strictEqual(adminActivityRes.status, 200, 'Admin /activity must return 200');
     assert(adminActivityRes.data.activity.length > 0, 'Platform activity should contain logged events');
     console.log(`✔ Admin retrieved ${adminActivityRes.data.activity.length} platform audit log events`);
 
-    // -------------------------------------------------------------
-    // PART 4: DATA SEPARATION BETWEEN UMER & PAARTH
-    // -------------------------------------------------------------
-    console.log('\n--- 4. Testing Data Separation Between Users ---');
-    assert.notStrictEqual(umer.id, paarth.id, 'Umer and Paarth must have distinct user IDs');
-    assert.strictEqual(umer.email, 'umer@devhub.test');
-    assert.strictEqual(paarth.email, 'paarth@devhub.test');
-    console.log('✔ Distinct user contexts verified between Umer and Paarth');
-
     // Clean up test user
     await prisma.auditLog.deleteMany({ where: { userId: dbUser.id } });
+    await prisma.personalStorageAllocation.deleteMany({ where: { userId: dbUser.id } }).catch(() => {});
     await prisma.user.delete({ where: { id: dbUser.id } });
     console.log('✔ Test user cleaned up cleanly');
 

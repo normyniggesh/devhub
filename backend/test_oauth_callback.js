@@ -9,20 +9,29 @@ async function runOAuthCallbackTests() {
   console.log('   OAUTH CALLBACK VERIFICATION & SAVE FLOW TEST SUITE   ');
   console.log('========================================================\n');
 
-  // 1. Target Admin User (admin@devhub.test)
-  let adminUser = await prisma.user.findFirst({ where: { email: 'admin@devhub.test' } });
-  if (!adminUser) {
-    throw new Error('Admin user admin@devhub.test not found in database');
-  }
+  const app = require('./src/app');
+  if (ensureSchema) await ensureSchema();
 
-  // Clean any prior test integration
-  await prisma.userIntegration.deleteMany({
-    where: { userId: adminUser.id, provider: 'google_drive' }
+  // 1. Create Isolated Test Admin User (Never touches admin@devhub.test)
+  const testEmail = `test_oauth_admin_${Date.now()}@devhub.test`;
+  const adminUser = await prisma.user.create({
+    data: {
+      email: testEmail,
+      name: 'Isolated Test Admin',
+      passwordHash: 'dummyhash',
+      role: 'Admin',
+      emailVerified: true
+    }
   });
+
+  // Track live system storage integration so it can never be lost
+  const existingDriveIntegrations = await prisma.userIntegration.findMany({
+    where: { provider: 'google_drive' }
+  });
+  const liveSystemStorageId = existingDriveIntegrations.find(i => i.metadata && i.metadata.isSystemStorage === true)?.id;
 
   const adminToken = jwt.sign({ userId: adminUser.id }, JWT_SECRET, { expiresIn: '1h' });
 
-  const app = require('./src/app');
   const server = app.listen(0);
   const port = server.address().port;
   const baseUrl = `http://127.0.0.1:${port}/api`;
@@ -270,11 +279,6 @@ async function runOAuthCallbackTests() {
       allPassed = false;
     }
 
-    // Clean up test integration
-    await prisma.userIntegration.deleteMany({
-      where: { userId: adminUser.id, provider: 'google_drive' }
-    });
-
     console.log('\n========================================================');
     if (allPassed) {
       console.log('   >>> ALL OAUTH CALLBACK TESTS PASSED CLEANLY! <<<');
@@ -284,6 +288,29 @@ async function runOAuthCallbackTests() {
     console.log('========================================================\n');
 
   } finally {
+    if (adminUser?.id) {
+      await prisma.auditLog.deleteMany({ where: { userId: adminUser.id } }).catch(() => {});
+      await prisma.personalStorageAllocation.deleteMany({ where: { userId: adminUser.id } }).catch(() => {});
+      await prisma.userIntegration.deleteMany({ where: { userId: adminUser.id } }).catch(() => {});
+      await prisma.user.delete({ where: { id: adminUser.id } }).catch(() => {});
+    }
+
+    // Guarantee pre-existing live system storage remains active
+    if (liveSystemStorageId) {
+      const liveInt = await prisma.userIntegration.findUnique({ where: { id: liveSystemStorageId } });
+      if (liveInt && liveInt.metadata && liveInt.metadata.isSystemStorage !== true) {
+        await prisma.userIntegration.update({
+          where: { id: liveSystemStorageId },
+          data: {
+            metadata: {
+              ...liveInt.metadata,
+              isSystemStorage: true
+            }
+          }
+        }).catch(() => {});
+      }
+    }
+
     server.close();
     await prisma.$disconnect();
   }

@@ -5,30 +5,29 @@ async function runQaFlowTest() {
   console.log('--- STARTING QA INTEGRATED WORKFLOW TEST ---');
   await ensureSchema();
 
-  // Find or create test users: User A (Umer) and User B (Paarth)
-  let userA = await prisma.user.findFirst({ where: { email: 'umer@devhub.test' } });
-  if (!userA) {
-    userA = await prisma.user.create({
-      data: {
-        email: 'umer@devhub.test',
-        name: 'Umer',
-        passwordHash: 'dummyhash',
-        role: 'Admin'
-      }
-    });
-  }
+  // Isolated test users: User A and User B
+  const userAEmail = `test_qa_userA_${Date.now()}@devhub.test`;
+  const userBEmail = `test_qa_userB_${Date.now()}@devhub.test`;
 
-  let userB = await prisma.user.findFirst({ where: { email: 'paarth@devhub.test' } });
-  if (!userB) {
-    userB = await prisma.user.create({
-      data: {
-        email: 'paarth@devhub.test',
-        name: 'Paarth',
-        passwordHash: 'dummyhash',
-        role: 'Member'
-      }
-    });
-  }
+  const userA = await prisma.user.create({
+    data: {
+      email: userAEmail,
+      name: 'Umer (QA Tester)',
+      passwordHash: 'dummyhash',
+      role: 'Admin',
+      emailVerified: true
+    }
+  });
+
+  const userB = await prisma.user.create({
+    data: {
+      email: userBEmail,
+      name: 'Paarth (QA Tester)',
+      passwordHash: 'dummyhash',
+      role: 'Member',
+      emailVerified: true
+    }
+  });
 
   // Find or create test project
   let project = await prisma.project.findFirst({ where: { name: 'DevHub QA Suite Project' } });
@@ -218,10 +217,25 @@ async function runQaFlowTest() {
     finalTestCase.bugs[0].testResultId === run2.id &&
     finalTestCase.status === 'Passed';
 
-  if (passed) {
-    console.log('\n>>> ALL 14 STEPS PASSED SUCCESSFULLY! REAL FLOW VERIFIED IN POSTGRESQL! <<<');
-  } else {
-    throw new Error('Verification assertions failed');
+  try {
+    if (passed) {
+      console.log('\n>>> ALL 14 STEPS PASSED SUCCESSFULLY! REAL FLOW VERIFIED IN POSTGRESQL! <<<');
+    } else {
+      throw new Error('Verification assertions failed');
+    }
+  } finally {
+    if (project?.id) {
+      await prisma.bug.deleteMany({ where: { projectId: project.id } }).catch(() => {});
+      await prisma.testResult.deleteMany({ where: { testCase: { projectId: project.id } } }).catch(() => {});
+      await prisma.testRun.deleteMany({ where: { projectId: project.id } }).catch(() => {});
+      await prisma.testCase.deleteMany({ where: { projectId: project.id } }).catch(() => {});
+      await prisma.projectMember.deleteMany({ where: { projectId: project.id } }).catch(() => {});
+      await prisma.project.delete({ where: { id: project.id } }).catch(() => {});
+    }
+    if (userA?.id || userB?.id) {
+      const uids = [userA?.id, userB?.id].filter(Boolean);
+      await prisma.user.deleteMany({ where: { id: { in: uids } } }).catch(() => {});
+    }
   }
 }
 

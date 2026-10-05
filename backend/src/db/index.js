@@ -311,12 +311,6 @@ async function bootstrapAdminAccount(dbPool) {
       SET "updatedAt" = NOW();
     `, [adminId, DEFAULT_PERSONAL_STORAGE_BYTES.toString()]);
 
-    // 4. Map Google Drive integration to Admin
-    const gdriveInteg = await client.query(`SELECT id FROM "UserIntegration" WHERE provider = 'google_drive'`);
-    if (gdriveInteg.rows.length > 0) {
-      await client.query(`UPDATE "UserIntegration" SET "userId" = $1 WHERE id = $2`, [adminId, gdriveInteg.rows[0].id]);
-    }
-
     await client.query('COMMIT');
     console.log('[DB] Bootstrap complete: admin@devhub.test is sole Admin with 5 GB personal storage.');
     return {

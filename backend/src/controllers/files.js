@@ -152,30 +152,24 @@ exports.uploadFiles = async (req, res) => {
 
     const primaryProvider = storageService.getPrimaryStorageProvider();
     let targetDriveFolderId = null;
-    let reservedTotalBytes = 0n;
-    let hasQuotaAllocation = false;
 
     if (primaryProvider === 'google_drive') {
       const storageQuotaService = require('../services/storageQuotaService');
-      const allocation = await prisma.storageAllocation.findUnique({ where: { projectId } });
-      if (allocation) {
-        hasQuotaAllocation = true;
-        if (!allocation.isActive) {
-          return res.status(403).json({
-            success: false,
-            message: 'Google Drive storage allocation for this project is inactive.'
-          });
-        }
-        const totalIncomingBytes = files.reduce((sum, f) => sum + BigInt(f.size || 0), 0n);
-        try {
-          await storageQuotaService.reserve({ projectId, incomingBytes: totalIncomingBytes });
-          reservedTotalBytes = totalIncomingBytes;
-        } catch (quotaErr) {
-          return res.status(400).json({
-            success: false,
-            message: quotaErr.message
-          });
-        }
+      const totalIncomingBytes = files.reduce((sum, f) => sum + BigInt(f.size || 0), 0n);
+
+      // Validate personal or team quota + global storage pool capacity
+      const quotaCheck = await storageQuotaService.validateUpload({
+        scope: folderRecord?.storageScope || 'PERSONAL',
+        userId: req.userId,
+        teamId: folderRecord?.teamId,
+        incomingBytes: totalIncomingBytes
+      });
+
+      if (!quotaCheck.allowed) {
+        return res.status(400).json({
+          success: false,
+          message: quotaCheck.reason || 'Storage quota exceeded'
+        });
       }
 
       if (driveFolderId) {
@@ -194,9 +188,6 @@ exports.uploadFiles = async (req, res) => {
       }
 
       if (!targetDriveFolderId) {
-        if (hasQuotaAllocation && reservedTotalBytes > 0n) {
-          await storageQuotaService.release({ projectId, bytes: reservedTotalBytes });
-        }
         return res.status(400).json({
           success: false,
           message: 'Google Drive target folder is not configured yet.'
@@ -257,12 +248,6 @@ exports.uploadFiles = async (req, res) => {
           });
           uploadedRecords.push(dbFile);
 
-          if (primaryProvider === 'google_drive' && hasQuotaAllocation) {
-            const storageQuotaService = require('../services/storageQuotaService');
-            await storageQuotaService.finalize({ projectId, bytes: BigInt(file.size || 0) });
-            reservedTotalBytes -= BigInt(file.size || 0);
-          }
-
           createAuditLog({
             userId: req.userId,
             action: 'Uploaded',
@@ -281,10 +266,6 @@ exports.uploadFiles = async (req, res) => {
         }
       }
     } catch (err) {
-      if (primaryProvider === 'google_drive' && hasQuotaAllocation && reservedTotalBytes > 0n) {
-        const storageQuotaService = require('../services/storageQuotaService');
-        await storageQuotaService.release({ projectId, bytes: reservedTotalBytes });
-      }
       throw err;
     }
 

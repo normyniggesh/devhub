@@ -11,35 +11,35 @@ async function runStep1Tests() {
 
   if (ensureSchema) await ensureSchema();
 
-  // 1. Setup Test Admin User and Non-Admin User
-  let adminUser = await prisma.user.findFirst({ where: { email: 'admin_test@devhub.test' } });
-  if (!adminUser) {
-    adminUser = await prisma.user.create({
-      data: {
-        email: 'admin_test@devhub.test',
-        name: 'Admin Tester',
-        passwordHash: 'dummyhash',
-        role: 'Admin'
-      }
-    });
-  } else if (adminUser.role !== 'Admin') {
-    adminUser = await prisma.user.update({
-      where: { id: adminUser.id },
-      data: { role: 'Admin' }
-    });
-  }
+  // 1. Setup Isolated Test Admin User and Non-Admin User (Never touches admin@devhub.test)
+  const adminEmail = `test_step1_admin_${Date.now()}@devhub.test`;
+  const regularEmail = `test_step1_user_${Date.now()}@devhub.test`;
 
-  let regularUser = await prisma.user.findFirst({ where: { email: 'regular_test@devhub.test' } });
-  if (!regularUser) {
-    regularUser = await prisma.user.create({
-      data: {
-        email: 'regular_test@devhub.test',
-        name: 'Regular Tester',
-        passwordHash: 'dummyhash',
-        role: 'Member'
-      }
-    });
-  }
+  const adminUser = await prisma.user.create({
+    data: {
+      email: adminEmail,
+      name: 'Isolated Admin Tester',
+      passwordHash: 'dummyhash',
+      role: 'Admin',
+      emailVerified: true
+    }
+  });
+
+  const regularUser = await prisma.user.create({
+    data: {
+      email: regularEmail,
+      name: 'Isolated Regular Tester',
+      passwordHash: 'dummyhash',
+      role: 'Member',
+      emailVerified: true
+    }
+  });
+
+  // Track live system storage integration so it can never be lost
+  const existingDriveIntegrations = await prisma.userIntegration.findMany({
+    where: { provider: 'google_drive' }
+  });
+  const liveSystemStorageId = existingDriveIntegrations.find(i => i.metadata && i.metadata.isSystemStorage === true)?.id;
 
   const adminToken = jwt.sign({ userId: adminUser.id }, JWT_SECRET, { expiresIn: '1h' });
   const regularToken = jwt.sign({ userId: regularUser.id }, JWT_SECRET, { expiresIn: '1h' });
@@ -275,12 +275,6 @@ async function runStep1Tests() {
       allPassed = false;
     }
 
-    // Restore system storage enabled state for subsequent tests/operations
-    await prisma.userIntegration.updateMany({
-      where: { userId: adminUser.id, provider: 'google_drive' },
-      data: { metadata: { ...deactDb.metadata, isSystemStorage: true } }
-    });
-
     console.log('\n========================================================');
     if (allPassed) {
       console.log('   >>> ALL STEP 1 TESTS PASSED SUCCESSFULLY! <<<');
@@ -290,6 +284,30 @@ async function runStep1Tests() {
     console.log('========================================================\n');
 
   } finally {
+    if (adminUser?.id || regularUser?.id) {
+      const userIds = [adminUser?.id, regularUser?.id].filter(Boolean);
+      await prisma.auditLog.deleteMany({ where: { userId: { in: userIds } } }).catch(() => {});
+      await prisma.personalStorageAllocation.deleteMany({ where: { userId: { in: userIds } } }).catch(() => {});
+      await prisma.userIntegration.deleteMany({ where: { userId: { in: userIds } } }).catch(() => {});
+      await prisma.user.deleteMany({ where: { id: { in: userIds } } }).catch(() => {});
+    }
+
+    // Guarantee pre-existing live system storage remains active
+    if (liveSystemStorageId) {
+      const liveInt = await prisma.userIntegration.findUnique({ where: { id: liveSystemStorageId } });
+      if (liveInt && liveInt.metadata && liveInt.metadata.isSystemStorage !== true) {
+        await prisma.userIntegration.update({
+          where: { id: liveSystemStorageId },
+          data: {
+            metadata: {
+              ...liveInt.metadata,
+              isSystemStorage: true
+            }
+          }
+        }).catch(() => {});
+      }
+    }
+
     server.close();
     await prisma.$disconnect();
   }

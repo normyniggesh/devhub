@@ -1,3 +1,4 @@
+require('dotenv').config();
 const prisma = require('./src/db');
 const { getTeamData, getMemberDetails } = require('./src/controllers/team');
 const { getProviderQuota } = require('./src/controllers/integrations');
@@ -5,27 +6,40 @@ const { getProviderQuota } = require('./src/controllers/integrations');
 async function runVerification() {
   console.log('=== STARTING FILES & TEAM SUITE VERIFICATION ===\n');
 
-  // Find Umer user (the one collaborating with Paarth)
-  const umer = await prisma.user.findFirst({
-    where: { email: 'umer@devhub.test' }
+  // Create isolated test users (Never touches or assumes demo accounts)
+  const ts = Date.now();
+  const umer = await prisma.user.create({
+    data: {
+      email: `test_team_umer_${ts}@devhub.test`,
+      name: 'Umer (Team Tester)',
+      passwordHash: 'dummyhash',
+      role: 'Admin',
+      emailVerified: true
+    }
   });
 
-  if (!umer) {
-    throw new Error('Umer user not found in database');
-  }
-
-  console.log(`[PASS] Found Umer user: ${umer.name} (${umer.email}), ID: ${umer.id}`);
-
-  // Find Paarth user
-  const paarth = await prisma.user.findFirst({
-    where: { email: 'paarth@devhub.test' }
+  const paarth = await prisma.user.create({
+    data: {
+      email: `test_team_paarth_${ts}@devhub.test`,
+      name: 'Paarth (Team Tester)',
+      passwordHash: 'dummyhash',
+      role: 'Member',
+      emailVerified: true
+    }
   });
 
-  if (!paarth) {
-    throw new Error('Paarth user not found in database');
-  }
-
-  console.log(`[PASS] Found Paarth user: ${paarth.name} (${paarth.email}), ID: ${paarth.id}`);
+  // Create isolated test project linking them
+  const testProject = await prisma.project.create({
+    data: {
+      name: `Team Test Project ${ts}`,
+      ownerId: umer.id,
+      members: {
+        create: [
+          { userId: paarth.id, role: 'Editor' }
+        ]
+      }
+    }
+  });
 
   // Test 1: Team Data endpoint
   console.log('\n--- 1. Testing GET /api/team ---');
@@ -101,7 +115,20 @@ async function runVerification() {
   console.log(`  - Dropbox: connected=${quotaResult.quotas.dropbox.connected}`);
   console.log(`  - OneDrive: connected=${quotaResult.quotas.onedrive.connected}`);
 
-  console.log('\n=== ALL TESTS PASSED SUCCESSFULLY! ===');
+  try {
+    console.log('\n=== ALL TESTS PASSED SUCCESSFULLY! ===');
+  } finally {
+    if (testProject?.id) {
+      await prisma.projectMember.deleteMany({ where: { projectId: testProject.id } }).catch(() => {});
+      await prisma.project.delete({ where: { id: testProject.id } }).catch(() => {});
+    }
+    const uids = [umer?.id, paarth?.id].filter(Boolean);
+    if (uids.length > 0) {
+      await prisma.personalStorageAllocation.deleteMany({ where: { userId: { in: uids } } }).catch(() => {});
+      await prisma.user.deleteMany({ where: { id: { in: uids } } }).catch(() => {});
+    }
+    await prisma.$disconnect();
+  }
   process.exit(0);
 }
 
