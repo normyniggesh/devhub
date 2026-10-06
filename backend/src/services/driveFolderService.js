@@ -1,4 +1,31 @@
 const prisma = require('../db');
+const { STORAGE_SCOPES } = require('../constants/storage');
+
+/**
+ * Authoritative Google Drive Folder Service for DEVHUB
+ *
+ * Implements the Final Google Drive Storage Hierarchy:
+ *
+ * Google Drive
+ * └── DEVHUB
+ *     ├── Users
+ *     │   └── <user> (email or email_id)
+ *     │
+ *     └── Teams
+ *         └── <team> (teamName or teamName_id)
+ *
+ * Reusable functions:
+ * - ensureDevhubRoot()
+ * - ensureUsersRoot()
+ * - ensureTeamsRoot()
+ * - ensureUserDriveFolder(userId)
+ * - ensureTeamDriveFolder(teamId)
+ *
+ * Invariants:
+ * 1. Repeated calls return existing folders (idempotent, zero duplicate folders).
+ * 2. Drive IDs are stored in database fields (metadata mapping and Folder.driveFolderId).
+ * 3. Drive IDs are never exposed to regular users.
+ */
 
 /**
  * Resolves Google Drive access token, avoiding circular require at startup.
@@ -119,13 +146,9 @@ async function verifyDriveFolderExists(folderId, token) {
 }
 
 /**
- * TASK 1: DEVHUB ROOT FOLDER
- * Ensures the root 'DEVHUB' folder exists in the Owner's Drive at 'root'.
- * Persists the resulting ID in the System Storage integration metadata.
- *
- * @returns {Promise<string>} - Google Drive folder ID for DEVHUB root
+ * Helper to fetch and cache system storage integration metadata
  */
-async function ensureDriveRoot() {
+async function getSystemStorageIntegration() {
   const allIntegrations = await prisma.userIntegration.findMany({
     where: { provider: 'google_drive', status: 'connected' }
   });
@@ -133,22 +156,28 @@ async function ensureDriveRoot() {
   if (!sys) {
     throw new Error('Google Drive system storage is not configured or not connected.');
   }
+  return sys;
+}
 
-  const token = await getDriveAccessToken();
+/**
+ * 1. ENSURE DEVHUB ROOT FOLDER
+ * Hierarchy: Google Drive -> 'DEVHUB'
+ */
+async function ensureDevhubRoot(customToken) {
+  const sys = await getSystemStorageIntegration();
+  const token = await getDriveAccessToken(customToken);
   const metadata = sys.metadata || {};
 
-  // Check if we already have a cached root folder ID and it's valid in Drive
+  // Check cached folder ID
   if (metadata.driveRootFolderId) {
-    const stillValid = await verifyDriveFolderExists(metadata.driveRootFolderId, token);
-    if (stillValid) {
-      return metadata.driveRootFolderId;
-    }
+    const valid = await verifyDriveFolderExists(metadata.driveRootFolderId, token);
+    if (valid) return metadata.driveRootFolderId;
   }
 
-  // Idempotently search or create 'DEVHUB' under 'root'
+  // Idempotently find or create 'DEVHUB' under 'root'
   const rootId = await findOrCreateDriveFolder('DEVHUB', 'root', token);
 
-  // Persist the root folder ID in System Storage integration metadata
+  // Persist in system integration metadata
   await prisma.userIntegration.update({
     where: { id: sys.id },
     data: {
@@ -164,69 +193,181 @@ async function ensureDriveRoot() {
 }
 
 /**
- * TASK 2: TEAM MAPPING
- * Ensures the Team folder exists under DEVHUB root.
- * Default name: 'Team'
- *
- * @param {string} [teamName='Team']
- * @returns {Promise<string>} - Google Drive folder ID for the Team folder
+ * 2. ENSURE USERS ROOT FOLDER
+ * Hierarchy: Google Drive -> DEVHUB -> 'Users'
  */
-async function ensureDriveTeamFolder(teamName = 'Team') {
-  const rootId = await ensureDriveRoot();
-  const token = await getDriveAccessToken();
-  return await findOrCreateDriveFolder(teamName, rootId, token);
-}
+async function ensureUsersRoot(customToken) {
+  const sys = await getSystemStorageIntegration();
+  const token = await getDriveAccessToken(customToken);
+  const metadata = sys.metadata || {};
 
-/**
- * TASK 3: PROJECT FOLDER PROVISIONING
- * Ensures the project folder exists under DEVHUB/Team/<Project Name>.
- * Stores and returns Project.driveFolderId in PostgreSQL.
- *
- * @param {string} projectId
- * @returns {Promise<string>} - Google Drive folder ID for the Project
- */
-async function ensureProjectDriveFolder(projectId) {
-  if (!projectId) throw new Error('projectId is required');
-
-  const project = await prisma.project.findUnique({
-    where: { id: projectId }
-  });
-  if (!project) throw new Error(`Project not found: ${projectId}`);
-
-  const token = await getDriveAccessToken();
-
-  // If already set, verify it still exists in Drive
-  if (project.driveFolderId) {
-    const exists = await verifyDriveFolderExists(project.driveFolderId, token);
-    if (exists) return project.driveFolderId;
+  if (metadata.usersRootFolderId) {
+    const valid = await verifyDriveFolderExists(metadata.usersRootFolderId, token);
+    if (valid) return metadata.usersRootFolderId;
   }
 
-  // Ensure parent Team folder under DEVHUB root
-  const teamFolderId = await ensureDriveTeamFolder('Team');
+  const devhubRootId = await ensureDevhubRoot(token);
+  const usersRootId = await findOrCreateDriveFolder('Users', devhubRootId, token);
 
-  // Idempotently find or create project folder
-  const projectName = project.name.trim() || `project_${project.id.slice(0, 8)}`;
-  const projectDriveId = await findOrCreateDriveFolder(projectName, teamFolderId, token);
-
-  // Persist in Project.driveFolderId
-  await prisma.project.update({
-    where: { id: projectId },
-    data: { driveFolderId: projectDriveId }
+  await prisma.userIntegration.update({
+    where: { id: sys.id },
+    data: {
+      metadata: {
+        ...metadata,
+        usersRootFolderId: usersRootId
+      },
+      updatedAt: new Date()
+    }
   });
 
-  return projectDriveId;
+  return usersRootId;
 }
 
 /**
- * TASK 4: DEVHUB INTERNAL FOLDER MAPPING
- * Ensures a DEVHUB Folder record maps to a Google Drive folder under its project or parent folder.
- * Supports nested Folder.parentId relationships.
- * Stores and returns Folder.driveFolderId in PostgreSQL.
+ * 3. ENSURE TEAMS ROOT FOLDER
+ * Hierarchy: Google Drive -> DEVHUB -> 'Teams'
+ */
+async function ensureTeamsRoot(customToken) {
+  const sys = await getSystemStorageIntegration();
+  const token = await getDriveAccessToken(customToken);
+  const metadata = sys.metadata || {};
+
+  if (metadata.teamsRootFolderId) {
+    const valid = await verifyDriveFolderExists(metadata.teamsRootFolderId, token);
+    if (valid) return metadata.teamsRootFolderId;
+  }
+
+  const devhubRootId = await ensureDevhubRoot(token);
+  const teamsRootId = await findOrCreateDriveFolder('Teams', devhubRootId, token);
+
+  await prisma.userIntegration.update({
+    where: { id: sys.id },
+    data: {
+      metadata: {
+        ...metadata,
+        teamsRootFolderId: teamsRootId
+      },
+      updatedAt: new Date()
+    }
+  });
+
+  return teamsRootId;
+}
+
+/**
+ * 4. ENSURE USER DRIVE FOLDER
+ * Hierarchy: Google Drive -> DEVHUB -> Users -> <user>
+ *
+ * @param {string} userId - DEVHUB user ID
+ * @param {string} [customToken]
+ * @returns {Promise<string>} - Google Drive folder ID for user
+ */
+async function ensureUserDriveFolder(userId, customToken) {
+  if (!userId) throw new Error('userId is required');
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true, name: true }
+  });
+  if (!user) throw new Error(`User not found: ${userId}`);
+
+  const sys = await getSystemStorageIntegration();
+  const token = await getDriveAccessToken(customToken);
+  const metadata = sys.metadata || {};
+  const userFolderMap = metadata.userFolders || {};
+
+  // Check cached folder ID
+  if (userFolderMap[userId]) {
+    const valid = await verifyDriveFolderExists(userFolderMap[userId], token);
+    if (valid) return userFolderMap[userId];
+  }
+
+  const usersRootId = await ensureUsersRoot(token);
+  // Folder name: user.email (fallback name)
+  const folderName = user.email || `user_${user.id.slice(0, 8)}`;
+  const userDriveId = await findOrCreateDriveFolder(folderName, usersRootId, token);
+
+  // Persist in system metadata map
+  await prisma.userIntegration.update({
+    where: { id: sys.id },
+    data: {
+      metadata: {
+        ...metadata,
+        userFolders: {
+          ...userFolderMap,
+          [userId]: userDriveId
+        }
+      },
+      updatedAt: new Date()
+    }
+  });
+
+  return userDriveId;
+}
+
+/**
+ * 5. ENSURE TEAM DRIVE FOLDER
+ * Hierarchy: Google Drive -> DEVHUB -> Teams -> <team>
+ *
+ * @param {string} teamId - DEVHUB team ID
+ * @param {string} [customToken]
+ * @returns {Promise<string>} - Google Drive folder ID for team
+ */
+async function ensureTeamDriveFolder(teamId, customToken) {
+  if (!teamId) throw new Error('teamId is required');
+
+  const team = await prisma.team.findUnique({
+    where: { id: teamId },
+    select: { id: true, name: true }
+  });
+  if (!team) throw new Error(`Team not found: ${teamId}`);
+
+  const sys = await getSystemStorageIntegration();
+  const token = await getDriveAccessToken(customToken);
+  const metadata = sys.metadata || {};
+  const teamFolderMap = metadata.teamFolders || {};
+
+  // Check cached folder ID
+  if (teamFolderMap[teamId]) {
+    const valid = await verifyDriveFolderExists(teamFolderMap[teamId], token);
+    if (valid) return teamFolderMap[teamId];
+  }
+
+  const teamsRootId = await ensureTeamsRoot(token);
+  // Folder name: team.name
+  const folderName = team.name ? `${team.name.trim()} (${team.id.slice(0, 8)})` : `team_${team.id.slice(0, 8)}`;
+  const teamDriveId = await findOrCreateDriveFolder(folderName, teamsRootId, token);
+
+  // Persist in system metadata map
+  await prisma.userIntegration.update({
+    where: { id: sys.id },
+    data: {
+      metadata: {
+        ...metadata,
+        teamFolders: {
+          ...teamFolderMap,
+          [teamId]: teamDriveId
+        }
+      },
+      updatedAt: new Date()
+    }
+  });
+
+  return teamDriveId;
+}
+
+/**
+ * 6. ENSURE DEVHUB APPLICATION FOLDER MAPPING
+ * Ensures any application Folder record maps to a Google Drive folder
+ * respecting PERSONAL vs TEAM hierarchy.
+ * Supports arbitrary nested subfolders.
+ * Persists result in Folder.driveFolderId in PostgreSQL.
  *
  * @param {string} folderId
- * @returns {Promise<string>} - Google Drive folder ID for the Folder
+ * @param {string} [customToken]
+ * @returns {Promise<string>} - Drive folder ID
  */
-async function ensureDevhubDriveFolder(folderId) {
+async function ensureDevhubDriveFolder(folderId, customToken) {
   if (!folderId) throw new Error('folderId is required');
 
   const folder = await prisma.folder.findUnique({
@@ -234,34 +375,48 @@ async function ensureDevhubDriveFolder(folderId) {
   });
   if (!folder) throw new Error(`Folder not found: ${folderId}`);
 
-  const token = await getDriveAccessToken();
+  const token = await getDriveAccessToken(customToken);
 
-  // If already set, verify it still exists in Drive
+  // If already mapped and valid, return it
   if (folder.driveFolderId) {
-    const exists = await verifyDriveFolderExists(folder.driveFolderId, token);
-    if (exists) return folder.driveFolderId;
+    const valid = await verifyDriveFolderExists(folder.driveFolderId, token);
+    if (valid) return folder.driveFolderId;
   }
 
-  // Determine parent Drive folder:
-  // If nested inside a parent DEVHUB folder, ensure parent folder recursively
-  // Otherwise, ensure project Drive folder
-  let parentDriveFolderId;
+  // Determine parent Drive folder
+  let parentDriveId;
   if (folder.parentId) {
-    parentDriveFolderId = await ensureDevhubDriveFolder(folder.parentId);
+    parentDriveId = await ensureDevhubDriveFolder(folder.parentId, token);
+  } else if (folder.storageScope === STORAGE_SCOPES.TEAM && folder.teamId) {
+    parentDriveId = await ensureTeamDriveFolder(folder.teamId, token);
   } else {
-    parentDriveFolderId = await ensureProjectDriveFolder(folder.projectId);
+    // PERSONAL scope default
+    parentDriveId = await ensureUserDriveFolder(folder.creatorId, token);
   }
 
-  const folderName = folder.name.trim() || `folder_${folder.id.slice(0, 8)}`;
-  const folderDriveId = await findOrCreateDriveFolder(folderName, parentDriveFolderId, token);
+  const safeFolderName = folder.name?.trim() || `folder_${folder.id.slice(0, 8)}`;
+  const driveId = await findOrCreateDriveFolder(safeFolderName, parentDriveId, token);
 
-  // Persist in Folder.driveFolderId
+  // Persist in database
   await prisma.folder.update({
     where: { id: folderId },
-    data: { driveFolderId: folderDriveId }
+    data: { driveFolderId: driveId }
   });
 
-  return folderDriveId;
+  return driveId;
+}
+
+/**
+ * Sanitizes folder objects before returning to regular users (strips internal Drive IDs)
+ */
+function sanitizeFolderForClient(folder, user) {
+  if (!folder) return null;
+  const isPrivileged = user && user.role === 'Admin';
+  if (isPrivileged) return folder;
+
+  const copy = { ...folder };
+  delete copy.driveFolderId;
+  return copy;
 }
 
 module.exports = {
@@ -269,8 +424,12 @@ module.exports = {
   createDriveFolder,
   findOrCreateDriveFolder,
   verifyDriveFolderExists,
-  ensureDriveRoot,
-  ensureDriveTeamFolder,
-  ensureProjectDriveFolder,
-  ensureDevhubDriveFolder
+  ensureDevhubRoot,
+  ensureDriveRoot: ensureDevhubRoot, // Backwards compatible alias
+  ensureUsersRoot,
+  ensureTeamsRoot,
+  ensureUserDriveFolder,
+  ensureTeamDriveFolder,
+  ensureDevhubDriveFolder,
+  sanitizeFolderForClient
 };
