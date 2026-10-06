@@ -200,7 +200,70 @@ class StorageQuotaService {
     return { allowed: true };
   }
 
+  /**
+   * Synchronize authoritative usedBytes in PersonalStorageAllocation or TeamStorageAllocation
+   * from the database sum of File records.
+   *
+   * @param {string} scope - STORAGE_SCOPES.PERSONAL or STORAGE_SCOPES.TEAM
+   * @param {string} targetId - userId for personal, teamId for team
+   * @returns {Promise<bigint>} - updated usedBytes
+   */
+  async syncUsage(scope, targetId) {
+    if (!targetId) return 0n;
+
+    if (scope === STORAGE_SCOPES.TEAM) {
+      await this.ensureTeamAllocation(targetId);
+      const agg = await prisma.file.aggregate({
+        where: { teamId: targetId, storageScope: STORAGE_SCOPES.TEAM },
+        _sum: { size: true }
+      });
+      const usedBytes = BigInt(agg._sum.size || 0);
+      await prisma.teamStorageAllocation.updateMany({
+        where: { teamId: targetId },
+        data: { usedBytes, updatedAt: new Date() }
+      });
+      return usedBytes;
+    } else {
+      await this.ensurePersonalAllocation(targetId);
+      const agg = await prisma.file.aggregate({
+        where: { uploaderId: targetId, storageScope: STORAGE_SCOPES.PERSONAL },
+        _sum: { size: true }
+      });
+      const usedBytes = BigInt(agg._sum.size || 0);
+      await prisma.personalStorageAllocation.updateMany({
+        where: { userId: targetId },
+        data: { usedBytes, updatedAt: new Date() }
+      });
+      return usedBytes;
+    }
+  }
+
+  /**
+   * Record successful upload accounting.
+   */
+  async recordUploadSuccess({ scope, userId, teamId, sizeBytes }) {
+    if (scope === STORAGE_SCOPES.TEAM && teamId) {
+      return await this.syncUsage(STORAGE_SCOPES.TEAM, teamId);
+    }
+    if (userId) {
+      return await this.syncUsage(STORAGE_SCOPES.PERSONAL, userId);
+    }
+  }
+
+  /**
+   * Record successful delete accounting.
+   */
+  async recordDeleteSuccess({ scope, userId, teamId, sizeBytes }) {
+    if (scope === STORAGE_SCOPES.TEAM && teamId) {
+      return await this.syncUsage(STORAGE_SCOPES.TEAM, teamId);
+    }
+    if (userId) {
+      return await this.syncUsage(STORAGE_SCOPES.PERSONAL, userId);
+    }
+  }
+
   // Deprecated project-based quota methods (kept as no-ops to prevent crashes)
+
   async getQuota() { return null; }
   async setQuota() { return null; }
   async deactivateQuota() { return null; }

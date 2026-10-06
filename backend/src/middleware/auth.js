@@ -12,6 +12,12 @@ const authMiddleware = async (req, res, next) => {
     token = req.headers.authorization.split(' ')[1];
   }
 
+  // Support query parameter token (for direct stream downloads / window popups)
+  if (!token && req.query.token) {
+    token = req.query.token;
+  }
+
+
   if (!token) {
     return res.status(401).json({ error: 'Authentication required' });
   }

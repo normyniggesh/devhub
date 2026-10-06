@@ -419,6 +419,37 @@ function sanitizeFolderForClient(folder, user) {
   return copy;
 }
 
+/**
+ * Resolves the appropriate Google Drive parent folder for an incoming file
+ * based on its scope, user, team, or parent folder.
+ * Guarantees that no file is stored directly in the Google Drive root.
+ *
+ * @param {Object} params
+ * @param {string} [params.scope] - 'PERSONAL' | 'TEAM'
+ * @param {string} [params.storageScope]
+ * @param {string} [params.userId]
+ * @param {string} [params.teamId]
+ * @param {string} [params.folderId]
+ * @param {string} [params.customToken]
+ * @returns {Promise<string>} - Google Drive folder ID
+ */
+async function resolveTargetDriveFolder({ scope, storageScope, userId, teamId, folderId, customToken } = {}) {
+  if (folderId && folderId !== 'null') {
+    return await ensureDevhubDriveFolder(folderId, customToken);
+  }
+
+  const storageScopeService = require('./storageScopeService');
+  const targetScope = storageScopeService.resolveScope({ scope, storageScope, teamId });
+
+  if (targetScope === storageScopeService.SCOPES.TEAM) {
+    if (!teamId) throw new Error('teamId is required to resolve team Drive folder');
+    return await ensureTeamDriveFolder(teamId, customToken);
+  }
+
+  if (!userId) throw new Error('userId is required to resolve personal Drive folder');
+  return await ensureUserDriveFolder(userId, customToken);
+}
+
 module.exports = {
   findDriveFolder,
   createDriveFolder,
@@ -431,5 +462,7 @@ module.exports = {
   ensureUserDriveFolder,
   ensureTeamDriveFolder,
   ensureDevhubDriveFolder,
+  resolveTargetDriveFolder,
   sanitizeFolderForClient
 };
+

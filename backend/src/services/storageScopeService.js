@@ -184,7 +184,46 @@ class StorageScopeService {
   }
 
   /**
+   * Check if a user can manage (delete/update) a specific File record.
+   *
+   * @param {Object} params
+   * @param {Object} params.user - { id, role }
+   * @param {Object} params.file - File record
+   * @returns {Promise<{ allowed: boolean, reason?: string }>}
+   */
+  async canManageFile({ user, file }) {
+    if (!user || !file) return { allowed: false, reason: 'Authentication and file required' };
+    if (user.role === USER_ROLES.ADMIN) return { allowed: true, reason: 'Admin full access' };
+
+    const resolvedScope = file.storageScope || (file.teamId ? this.SCOPES.TEAM : this.SCOPES.PERSONAL);
+
+    if (resolvedScope === this.SCOPES.PERSONAL) {
+      const isOwner = file.uploaderId === user.id;
+      return {
+        allowed: isOwner,
+        reason: isOwner ? 'Owner file management' : 'Personal file can only be deleted/managed by owner or Admin'
+      };
+    }
+
+    if (resolvedScope === this.SCOPES.TEAM) {
+      if (!file.teamId) return { allowed: false, reason: 'Missing teamId on team file' };
+      const membership = await prisma.teamMember.findUnique({
+        where: { teamId_userId: { teamId: file.teamId, userId: user.id } }
+      });
+      if (!membership) return { allowed: false, reason: 'Access denied: not a member of this team' };
+      const isLeaderOrUploader = membership.role === TEAM_ROLES.LEADER || file.uploaderId === user.id;
+      return {
+        allowed: isLeaderOrUploader,
+        reason: isLeaderOrUploader ? 'Team leader or file uploader' : 'Only Team Leaders, uploader, or Admin can manage team files'
+      };
+    }
+
+    return { allowed: false, reason: 'Invalid file storage scope' };
+  }
+
+  /**
    * Resolve quota source details for quota tracking.
+
    *
    * @param {Object} params
    * @param {string} params.scope - 'PERSONAL' | 'TEAM'
