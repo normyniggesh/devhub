@@ -1,78 +1,159 @@
 const prisma = require('../db');
 const { createAuditLog } = require('../utils/audit');
+const teamService = require('../services/teamService');
+const permissionService = require('../services/permissionService');
+const { TEAM_ROLES } = require('../constants/storage');
 
-const VALID_ROLES = ['Admin', 'Editor', 'Member', 'Viewer'];
+const VALID_ROLES = ['Admin', 'Leader', 'Member', 'Viewer'];
 
 /**
- * Get aggregated team members across all projects accessible to the current user,
+ * Get aggregated team members across all teams accessible to the current user,
  * along with real summary statistics and integration connection statuses (zero secrets).
  */
 exports.getTeamData = async (req, res) => {
   try {
     const currentUserId = req.userId;
 
-    // 1. Fetch all projects accessible to current user
-    const accessibleProjects = await prisma.project.findMany({
-      where: {
-        OR: [
-          { ownerId: currentUserId },
-          { members: { some: { userId: currentUserId } } }
-        ]
-      },
-      include: {
-        owner: {
+    const currentUser = await prisma.user.findUnique({
+      where: { id: currentUserId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        avatarUrl: true,
+        status: true,
+        lastSeen: true,
+        createdAt: true,
+        integrations: {
           select: {
-            id: true,
-            name: true,
-            email: true,
-            avatarUrl: true,
-            role: true,
+            provider: true,
             status: true,
-            lastSeen: true,
-            createdAt: true,
-            integrations: {
-              select: {
-                provider: true,
-                status: true,
-                accountName: true
-              }
-            }
+            accountName: true
           }
-        },
-        members: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                avatarUrl: true,
-                role: true,
-                status: true,
-                lastSeen: true,
-                createdAt: true,
-                integrations: {
-                  select: {
-                    provider: true,
-                    status: true,
-                    accountName: true
+        }
+      }
+    });
+
+    if (!currentUser) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const isAdmin = permissionService.isAdmin(currentUser);
+
+    // 1. Fetch accessible teams based on role
+    let teams = [];
+    if (isAdmin) {
+      teams = await prisma.team.findMany({
+        include: {
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatarUrl: true,
+              role: true,
+              status: true,
+              lastSeen: true,
+              createdAt: true
+            }
+          },
+          members: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  avatarUrl: true,
+                  role: true,
+                  status: true,
+                  lastSeen: true,
+                  createdAt: true,
+                  integrations: {
+                    select: {
+                      provider: true,
+                      status: true,
+                      accountName: true
+                    }
                   }
                 }
               }
             }
           }
-        }
-      },
-      orderBy: { updatedAt: 'desc' }
-    });
+        },
+        orderBy: { updatedAt: 'desc' }
+      });
+    } else {
+      teams = await prisma.team.findMany({
+        where: {
+          OR: [
+            { createdById: currentUserId },
+            { members: { some: { userId: currentUserId } } }
+          ]
+        },
+        include: {
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatarUrl: true,
+              role: true,
+              status: true,
+              lastSeen: true,
+              createdAt: true
+            }
+          },
+          members: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  avatarUrl: true,
+                  role: true,
+                  status: true,
+                  lastSeen: true,
+                  createdAt: true,
+                  integrations: {
+                    select: {
+                      provider: true,
+                      status: true,
+                      accountName: true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        orderBy: { updatedAt: 'desc' }
+      });
+    }
 
-    // 2. Aggregate unique users across accessible projects
+    // 2. Aggregate unique users across accessible teams
     const membersMap = new Map();
 
-    accessibleProjects.forEach(proj => {
-      // Process owner
-      if (proj.owner) {
-        const u = proj.owner;
+    // Ensure current user is always included in the view
+    membersMap.set(currentUser.id, {
+      id: currentUser.id,
+      name: currentUser.name,
+      email: currentUser.email,
+      avatarUrl: currentUser.avatarUrl,
+      systemRole: currentUser.role || 'Admin',
+      status: currentUser.status || 'Active',
+      lastSeen: currentUser.lastSeen,
+      createdAt: currentUser.createdAt,
+      teams: [],
+      integrations: currentUser.integrations || []
+    });
+
+    teams.forEach(t => {
+      // Process team creator
+      if (t.createdBy) {
+        const u = t.createdBy;
         if (!membersMap.has(u.id)) {
           membersMap.set(u.id, {
             id: u.id,
@@ -83,22 +164,22 @@ exports.getTeamData = async (req, res) => {
             status: u.status || 'Active',
             lastSeen: u.lastSeen,
             createdAt: u.createdAt,
-            projects: [],
+            teams: [],
             integrations: u.integrations || []
           });
         }
         const memberData = membersMap.get(u.id);
-        if (!memberData.projects.some(p => p.id === proj.id)) {
-          memberData.projects.push({
-            id: proj.id,
-            name: proj.name,
-            role: 'Owner'
+        if (!memberData.teams.some(teamItem => teamItem.id === t.id)) {
+          memberData.teams.push({
+            id: t.id,
+            name: t.name,
+            role: 'Leader'
           });
         }
       }
 
-      // Process project members
-      (proj.members || []).forEach(m => {
+      // Process team members
+      (t.members || []).forEach(m => {
         if (m.user) {
           const u = m.user;
           if (!membersMap.has(u.id)) {
@@ -111,15 +192,15 @@ exports.getTeamData = async (req, res) => {
               status: u.status || 'Active',
               lastSeen: u.lastSeen,
               createdAt: u.createdAt,
-              projects: [],
+              teams: [],
               integrations: u.integrations || []
             });
           }
           const memberData = membersMap.get(u.id);
-          if (!memberData.projects.some(p => p.id === proj.id)) {
-            memberData.projects.push({
-              id: proj.id,
-              name: proj.name,
+          if (!memberData.teams.some(teamItem => teamItem.id === t.id)) {
+            memberData.teams.push({
+              id: t.id,
+              name: t.name,
               role: m.role || 'Member'
             });
           }
@@ -130,17 +211,16 @@ exports.getTeamData = async (req, res) => {
     // 3. Format members list
     const members = Array.from(membersMap.values()).map(m => {
       const githubInt = m.integrations.find(i => i.provider === 'github' && i.status === 'connected');
-      const cloudInts = m.integrations.filter(i => 
+      const cloudInts = m.integrations.filter(i =>
         ['google_drive', 'dropbox', 'onedrive'].includes(i.provider) && i.status === 'connected'
       );
 
-      // Best display role: if any project role is Owner/Admin or system role is Admin
       let displayRole = m.systemRole;
-      if (m.projects.some(p => p.role === 'Owner' || p.role === 'Admin')) {
+      if (m.systemRole === 'Admin') {
         displayRole = 'Admin';
-      } else if (m.projects.some(p => p.role === 'Editor')) {
-        displayRole = 'Editor';
-      } else if (m.projects.some(p => p.role === 'Member')) {
+      } else if (m.teams.some(t => t.role === 'Leader')) {
+        displayRole = 'Leader';
+      } else {
         displayRole = 'Member';
       }
 
@@ -153,8 +233,10 @@ exports.getTeamData = async (req, res) => {
         status: m.status,
         lastSeen: m.lastSeen,
         createdAt: m.createdAt,
-        projectsCount: m.projects.length,
-        projects: m.projects,
+        teamsCount: m.teams.length,
+        teams: m.teams,
+        projectsCount: m.teams.length, // UI compatibility alias
+        projects: m.teams,             // UI compatibility alias
         githubConnected: Boolean(githubInt),
         githubAccount: githubInt?.accountName || null,
         cloudConnected: cloudInts.length > 0,
@@ -164,19 +246,21 @@ exports.getTeamData = async (req, res) => {
     });
 
     // 4. Calculate real summary stats
-    const adminsCount = members.filter(m => m.role === 'Admin').length;
+    const adminsCount = members.filter(m => m.role === 'Admin' || m.role === 'Leader').length;
     const summary = {
       totalMembers: members.length,
-      sharedProjects: accessibleProjects.length,
+      sharedProjects: teams.length,
+      teamsCount: teams.length,
       admins: adminsCount,
-      pendingInvites: 0 // Real count, no pending invite table exists in schema
+      pendingInvites: 0
     };
 
     res.json({
       success: true,
       members,
       summary,
-      projects: accessibleProjects.map(p => ({ id: p.id, name: p.name, ownerId: p.ownerId }))
+      teams: teams.map(t => ({ id: t.id, name: t.name, createdById: t.createdById })),
+      projects: teams.map(t => ({ id: t.id, name: t.name, ownerId: t.createdById }))
     });
   } catch (error) {
     console.error('Error fetching team data:', error);
@@ -185,12 +269,17 @@ exports.getTeamData = async (req, res) => {
 };
 
 /**
- * Get full member details (safe profile, shared projects, integrations status, recent activities)
+ * Get full member details (safe profile, shared teams, integrations status, recent activities)
  */
 exports.getMemberDetails = async (req, res) => {
   try {
     const { userId } = req.params;
     const currentUserId = req.userId;
+
+    const caller = await prisma.user.findUnique({
+      where: { id: currentUserId },
+      select: { id: true, role: true }
+    });
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -215,9 +304,8 @@ exports.getMemberDetails = async (req, res) => {
         },
         _count: {
           select: {
-            projectsOwned: true,
-            projectMemberships: true,
-            tasksAssigned: true,
+            createdTeams: true,
+            teamMemberships: true,
             filesUploaded: true
           }
         }
@@ -228,30 +316,25 @@ exports.getMemberDetails = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Member not found' });
     }
 
-    // Find shared projects between current user and target user
-    const sharedProjects = await prisma.project.findMany({
-      where: {
-        AND: [
-          {
-            OR: [
-              { ownerId: currentUserId },
-              { members: { some: { userId: currentUserId } } }
-            ]
-          },
-          {
-            OR: [
-              { ownerId: userId },
-              { members: { some: { userId: userId } } }
-            ]
-          }
-        ]
-      },
+    const isAdmin = permissionService.isAdmin(caller);
+
+    // Shared teams between current user and target user
+    const teamsWhere = isAdmin
+      ? { members: { some: { userId } } }
+      : {
+          AND: [
+            { members: { some: { userId: currentUserId } } },
+            { members: { some: { userId } } }
+          ]
+        };
+
+    const sharedTeams = await prisma.team.findMany({
+      where: teamsWhere,
       select: {
         id: true,
         name: true,
         description: true,
-        status: true,
-        ownerId: true,
+        createdById: true,
         members: {
           where: { userId },
           select: { role: true, joinedAt: true }
@@ -281,6 +364,14 @@ exports.getMemberDetails = async (req, res) => {
       connectedAt: i.updatedAt
     }));
 
+    const formattedTeams = sharedTeams.map(t => ({
+      id: t.id,
+      name: t.name,
+      description: t.description,
+      isLeader: t.members[0]?.role === 'Leader' || t.createdById === userId,
+      role: t.members[0]?.role || (t.createdById === userId ? 'Leader' : 'Member')
+    }));
+
     res.json({
       success: true,
       member: {
@@ -295,14 +386,8 @@ exports.getMemberDetails = async (req, res) => {
         createdAt: user.createdAt,
         counts: user._count,
         integrations: safeIntegrations,
-        sharedProjects: sharedProjects.map(p => ({
-          id: p.id,
-          name: p.name,
-          description: p.description,
-          status: p.status,
-          isOwner: p.ownerId === userId,
-          role: p.ownerId === userId ? 'Owner' : (p.members[0]?.role || 'Member')
-        }))
+        sharedTeams: formattedTeams,
+        sharedProjects: formattedTeams // UI compatibility
       },
       recentActivity
     });
@@ -313,15 +398,16 @@ exports.getMemberDetails = async (req, res) => {
 };
 
 /**
- * Add a team member to a project
+ * Add a member to a team
  */
 exports.addTeamMember = async (req, res) => {
   try {
-    const { projectId, email, userId, role = 'Member' } = req.body;
+    const { teamId, projectId, email, userId, role = 'Member' } = req.body;
+    const targetTeamId = teamId || projectId;
     const currentUserId = req.userId;
 
-    if (!projectId) {
-      return res.status(400).json({ success: false, message: 'Project is required' });
+    if (!targetTeamId) {
+      return res.status(400).json({ success: false, message: 'Team ID is required' });
     }
 
     let targetUserId = userId;
@@ -341,53 +427,28 @@ exports.addTeamMember = async (req, res) => {
       return res.status(400).json({ success: false, message: 'User ID or valid email is required' });
     }
 
-    // Verify current user is project owner or admin
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
-      include: { members: { where: { userId: currentUserId } } }
+    const team = await prisma.team.findUnique({
+      where: { id: targetTeamId },
+      include: { members: true }
     });
 
-    if (!project) {
-      return res.status(404).json({ success: false, message: 'Project not found' });
+    if (!team) {
+      return res.status(404).json({ success: false, message: 'Team not found' });
     }
 
-    const isOwner = project.ownerId === currentUserId;
-    const currentMember = project.members[0];
-
-    if (!isOwner && (!currentMember || currentMember.role !== 'Admin')) {
-      return res.status(403).json({ success: false, message: 'Only project owners or admins can add members' });
-    }
-
-    // Check if already owner
-    if (project.ownerId === targetUserId) {
-      return res.status(400).json({ success: false, message: 'User is already the owner of this project' });
-    }
-
-    // Check if already member
-    const existingMembership = await prisma.projectMember.findUnique({
-      where: { projectId_userId: { projectId, userId: targetUserId } }
+    const caller = await prisma.user.findUnique({
+      where: { id: currentUserId },
+      select: { id: true, role: true }
     });
 
-    if (existingMembership) {
-      return res.status(400).json({ success: false, message: 'User is already a member of this project' });
+    if (!permissionService.canManageTeam(caller, team.members)) {
+      return res.status(403).json({ success: false, message: 'Only Team Leaders or Admins can add members' });
     }
 
-    const newMember = await prisma.projectMember.create({
-      data: {
-        projectId,
-        userId: targetUserId,
-        role: VALID_ROLES.includes(role) ? role : 'Member'
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatarUrl: true
-          }
-        }
-      }
+    const newMember = await teamService.addMember({
+      teamId: targetTeamId,
+      userId: targetUserId,
+      role: role === TEAM_ROLES.LEADER ? TEAM_ROLES.LEADER : TEAM_ROLES.MEMBER
     });
 
     createAuditLog({
@@ -396,8 +457,8 @@ exports.addTeamMember = async (req, res) => {
       entityType: 'TeamMember',
       entityId: newMember.id,
       metadata: {
-        projectId,
-        projectName: project.name,
+        teamId: targetTeamId,
+        teamName: team.name,
         targetUserId,
         role: newMember.role
       }
@@ -405,7 +466,7 @@ exports.addTeamMember = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Member added successfully',
+      message: 'Member added to team successfully',
       member: newMember
     });
   } catch (error) {
@@ -415,43 +476,38 @@ exports.addTeamMember = async (req, res) => {
 };
 
 /**
- * Update member role across a project or in the system
+ * Update member role across a team or in the system
  */
 exports.updateMemberRole = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { projectId, role } = req.body;
+    const { teamId, projectId, role } = req.body;
     const currentUserId = req.userId;
+    const targetTeamId = teamId || projectId;
 
-    if (!role || !VALID_ROLES.includes(role)) {
-      return res.status(400).json({ success: false, message: `Invalid role. Allowed: ${VALID_ROLES.join(', ')}` });
-    }
+    const caller = await prisma.user.findUnique({
+      where: { id: currentUserId },
+      select: { id: true, role: true }
+    });
 
-    if (projectId) {
-      // Check permission on project
-      const project = await prisma.project.findUnique({
-        where: { id: projectId },
-        include: { members: { where: { userId: currentUserId } } }
+    if (targetTeamId) {
+      const team = await prisma.team.findUnique({
+        where: { id: targetTeamId },
+        include: { members: true }
       });
 
-      if (!project) {
-        return res.status(404).json({ success: false, message: 'Project not found' });
+      if (!team) {
+        return res.status(404).json({ success: false, message: 'Team not found' });
       }
 
-      const isOwner = project.ownerId === currentUserId;
-      const currentMember = project.members[0];
-
-      if (!isOwner && (!currentMember || currentMember.role !== 'Admin')) {
-        return res.status(403).json({ success: false, message: 'Only project owners or admins can change roles' });
+      if (!permissionService.canManageTeam(caller, team.members)) {
+        return res.status(403).json({ success: false, message: 'Only Team Leaders or Admins can change team roles' });
       }
 
-      if (project.ownerId === userId) {
-        return res.status(400).json({ success: false, message: 'Cannot change project owner role' });
-      }
-
-      const updated = await prisma.projectMember.update({
-        where: { projectId_userId: { projectId, userId } },
-        data: { role }
+      const updated = await teamService.updateMemberRole({
+        teamId: targetTeamId,
+        userId,
+        role: role === TEAM_ROLES.LEADER ? TEAM_ROLES.LEADER : TEAM_ROLES.MEMBER
       });
 
       createAuditLog({
@@ -459,19 +515,14 @@ exports.updateMemberRole = async (req, res) => {
         action: 'Updated',
         entityType: 'TeamMemberRole',
         entityId: updated.id,
-        metadata: { projectId, userId, newRole: role }
+        metadata: { teamId: targetTeamId, userId, newRole: role }
       });
 
-      return res.json({ success: true, message: 'Project role updated successfully', member: updated });
+      return res.json({ success: true, message: 'Team role updated successfully', member: updated });
     }
 
-    // If no projectId provided, update system user role (if caller is system Admin)
-    const caller = await prisma.user.findUnique({
-      where: { id: currentUserId },
-      select: { role: true }
-    });
-
-    if (caller?.role !== 'Admin') {
+    // If no targetTeamId provided, update global system role (Admin only)
+    if (!permissionService.isAdmin(caller)) {
       return res.status(403).json({ success: false, message: 'Only Admins can update global member roles' });
     }
 
@@ -496,63 +547,48 @@ exports.updateMemberRole = async (req, res) => {
 };
 
 /**
- * Remove member from a project
+ * Remove member from a team
  */
 exports.removeTeamMember = async (req, res) => {
   try {
-    const { userId, projectId } = req.params;
+    const { userId, teamId, projectId } = req.params;
+    const targetTeamId = teamId || projectId;
     const currentUserId = req.userId;
 
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
-      include: { members: { where: { userId: currentUserId } } }
+    const team = await prisma.team.findUnique({
+      where: { id: targetTeamId },
+      include: { members: true }
     });
 
-    if (!project) {
-      return res.status(404).json({ success: false, message: 'Project not found' });
+    if (!team) {
+      return res.status(404).json({ success: false, message: 'Team not found' });
     }
 
-    const isOwner = project.ownerId === currentUserId;
-    const currentMember = project.members[0];
-
-    // Only Admin, Owner, or the user themselves can remove
-    if (!isOwner && (!currentMember || currentMember.role !== 'Admin') && currentUserId !== userId) {
-      return res.status(403).json({ success: false, message: 'Only Admins or Owners can remove team members' });
-    }
-
-    if (project.ownerId === userId) {
-      return res.status(400).json({ success: false, message: 'Cannot remove the project owner from their project' });
-    }
-
-    const membership = await prisma.projectMember.findUnique({
-      where: { projectId_userId: { projectId, userId } }
+    const caller = await prisma.user.findUnique({
+      where: { id: currentUserId },
+      select: { id: true, role: true }
     });
 
-    if (!membership) {
-      return res.status(404).json({ success: false, message: 'Member is not assigned to this project' });
+    // Only Admin, Leader, or the member themselves can remove
+    if (!permissionService.canManageTeam(caller, team.members) && currentUserId !== userId) {
+      return res.status(403).json({ success: false, message: 'Only Team Leaders or Admins can remove members' });
     }
 
-    await prisma.$transaction(async (tx) => {
-      // Unassign user from tasks in this project
-      await tx.task.updateMany({
-        where: { projectId, assigneeId: userId },
-        data: { assigneeId: null }
-      });
+    if (team.createdById === userId && currentUserId !== userId) {
+      return res.status(400).json({ success: false, message: 'Cannot remove the team creator' });
+    }
 
-      await tx.projectMember.delete({
-        where: { projectId_userId: { projectId, userId } }
-      });
-    });
+    await teamService.removeMember({ teamId: targetTeamId, userId });
 
     createAuditLog({
       userId: currentUserId,
       action: 'Removed',
       entityType: 'TeamMember',
-      entityId: membership.id,
-      metadata: { projectId, projectName: project.name, removedUserId: userId }
+      entityId: `${targetTeamId}_${userId}`,
+      metadata: { teamId: targetTeamId, teamName: team.name, removedUserId: userId }
     });
 
-    res.json({ success: true, message: 'Member removed from project successfully' });
+    res.json({ success: true, message: 'Member removed from team successfully' });
   } catch (error) {
     console.error('Error removing team member:', error);
     res.status(500).json({ success: false, message: error.message || 'Internal server error' });
@@ -564,7 +600,6 @@ exports.removeTeamMember = async (req, res) => {
  * REAL TEAM ENTITY CONTROLLERS (New User/Team Foundation)
  * =========================================================================
  */
-const teamService = require('../services/teamService');
 
 /**
  * List teams for current user

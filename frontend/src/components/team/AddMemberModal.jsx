@@ -21,7 +21,7 @@ export default function AddMemberModal({
       return;
     }
     if (!projectId) {
-      setError('Please select a project to assign this member to.');
+      setError('Please select a team to assign this member to.');
       return;
     }
 
@@ -32,6 +32,7 @@ export default function AddMemberModal({
         method: 'POST',
         body: {
           email: email.trim(),
+          teamId: projectId,
           projectId,
           role
         }
@@ -88,7 +89,7 @@ export default function AddMemberModal({
 
         <div>
           <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-            Assign to Project <span className="text-red-500">*</span>
+            Assign to Team <span className="text-red-500">*</span>
           </label>
           <select
             required
@@ -106,16 +107,15 @@ export default function AddMemberModal({
 
         <div>
           <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-            Project Role <span className="text-red-500">*</span>
+            Team Role <span className="text-red-500">*</span>
           </label>
           <select
             value={role}
             onChange={(e) => setRole(e.target.value)}
             className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500 transition"
           >
-            <option value="Admin">Admin (Full access & member management)</option>
-            <option value="Editor">Editor (Create, edit tasks and files)</option>
             <option value="Member">Member (Standard team collaborator)</option>
+            <option value="Leader">Leader (Team lead & member management)</option>
             <option value="Viewer">Viewer (Read-only access)</option>
           </select>
         </div>

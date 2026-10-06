@@ -5,7 +5,7 @@ import { useStore } from '../store';
 import Modal from '../components/common/Modal';
 
 export default function Github() {
-  const { currentUser, projects, getRole } = useStore();
+  const { currentUser } = useStore();
   const [repositories, setRepositories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

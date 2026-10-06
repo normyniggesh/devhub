@@ -259,23 +259,14 @@ async function runOAuthCallbackTests() {
     }
 
     // -------------------------------------------------------------
-    // TEST 7: Safe Telemetry Diagnostic Inspection
+    // TEST 7: Verify Removed Diagnostic Endpoint Returns 404
     // -------------------------------------------------------------
-    console.log('\n[Test 7] GET /api/health/oauth-diagnostic (Inspect safe diagnostics)');
+    console.log('\n[Test 7] GET /api/health/oauth-diagnostic (Verify 404 on removed diagnostic endpoint)');
     const diagRes = await fetch(`${baseUrl}/health/oauth-diagnostic`);
-    const diagData = await diagRes.json();
-    if (diagRes.ok && diagData.status === 'ok') {
-      console.log('  ✓ Diagnostic endpoint operational: totalEntries =', diagData.totalEntries);
-      const str = JSON.stringify(diagData);
-      const leaks = ['client_secret', 'refresh_token', 'access_token', 'password', 'GOCSPX'].some(s => str.includes(s));
-      if (!leaks) {
-        console.log('  ✓ Confirmed zero secrets/tokens exposed in diagnostic telemetry');
-      } else {
-        console.error('  ✗ Secret token leakage detected in diagnostics!');
-        allPassed = false;
-      }
+    if (diagRes.status === 404) {
+      console.log('  ✓ Confirmed obsolete diagnostic endpoint successfully removed and returns 404');
     } else {
-      console.error('  ✗ Failed to query diagnostic endpoint');
+      console.error(`  ✗ Expected 404 for removed diagnostic endpoint, got ${diagRes.status}`);
       allPassed = false;
     }
 

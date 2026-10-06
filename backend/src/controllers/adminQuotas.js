@@ -143,25 +143,3 @@ exports.setTeamQuota = async (req, res) => {
   }
 };
 
-// ==========================================
-// Backwards Compatibility Shims (Deprecated)
-// ==========================================
-exports.getQuota = async (req, res) => {
-  res.json({ success: true, message: 'Project-based quotas are deprecated. Quotas are allocated per User or Team.' });
-};
-
-exports.setQuota = async (req, res) => {
-  res.json({ success: true, message: 'Project-based quotas are deprecated. Quotas are allocated per User or Team.' });
-};
-
-exports.updateQuota = async (req, res) => {
-  res.json({ success: true, message: 'Project-based quotas are deprecated. Quotas are allocated per User or Team.' });
-};
-
-exports.deactivateQuota = async (req, res) => {
-  res.json({ success: true, message: 'Project-based quotas are deprecated. Quotas are allocated per User or Team.' });
-};
-
-exports.getProjectQuotaForUser = async (req, res) => {
-  res.json({ success: true, message: 'Project-based quotas are deprecated. Quotas are allocated per User or Team.' });
-};

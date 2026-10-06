@@ -2,6 +2,8 @@ const prisma = require('../db');
 const { createAuditLog } = require('../utils/audit');
 const { checkProjectAccess } = require('../utils/projectAccess');
 const storageService = require('../services/storageService');
+const storageQuotaService = require('../services/storageQuotaService');
+const { STORAGE_SCOPES } = require('../constants/storage');
 const { uploadFile, generateSafeKey, getPrimaryStorageProvider, s3Driver, googleDriveDriver } = storageService;
 
 const VALID_PROVIDERS = ['google_drive', 'dropbox', 'onedrive'];
@@ -1110,22 +1112,18 @@ exports.importProviderFile = async (req, res) => {
  */
 async function fetchSingleProviderQuota(provider, userId) {
   if (provider === 'devhub') {
+    const personalQuota = await storageQuotaService.getPersonalQuota(userId);
     const files = await prisma.file.findMany({
       where: {
-        project: {
-          OR: [
-            { ownerId: userId },
-            { members: { some: { userId } } }
-          ]
-        }
+        uploaderId: userId,
+        storageScope: STORAGE_SCOPES.PERSONAL
       },
       select: { size: true, type: true }
     });
 
-    let totalBytes = 0, documents = 0, images = 0, videos = 0, others = 0;
+    let documents = 0, images = 0, videos = 0, others = 0;
     files.forEach(f => {
       const s = Number(f.size) || 0;
-      totalBytes += s;
       const t = (f.type || '').toLowerCase();
       if (t.includes('pdf') || t.includes('doc') || t.includes('txt') || t.includes('csv') || t.includes('xls') || t.includes('ppt')) documents += s;
       else if (t.includes('image') || t.includes('png') || t.includes('jpg') || t.includes('jpeg') || t.includes('svg')) images += s;
@@ -1133,14 +1131,16 @@ async function fetchSingleProviderQuota(provider, userId) {
       else others += s;
     });
 
-    const devhubLimit = process.env.DEVHUB_STORAGE_QUOTA_BYTES ? parseInt(process.env.DEVHUB_STORAGE_QUOTA_BYTES, 10) : (5 * 1024 * 1024 * 1024);
+    const usedBytes = Number(personalQuota.usedBytes);
+    const limitBytes = Number(personalQuota.allocatedBytes);
+
     return {
       provider: 'devhub',
-      name: 'DEVHUB Storage',
+      name: 'DEVHUB Cloud Storage',
       connected: true,
-      used: totalBytes,
-      limit: devhubLimit,
-      percentage: devhubLimit > 0 ? ((totalBytes / devhubLimit) * 100) : null,
+      used: usedBytes,
+      limit: limitBytes,
+      percentage: personalQuota.percentage,
       breakdown: { documents, images, videos, others },
       fileCount: files.length,
       available: true
@@ -1490,6 +1490,12 @@ exports.setSystemStorage = async (req, res) => {
  */
 exports.getSystemStorageStatus = async (req, res) => {
   try {
+    const caller = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { id: true, role: true }
+    });
+    const isAdmin = caller && caller.role === 'Admin';
+
     const allGoogleIntegrations = await prisma.userIntegration.findMany({
       where: { provider: 'google_drive', status: 'connected' },
       include: {
@@ -1509,6 +1515,16 @@ exports.getSystemStorageStatus = async (req, res) => {
       });
     }
 
+    // Normal authenticated users must NOT receive Admin Google email, Admin user ID, or internal Drive details
+    if (!isAdmin) {
+      return res.json({
+        success: true,
+        isSystemStorage: true,
+        status: 'system storage enabled'
+      });
+    }
+
+    // Admins receive full management details
     return res.json({
       success: true,
       isSystemStorage: true,

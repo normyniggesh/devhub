@@ -84,6 +84,7 @@ export default function MemberTable({
   const getRoleBadge = (role) => {
     switch (role) {
       case 'Admin':
+      case 'Leader':
       case 'Owner':
         return 'bg-purple-500/10 text-purple-400 border-purple-500/20';
       case 'Editor':
@@ -130,7 +131,7 @@ export default function MemberTable({
                 className="py-3.5 px-4 cursor-pointer hover:text-white transition select-none"
               >
                 <div className="flex items-center gap-1.5">
-                  <span>Projects</span>
+                  <span>Teams</span>
                   {sortField === 'projects' && (
                     <i className={`fa-solid fa-arrow-${sortDirection === 'asc' ? 'up' : 'down'} text-[10px]`}></i>
                   )}
@@ -202,14 +203,14 @@ export default function MemberTable({
                       </span>
                     </td>
 
-                    {/* Projects */}
+                    {/* Teams */}
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-1.5">
                         <span className="font-semibold text-white">
-                          {member.projectsCount || 0}
+                          {member.teamsCount || member.projectsCount || 0}
                         </span>
                         <span className="text-slate-500">
-                          {member.projectsCount === 1 ? 'project' : 'projects'}
+                          {(member.teamsCount || member.projectsCount) === 1 ? 'team' : 'teams'}
                         </span>
                       </div>
                     </td>

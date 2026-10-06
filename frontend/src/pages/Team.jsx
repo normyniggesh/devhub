@@ -75,10 +75,10 @@ export default function Team() {
     if (!memberToRemove) return;
     try {
       setRemoving(true);
-      // If member has a shared project, remove from project
-      const projectId = memberToRemove.projects?.[0]?.id;
-      if (projectId) {
-        await apiClient(`/team/${memberToRemove.id}/projects/${projectId}`, {
+      // If member has a shared team, remove from team
+      const teamId = memberToRemove.teams?.[0]?.id || memberToRemove.projects?.[0]?.id;
+      if (teamId) {
+        await apiClient(`/team/${memberToRemove.id}/teams/${teamId}`, {
           method: 'DELETE'
         });
       }
@@ -96,7 +96,7 @@ export default function Team() {
       {/* 4th "Tab Style" Compact Hero Header */}
       <CompactPageHeader
         title="Team"
-        subtitle="Manage people and project access."
+        subtitle="Manage people and team access."
         actions={
           <>
             {/* Search Input */}

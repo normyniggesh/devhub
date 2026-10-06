@@ -33,11 +33,6 @@ router.post('/quotas/user', quotaController.setUserQuota);
 router.get('/quotas/team/:teamId', quotaController.getTeamQuota);
 router.post('/quotas/team', quotaController.setTeamQuota);
 
-// Deprecated project quota stubs
-router.get('/quotas/:projectId', quotaController.getQuota);
-router.patch('/quotas/:projectId', quotaController.updateQuota);
-router.delete('/quotas/:projectId', quotaController.deactivateQuota);
-
 // Admin Activity Feed
 router.get('/activity', adminController.getActivity);
 

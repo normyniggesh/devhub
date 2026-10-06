@@ -1,6 +1,7 @@
 const prisma = require('../db');
 const { checkProjectAccess } = require('../utils/projectAccess');
 const { createAuditLog } = require('../utils/audit');
+const permissionService = require('../services/permissionService');
 
 async function isDescendant(folderId, potentialParentId) {
   let currentParentId = potentialParentId;
@@ -20,21 +21,33 @@ async function isDescendant(folderId, potentialParentId) {
 
 exports.getFolders = async (req, res) => {
   try {
-    const { projectId, parentId } = req.query;
+    const { projectId, teamId, scope, storageScope, parentId } = req.query;
+    const currentUser = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { id: true, role: true }
+    });
+
     let whereClause = {};
 
     if (projectId) {
       const access = await checkProjectAccess(projectId, req.userId);
       if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
       whereClause.projectId = projectId;
+    } else if (teamId) {
+      const teamMembers = await prisma.teamMember.findMany({ where: { teamId } });
+      if (!permissionService.canAccessTeamFile(currentUser, teamMembers.map(m => m.userId))) {
+        return res.status(403).json({ success: false, message: 'Forbidden' });
+      }
+      whereClause.teamId = teamId;
+    } else if (scope === 'PERSONAL' || storageScope === 'PERSONAL') {
+      whereClause = { storageScope: 'PERSONAL', creatorId: req.userId };
     } else {
       whereClause = {
-        project: {
-          OR: [
-            { ownerId: req.userId },
-            { members: { some: { userId: req.userId } } }
-          ]
-        }
+        OR: [
+          { storageScope: 'PERSONAL', creatorId: req.userId },
+          { team: { members: { some: { userId: req.userId } } } },
+          { project: { OR: [ { ownerId: req.userId }, { members: { some: { userId: req.userId } } } ] } }
+        ]
       };
     }
 
@@ -46,6 +59,7 @@ exports.getFolders = async (req, res) => {
       where: whereClause,
       include: {
         project: { select: { id: true, name: true } },
+        team: { select: { id: true, name: true } },
         creator: { select: { id: true, name: true } }
       },
       orderBy: { name: 'asc' }
@@ -53,6 +67,7 @@ exports.getFolders = async (req, res) => {
 
     res.json({ success: true, folders });
   } catch (error) {
+    console.error('getFolders error:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
@@ -60,10 +75,16 @@ exports.getFolders = async (req, res) => {
 exports.getFolderById = async (req, res) => {
   try {
     const { id } = req.params;
+    const currentUser = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { id: true, role: true }
+    });
+
     const folder = await prisma.folder.findUnique({
       where: { id },
       include: {
         project: { select: { id: true, name: true } },
+        team: { select: { id: true, name: true } },
         creator: { select: { id: true, name: true } },
         children: { select: { id: true, name: true } },
         files: { select: { id: true, name: true, type: true, size: true } }
@@ -72,46 +93,86 @@ exports.getFolderById = async (req, res) => {
 
     if (!folder) return res.status(404).json({ success: false, message: 'Folder not found' });
 
-    const access = await checkProjectAccess(folder.projectId, req.userId);
-    if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
+    if (folder.storageScope === 'PERSONAL' && !folder.projectId) {
+      if (!permissionService.canAccessPersonalFile(currentUser, folder.creatorId)) {
+        return res.status(403).json({ success: false, message: 'Forbidden' });
+      }
+    } else if (folder.teamId) {
+      const teamMembers = await prisma.teamMember.findMany({ where: { teamId: folder.teamId } });
+      if (!permissionService.canAccessTeamFile(currentUser, teamMembers.map(m => m.userId))) {
+        return res.status(403).json({ success: false, message: 'Forbidden' });
+      }
+    } else if (folder.projectId) {
+      const access = await checkProjectAccess(folder.projectId, req.userId);
+      if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
 
     res.json({ success: true, folder });
   } catch (error) {
+    console.error('getFolderById error:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
 
 exports.createFolder = async (req, res) => {
   try {
-    const { name, projectId, parentId } = req.body;
+    const { name, projectId, teamId, storageScope, parentId } = req.body || {};
     
     if (!name || typeof name !== 'string' || !name.trim()) {
       return res.status(400).json({ success: false, message: 'Folder name is required' });
     }
-    if (!projectId) {
-      return res.status(400).json({ success: false, message: 'projectId is required' });
-    }
 
-    const access = await checkProjectAccess(projectId, req.userId);
-    if (!access.accessible) return res.status(404).json({ success: false, message: 'Project not found' });
-    if (access.role === 'Viewer') return res.status(403).json({ success: false, message: 'Viewers cannot create folders' });
+    const currentUser = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { id: true, role: true }
+    });
 
-    if (parentId) {
-      const parentFolder = await prisma.folder.findUnique({ where: { id: parentId } });
-      if (!parentFolder || parentFolder.projectId !== projectId) {
-        return res.status(409).json({ success: false, message: 'Parent folder not found or belongs to a different project' });
+    const targetScope = storageScope || (teamId ? 'TEAM' : (projectId ? 'PERSONAL' : 'PERSONAL'));
+
+    if (teamId || targetScope === 'TEAM') {
+      if (!teamId) return res.status(400).json({ success: false, message: 'teamId is required for team folder' });
+      const teamMembers = await prisma.teamMember.findMany({ where: { teamId } });
+      if (!permissionService.canAccessTeamFile(currentUser, teamMembers.map(m => m.userId))) {
+        return res.status(403).json({ success: false, message: 'Forbidden' });
+      }
+      if (parentId) {
+        const parentFolder = await prisma.folder.findUnique({ where: { id: parentId } });
+        if (!parentFolder || parentFolder.teamId !== teamId) {
+          return res.status(409).json({ success: false, message: 'Parent folder not found or belongs to a different team' });
+        }
+      }
+    } else if (projectId) {
+      const access = await checkProjectAccess(projectId, req.userId);
+      if (!access.accessible) return res.status(404).json({ success: false, message: 'Project not found' });
+      if (access.role === 'Viewer') return res.status(403).json({ success: false, message: 'Viewers cannot create folders' });
+      if (parentId) {
+        const parentFolder = await prisma.folder.findUnique({ where: { id: parentId } });
+        if (!parentFolder || parentFolder.projectId !== projectId) {
+          return res.status(409).json({ success: false, message: 'Parent folder not found or belongs to a different project' });
+        }
+      }
+    } else {
+      // Personal scope folder
+      if (parentId) {
+        const parentFolder = await prisma.folder.findUnique({ where: { id: parentId } });
+        if (!parentFolder || parentFolder.creatorId !== req.userId || parentFolder.storageScope !== 'PERSONAL') {
+          return res.status(409).json({ success: false, message: 'Parent folder not found or not in personal storage' });
+        }
       }
     }
 
     const folder = await prisma.folder.create({
       data: {
         name: name.trim(),
-        projectId,
+        storageScope: targetScope,
+        projectId: projectId || null,
+        teamId: teamId || null,
         parentId: parentId || null,
         creatorId: req.userId
       },
       include: {
         project: { select: { id: true, name: true } },
+        team: { select: { id: true, name: true } },
         creator: { select: { id: true, name: true } }
       }
     });
@@ -121,11 +182,12 @@ exports.createFolder = async (req, res) => {
       action: 'Created',
       entityType: 'Folder',
       entityId: folder.id,
-      metadata: { name: folder.name }
+      metadata: { name: folder.name, scope: targetScope }
     });
 
     res.status(201).json({ success: true, folder });
   } catch (error) {
+    console.error('createFolder error:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
@@ -135,12 +197,28 @@ exports.updateFolder = async (req, res) => {
     const { id } = req.params;
     const { name, parentId } = req.body;
 
+    const currentUser = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { id: true, role: true }
+    });
+
     const folder = await prisma.folder.findUnique({ where: { id } });
     if (!folder) return res.status(404).json({ success: false, message: 'Folder not found' });
 
-    const access = await checkProjectAccess(folder.projectId, req.userId);
-    if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
-    if (access.role === 'Viewer') return res.status(403).json({ success: false, message: 'Viewers cannot update folders' });
+    if (folder.storageScope === 'PERSONAL' && !folder.projectId) {
+      if (!permissionService.canAccessPersonalFile(currentUser, folder.creatorId)) {
+        return res.status(403).json({ success: false, message: 'Forbidden' });
+      }
+    } else if (folder.teamId) {
+      const teamMembers = await prisma.teamMember.findMany({ where: { teamId: folder.teamId } });
+      if (!permissionService.canManageTeam(currentUser, teamMembers)) {
+        return res.status(403).json({ success: false, message: 'Only Team Leaders or Admins can update team folders' });
+      }
+    } else if (folder.projectId) {
+      const access = await checkProjectAccess(folder.projectId, req.userId);
+      if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
+      if (access.role === 'Viewer') return res.status(403).json({ success: false, message: 'Viewers cannot update folders' });
+    }
 
     const updateData = {};
     if (name !== undefined) {
@@ -155,8 +233,14 @@ exports.updateFolder = async (req, res) => {
 
       if (parentId) {
         const parentFolder = await prisma.folder.findUnique({ where: { id: parentId } });
-        if (!parentFolder || parentFolder.projectId !== folder.projectId) {
-          return res.status(409).json({ success: false, message: 'Parent folder not found or belongs to a different project' });
+        if (!parentFolder) {
+          return res.status(409).json({ success: false, message: 'Parent folder not found' });
+        }
+        if (folder.projectId && parentFolder.projectId !== folder.projectId) {
+          return res.status(409).json({ success: false, message: 'Parent folder belongs to a different project' });
+        }
+        if (folder.teamId && parentFolder.teamId !== folder.teamId) {
+          return res.status(409).json({ success: false, message: 'Parent folder belongs to a different team' });
         }
         
         const cyclic = await isDescendant(id, parentId);
@@ -173,6 +257,7 @@ exports.updateFolder = async (req, res) => {
       data: updateData,
       include: {
         project: { select: { id: true, name: true } },
+        team: { select: { id: true, name: true } },
         creator: { select: { id: true, name: true } }
       }
     });
@@ -187,6 +272,7 @@ exports.updateFolder = async (req, res) => {
 
     res.json({ success: true, folder: updatedFolder });
   } catch (error) {
+    console.error('updateFolder error:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
@@ -194,6 +280,10 @@ exports.updateFolder = async (req, res) => {
 exports.deleteFolder = async (req, res) => {
   try {
     const { id } = req.params;
+    const currentUser = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { id: true, role: true }
+    });
 
     const folder = await prisma.folder.findUnique({ 
       where: { id },
@@ -202,10 +292,21 @@ exports.deleteFolder = async (req, res) => {
     
     if (!folder) return res.status(404).json({ success: false, message: 'Folder not found' });
 
-    const access = await checkProjectAccess(folder.projectId, req.userId);
-    if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
-    if (access.role !== 'Admin' && access.role !== 'Owner') {
-      return res.status(403).json({ success: false, message: 'Only Admins or Owners can delete folders' });
+    if (folder.storageScope === 'PERSONAL' && !folder.projectId) {
+      if (!permissionService.canAccessPersonalFile(currentUser, folder.creatorId)) {
+        return res.status(403).json({ success: false, message: 'Only the creator or Admin can delete personal folders' });
+      }
+    } else if (folder.teamId) {
+      const teamMembers = await prisma.teamMember.findMany({ where: { teamId: folder.teamId } });
+      if (!permissionService.canManageTeam(currentUser, teamMembers)) {
+        return res.status(403).json({ success: false, message: 'Only Team Leaders or Admins can delete team folders' });
+      }
+    } else if (folder.projectId) {
+      const access = await checkProjectAccess(folder.projectId, req.userId);
+      if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
+      if (access.role !== 'Admin' && access.role !== 'Owner') {
+        return res.status(403).json({ success: false, message: 'Only Admins or Owners can delete folders' });
+      }
     }
 
     if (folder.children.length > 0 || folder.files.length > 0) {
@@ -224,6 +325,7 @@ exports.deleteFolder = async (req, res) => {
 
     res.json({ success: true, message: 'Folder deleted successfully' });
   } catch (error) {
+    console.error('deleteFolder error:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };

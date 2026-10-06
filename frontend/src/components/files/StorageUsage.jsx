@@ -70,35 +70,35 @@ export default function StorageUsage({
   let unavailableMessage = null;
   let breakdown = null;
 
-  const devhubLimit = quotas.devhub?.limit || (5 * 1024 * 1024 * 1024);
+  const devhubLimit = quotas.devhub?.limit || null;
   const teamQuota = quotas.teamQuota;
 
   if (teamQuota && (activeTab === 'All Files' || activeTab === 'DEVHUB')) {
     providerTitle = teamQuota.name ? `${teamQuota.name} (Team Storage)` : 'Team Storage';
     providerIcon = 'fa-solid fa-server';
     iconColor = 'text-amber-400';
-    usedBytes = teamQuota.usedNumber || 0;
-    limitBytes = teamQuota.allocatedNumber || devhubLimit;
+    usedBytes = teamQuota.usedBytes ? Number(teamQuota.usedBytes) : (teamQuota.usedNumber || 0);
+    limitBytes = teamQuota.allocatedBytes ? Number(teamQuota.allocatedBytes) : (teamQuota.allocatedNumber || devhubLimit);
     percentage = teamQuota.percentage !== undefined ? teamQuota.percentage : (limitBytes ? (usedBytes / limitBytes) * 100 : null);
-    statusBadge = teamQuota.isActive ? `${percentage.toFixed(1)}% used` : 'Inactive';
+    statusBadge = percentage !== null ? `${percentage.toFixed(1)}% used` : 'Active';
     breakdown = null;
   } else if (activeTab === 'All Files') {
     providerTitle = 'All Files (DEVHUB)';
     providerIcon = 'fa-solid fa-box-archive';
     iconColor = 'text-purple-400';
-    usedBytes = viewMetrics.total;
+    usedBytes = quotas.devhub?.used !== undefined ? quotas.devhub.used : viewMetrics.total;
     limitBytes = devhubLimit;
-    percentage = limitBytes ? (usedBytes / limitBytes) * 100 : null;
+    percentage = quotas.devhub?.percentage !== undefined ? quotas.devhub.percentage : (limitBytes ? (usedBytes / limitBytes) * 100 : null);
     statusBadge = `${viewMetrics.count} files in view`;
-    breakdown = viewMetrics;
+    breakdown = quotas.devhub?.breakdown || viewMetrics;
   } else if (activeTab === 'DEVHUB') {
-    providerTitle = 'DEVHUB Storage (AWS S3)';
+    providerTitle = 'DEVHUB Cloud Storage';
     providerIcon = 'fa-solid fa-cloud';
     iconColor = 'text-indigo-400';
     const serverDevhub = quotas.devhub;
     usedBytes = serverDevhub?.used !== undefined ? serverDevhub.used : allDevhubMetrics.total;
     limitBytes = serverDevhub?.limit || devhubLimit;
-    percentage = limitBytes ? (usedBytes / limitBytes) * 100 : null;
+    percentage = serverDevhub?.percentage !== undefined ? serverDevhub.percentage : (limitBytes ? (usedBytes / limitBytes) * 100 : null);
     statusBadge = `${serverDevhub?.fileCount ?? allDevhubMetrics.count} total files`;
     breakdown = serverDevhub?.breakdown || allDevhubMetrics;
   } else if (activeTab === 'Google Drive') {

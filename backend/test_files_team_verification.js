@@ -28,14 +28,15 @@ async function runVerification() {
     }
   });
 
-  // Create isolated test project linking them
-  const testProject = await prisma.project.create({
+  // Create isolated test team linking them (Authoritative Team architecture)
+  const testTeam = await prisma.team.create({
     data: {
-      name: `Team Test Project ${ts}`,
-      ownerId: umer.id,
+      name: `Team Test Team ${ts}`,
+      createdById: umer.id,
       members: {
         create: [
-          { userId: paarth.id, role: 'Editor' }
+          { userId: umer.id, role: 'Leader' },
+          { userId: paarth.id, role: 'Member' }
         ]
       }
     }
@@ -118,9 +119,10 @@ async function runVerification() {
   try {
     console.log('\n=== ALL TESTS PASSED SUCCESSFULLY! ===');
   } finally {
-    if (testProject?.id) {
-      await prisma.projectMember.deleteMany({ where: { projectId: testProject.id } }).catch(() => {});
-      await prisma.project.delete({ where: { id: testProject.id } }).catch(() => {});
+    if (testTeam?.id) {
+      await prisma.teamMember.deleteMany({ where: { teamId: testTeam.id } }).catch(() => {});
+      await prisma.teamStorageAllocation.deleteMany({ where: { teamId: testTeam.id } }).catch(() => {});
+      await prisma.team.delete({ where: { id: testTeam.id } }).catch(() => {});
     }
     const uids = [umer?.id, paarth?.id].filter(Boolean);
     if (uids.length > 0) {

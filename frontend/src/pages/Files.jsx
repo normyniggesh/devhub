@@ -73,19 +73,11 @@ export default function Files() {
 
   const projectsRef = useRef([]);
 
-  const fetchQuotas = useCallback(async (projId) => {
+  const fetchQuotas = useCallback(async () => {
     try {
       setQuotasLoading(true);
-      const targetProjId = projId || (projectsRef.current.length > 0 ? projectsRef.current[0].id : null);
-      const [res, projQuotaRes] = await Promise.all([
-        apiClient('/integrations/quota').catch(() => ({ quotas: {} })),
-        targetProjId ? apiClient(`/files/quota?projectId=${targetProjId}`).catch(() => null) : null
-      ]);
-      const merged = res?.quotas || {};
-      if (projQuotaRes?.quota) {
-        merged.teamQuota = projQuotaRes.quota;
-      }
-      setQuotas(merged);
+      const res = await apiClient('/integrations/quota').catch(() => ({ quotas: {} }));
+      setQuotas(res?.quotas || {});
     } catch (err) {
       console.warn('Could not fetch storage quotas:', err);
     } finally {
@@ -121,8 +113,8 @@ export default function Files() {
       const allAct = dashRes.dashboard?.recentActivity || [];
       setRecentActivity(allAct.filter(a => a.entityType === 'File' || a.entityType === 'Folder'));
 
-      // Fetch quota for the first project directly from the fresh response without state dependencies
-      await fetchQuotas(loadedProjects[0]?.id);
+      // Fetch quotas from server
+      await fetchQuotas();
     } catch (err) {
       setError(err.message || 'Unable to load files');
     } finally {

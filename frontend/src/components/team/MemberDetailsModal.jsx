@@ -141,15 +141,15 @@ export default function MemberDetailsModal({
               </div>
             </div>
 
-            {/* Shared Projects Section */}
+            {/* Shared Teams Section */}
             <div className="pt-4">
               <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-3 flex items-center gap-2">
-                <i className="fa-solid fa-folder-tree text-purple-400"></i>
-                Shared Projects ({(currentData.sharedProjects || currentData.projects || []).length})
+                <i className="fa-solid fa-users text-purple-400"></i>
+                Teams ({(currentData.sharedTeams || currentData.sharedProjects || currentData.teams || []).length})
               </h3>
-              {(currentData.sharedProjects || currentData.projects || []).length > 0 ? (
+              {(currentData.sharedTeams || currentData.sharedProjects || currentData.teams || []).length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {(currentData.sharedProjects || currentData.projects || []).map((p) => (
+                  {(currentData.sharedTeams || currentData.sharedProjects || currentData.teams || []).map((p) => (
                     <div
                       key={p.id}
                       className="bg-[#121828] border border-[#192238] hover:border-[#283552] p-3 rounded-xl flex items-center justify-between transition"
@@ -171,7 +171,7 @@ export default function MemberDetailsModal({
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-slate-500 italic">No shared projects yet.</p>
+                <p className="text-xs text-slate-500 italic">No teams yet.</p>
               )}
             </div>
 

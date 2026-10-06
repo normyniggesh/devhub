@@ -165,7 +165,7 @@ export default function DriveBrowser({
               )}
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Browse your personal Google Drive and import files into DEVHUB projects (saved to AWS S3)
+              Browse your personal Google Drive and import files into DEVHUB (saved to DEVHUB Cloud Storage)
             </p>
           </div>
         </div>

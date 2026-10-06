@@ -2,10 +2,6 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { apiClient } from './api/client';
 
-const initialProjects = [];
-const initialTasks = [];
-const initialQa = [];
-
 export const useStore = create(
   persist(
     (set) => ({
@@ -70,27 +66,15 @@ export const useStore = create(
         }
       },
 
-      projects: initialProjects,
-      tasks: initialTasks,
-      qaTasks: initialQa,
       githubUser: '',
       githubRepos: [],
-      
-      addProject: (project) => set((state) => ({ projects: [...state.projects, { id: Date.now(), ...project }] })),
-      addTask: (task) => set((state) => ({ tasks: [...state.tasks, { id: Date.now(), ...task }] })),
-      addQaTask: (qaTask) => set((state) => ({ qaTasks: [...state.qaTasks, { id: Date.now(), ...qaTask }] })),
-      
-      clearAll: () => set({ projects: [], tasks: [], qaTasks: [] }),
       
       setGithubUser: (user) => set({ githubUser: user }),
       setGithubRepos: (repos) => set({ githubRepos: repos }),
     }),
     {
-      name: 'devhub-storage', // name of the item in the storage (must be unique)
+      name: 'devhub-storage',
       partialize: (state) => ({
-        projects: state.projects,
-        tasks: state.tasks,
-        qaTasks: state.qaTasks,
         githubUser: state.githubUser,
         githubRepos: state.githubRepos
       }),

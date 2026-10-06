@@ -14,7 +14,6 @@ const {
   getProviderQuota,
   setSystemStorage,
   getSystemStorageStatus,
-  getOAuthDiagnostic,
   recordOAuthDiagnostic
 } = require('../controllers/integrations');
 
@@ -96,8 +95,6 @@ const oauthCallbackAuth = (req, res, next) => {
   return res.status(401).json({ success: false, error: 'Authentication required' });
 };
 
-// Safe diagnostic endpoint (no credentials/tokens exposed)
-router.get('/oauth-diagnostic', getOAuthDiagnostic);
 
 // OAuth callback with flexible auth (cookie, bearer, or state token)
 router.post('/google/callback', oauthCallbackAuth, handleGoogleCallback);

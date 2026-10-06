@@ -1,14 +1,7 @@
 {
   "name": "devhub",
   "version": "1.0.0",
-  "scripts": {
-    "export:data": "node scripts/export-data.js",
-    "migrate:auth": "node scripts/migrate-auth.js",
-    "migrate:firestore": "node scripts/migrate-firestore.js",
-    "migrate:s3": "node scripts/migrate-s3-files.js",
-    "verify:migration": "node scripts/verify-migration.js",
-    "migrate:all": "node scripts/migrate-auth.js && node scripts/migrate-firestore.js && node scripts/migrate-s3-files.js && node scripts/verify-migration.js"
-  },
+  "scripts": {},
   "dependencies": {
     "lucide-react": "^1.48.0"
   }

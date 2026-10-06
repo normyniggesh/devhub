@@ -2,33 +2,42 @@ const prisma = require('../db');
 const { checkProjectAccess } = require('../utils/projectAccess');
 const { createAuditLog } = require('../utils/audit');
 const storageService = require('../services/storageService');
+const permissionService = require('../services/permissionService');
 const { generateSafeKey } = storageService;
 
 exports.getFiles = async (req, res) => {
   try {
-    const { projectId, folderId } = req.query;
+    const { projectId, teamId, scope, storageScope, folderId } = req.query;
+    const currentUser = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { id: true, role: true }
+    });
+
     let whereClause = {};
 
     if (projectId) {
       const access = await checkProjectAccess(projectId, req.userId);
       if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
       whereClause.projectId = projectId;
+    } else if (teamId) {
+      const teamMembers = await prisma.teamMember.findMany({ where: { teamId } });
+      if (!permissionService.canAccessTeamFile(currentUser, teamMembers.map(m => m.userId))) {
+        return res.status(403).json({ success: false, message: 'Forbidden' });
+      }
+      whereClause.teamId = teamId;
+    } else if (scope === 'PERSONAL' || storageScope === 'PERSONAL') {
+      whereClause = { storageScope: 'PERSONAL', uploaderId: req.userId };
     } else {
       whereClause = {
-        project: {
-          OR: [
-            { ownerId: req.userId },
-            { members: { some: { userId: req.userId } } }
-          ]
-        }
+        OR: [
+          { storageScope: 'PERSONAL', uploaderId: req.userId },
+          { team: { members: { some: { userId: req.userId } } } },
+          { project: { OR: [ { ownerId: req.userId }, { members: { some: { userId: req.userId } } } ] } }
+        ]
       };
     }
 
     if (folderId !== undefined) {
-      // Need to verify access if folderId is provided and projectId isn't explicitly provided,
-      // but Prisma takes care of returning nothing if folder is in an inaccessible project given the base whereClause.
-      // However, if we want to ensure the folder itself exists and is valid, we can check it.
-      // Let's just trust the base where clause + folder filter to be safe.
       whereClause.folderId = folderId === 'null' || !folderId ? null : folderId;
     }
 
@@ -36,6 +45,7 @@ exports.getFiles = async (req, res) => {
       where: whereClause,
       include: {
         project: { select: { id: true, name: true } },
+        team: { select: { id: true, name: true } },
         folder: { select: { id: true, name: true } },
         uploader: { select: { id: true, name: true } }
       },
@@ -44,6 +54,7 @@ exports.getFiles = async (req, res) => {
 
     res.json({ success: true, files });
   } catch (error) {
+    console.error('getFiles Error:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
@@ -51,10 +62,16 @@ exports.getFiles = async (req, res) => {
 exports.getFileById = async (req, res) => {
   try {
     const { id } = req.params;
+    const currentUser = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { id: true, role: true }
+    });
+
     const file = await prisma.file.findUnique({
       where: { id },
       include: {
         project: { select: { id: true, name: true } },
+        team: { select: { id: true, name: true } },
         folder: { select: { id: true, name: true } },
         uploader: { select: { id: true, name: true, email: true } }
       }
@@ -62,38 +79,76 @@ exports.getFileById = async (req, res) => {
 
     if (!file) return res.status(404).json({ success: false, message: 'File not found' });
 
-    const access = await checkProjectAccess(file.projectId, req.userId);
-    if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
+    if (file.storageScope === 'PERSONAL' && !file.projectId) {
+      if (!permissionService.canAccessPersonalFile(currentUser, file.uploaderId)) {
+        return res.status(403).json({ success: false, message: 'Forbidden' });
+      }
+    } else if (file.teamId) {
+      const teamMembers = await prisma.teamMember.findMany({ where: { teamId: file.teamId } });
+      if (!permissionService.canAccessTeamFile(currentUser, teamMembers.map(m => m.userId))) {
+        return res.status(403).json({ success: false, message: 'Forbidden' });
+      }
+    } else if (file.projectId) {
+      const access = await checkProjectAccess(file.projectId, req.userId);
+      if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
 
     res.json({ success: true, file });
   } catch (error) {
+    console.error('getFileById Error:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
 
 exports.createFile = async (req, res) => {
   try {
-    const { name, type, size, storagePath, projectId, folderId } = req.body || {};
+    const { name, type, size, storagePath, projectId, teamId, storageScope, folderId } = req.body || {};
 
     if (!name || typeof name !== 'string' || !name.trim()) return res.status(400).json({ success: false, message: 'Name is required' });
     if (!type || typeof type !== 'string' || !type.trim()) return res.status(400).json({ success: false, message: 'Type is required' });
     if (size === undefined || (typeof size !== 'number' && typeof size !== 'bigint' && typeof size !== 'string') || isNaN(Number(size)) || Number(size) < 0) return res.status(400).json({ success: false, message: 'Valid size is required' });
     if (!storagePath || typeof storagePath !== 'string' || !storagePath.trim()) return res.status(400).json({ success: false, message: 'Storage path is required' });
-    if (!projectId) return res.status(400).json({ success: false, message: 'projectId is required' });
 
     // Reject suspicious storagePath traversing
     if (storagePath.includes('..')) {
       return res.status(400).json({ success: false, message: 'Invalid storagePath format' });
     }
 
-    const access = await checkProjectAccess(projectId, req.userId);
-    if (!access.accessible) return res.status(404).json({ success: false, message: 'Project not found' });
-    if (access.role === 'Viewer') return res.status(403).json({ success: false, message: 'Viewers cannot create files' });
+    const currentUser = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { id: true, role: true }
+    });
 
-    if (folderId) {
-      const folder = await prisma.folder.findUnique({ where: { id: folderId } });
-      if (!folder || folder.projectId !== projectId) {
-        return res.status(409).json({ success: false, message: 'Folder not found or belongs to a different project' });
+    const targetScope = storageScope || (teamId ? 'TEAM' : (projectId ? 'PERSONAL' : 'PERSONAL'));
+
+    if (teamId || targetScope === 'TEAM') {
+      if (!teamId) return res.status(400).json({ success: false, message: 'teamId is required for team file' });
+      const teamMembers = await prisma.teamMember.findMany({ where: { teamId } });
+      if (!permissionService.canAccessTeamFile(currentUser, teamMembers.map(m => m.userId))) {
+        return res.status(403).json({ success: false, message: 'Forbidden' });
+      }
+      if (folderId) {
+        const folder = await prisma.folder.findUnique({ where: { id: folderId } });
+        if (!folder || folder.teamId !== teamId) {
+          return res.status(409).json({ success: false, message: 'Folder not found or belongs to a different team' });
+        }
+      }
+    } else if (projectId) {
+      const access = await checkProjectAccess(projectId, req.userId);
+      if (!access.accessible) return res.status(404).json({ success: false, message: 'Project not found' });
+      if (access.role === 'Viewer') return res.status(403).json({ success: false, message: 'Viewers cannot create files' });
+      if (folderId) {
+        const folder = await prisma.folder.findUnique({ where: { id: folderId } });
+        if (!folder || folder.projectId !== projectId) {
+          return res.status(409).json({ success: false, message: 'Folder not found or belongs to a different project' });
+        }
+      }
+    } else {
+      if (folderId) {
+        const folder = await prisma.folder.findUnique({ where: { id: folderId } });
+        if (!folder || folder.creatorId !== req.userId || folder.storageScope !== 'PERSONAL') {
+          return res.status(409).json({ success: false, message: 'Folder not found or not in personal storage' });
+        }
       }
     }
 
@@ -104,12 +159,15 @@ exports.createFile = async (req, res) => {
         size: BigInt(size),
         storagePath: storagePath.trim(),
         storageProvider: 's3',
-        projectId,
+        storageScope: targetScope,
+        projectId: projectId || null,
+        teamId: teamId || null,
         folderId: folderId || null,
         uploaderId: req.userId
       },
       include: {
         project: { select: { id: true, name: true } },
+        team: { select: { id: true, name: true } },
         folder: { select: { id: true, name: true } },
         uploader: { select: { id: true, name: true } }
       }
@@ -120,7 +178,7 @@ exports.createFile = async (req, res) => {
       action: 'Created',
       entityType: 'File',
       entityId: file.id,
-      metadata: { name: file.name }
+      metadata: { name: file.name, scope: targetScope }
     });
 
     res.status(201).json({ success: true, file });
@@ -132,21 +190,46 @@ exports.createFile = async (req, res) => {
 
 exports.uploadFiles = async (req, res) => {
   try {
-    const { projectId, folderId, driveFolderId } = req.body || {};
+    const { projectId, teamId, storageScope, folderId, driveFolderId } = req.body || {};
     const files = req.files;
 
     if (!files || files.length === 0) return res.status(400).json({ success: false, message: 'No files uploaded' });
-    if (!projectId) return res.status(400).json({ success: false, message: 'projectId is required' });
 
-    const access = await checkProjectAccess(projectId, req.userId);
-    if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
-    if (access.role === 'Viewer') return res.status(403).json({ success: false, message: 'Viewers cannot upload files' });
+    const currentUser = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { id: true, role: true }
+    });
+
+    const targetScope = storageScope || (teamId ? 'TEAM' : (projectId ? 'PERSONAL' : 'PERSONAL'));
 
     let folderRecord = null;
     if (folderId && folderId !== 'null') {
       folderRecord = await prisma.folder.findUnique({ where: { id: folderId } });
-      if (!folderRecord || folderRecord.projectId !== projectId) {
-        return res.status(409).json({ success: false, message: 'Folder not found or belongs to a different project' });
+      if (!folderRecord) {
+        return res.status(409).json({ success: false, message: 'Folder not found' });
+      }
+    }
+
+    if (teamId || targetScope === 'TEAM') {
+      if (!teamId) return res.status(400).json({ success: false, message: 'teamId is required for team upload' });
+      const teamMembers = await prisma.teamMember.findMany({ where: { teamId } });
+      if (!permissionService.canAccessTeamFile(currentUser, teamMembers.map(m => m.userId))) {
+        return res.status(403).json({ success: false, message: 'Forbidden' });
+      }
+      if (folderRecord && folderRecord.teamId !== teamId) {
+        return res.status(409).json({ success: false, message: 'Folder belongs to a different team' });
+      }
+    } else if (projectId) {
+      const access = await checkProjectAccess(projectId, req.userId);
+      if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
+      if (access.role === 'Viewer') return res.status(403).json({ success: false, message: 'Viewers cannot upload files' });
+      if (folderRecord && folderRecord.projectId !== projectId) {
+        return res.status(409).json({ success: false, message: 'Folder belongs to a different project' });
+      }
+    } else {
+      // Personal scope
+      if (folderRecord && (folderRecord.creatorId !== req.userId || folderRecord.storageScope !== 'PERSONAL')) {
+        return res.status(409).json({ success: false, message: 'Folder not in personal storage' });
       }
     }
 
@@ -157,11 +240,10 @@ exports.uploadFiles = async (req, res) => {
       const storageQuotaService = require('../services/storageQuotaService');
       const totalIncomingBytes = files.reduce((sum, f) => sum + BigInt(f.size || 0), 0n);
 
-      // Validate personal or team quota + global storage pool capacity
       const quotaCheck = await storageQuotaService.validateUpload({
-        scope: folderRecord?.storageScope || 'PERSONAL',
+        scope: targetScope,
         userId: req.userId,
-        teamId: folderRecord?.teamId,
+        teamId: teamId || folderRecord?.teamId,
         incomingBytes: totalIncomingBytes
       });
 
@@ -178,7 +260,7 @@ exports.uploadFiles = async (req, res) => {
         targetDriveFolderId = folderRecord.driveFolderId;
       } else if (folderRecord && (req.body?.autoProvision || req.body?.provisionFolder)) {
         targetDriveFolderId = await storageService.ensureDevhubDriveFolder(folderRecord.id);
-      } else {
+      } else if (projectId) {
         const projectRecord = await prisma.project.findUnique({ where: { id: projectId } });
         if (projectRecord?.driveFolderId) {
           targetDriveFolderId = projectRecord.driveFolderId;
@@ -219,7 +301,11 @@ exports.uploadFiles = async (req, res) => {
             throw new Error(`Google Drive upload error for ${file.originalname}: ` + uploadErr.message);
           }
         } else {
-          key = generateSafeKey(projectId, folderId, file.originalname);
+          key = generateSafeKey(projectId, folderId, file.originalname, {
+            userId: req.userId,
+            teamId,
+            scope: targetScope
+          });
           try {
             await storageService.s3Driver.upload(file.buffer, file.mimetype, key);
             storageProvider = 's3';
@@ -238,7 +324,9 @@ exports.uploadFiles = async (req, res) => {
               storagePath: key,
               storageProvider,
               driveFileId,
-              projectId,
+              storageScope: targetScope,
+              projectId: projectId || null,
+              teamId: teamId || null,
               folderId: folderId && folderId !== 'null' ? folderId : null,
               uploaderId: req.userId
             },
@@ -253,7 +341,7 @@ exports.uploadFiles = async (req, res) => {
             action: 'Uploaded',
             entityType: 'File',
             entityId: dbFile.id,
-            metadata: { name: dbFile.name }
+            metadata: { name: dbFile.name, scope: targetScope }
           });
         } catch (dbErr) {
           console.error(`Database error creating File record for ${file.originalname}:`, dbErr);
@@ -279,18 +367,33 @@ exports.uploadFiles = async (req, res) => {
 exports.downloadFile = async (req, res) => {
   try {
     const { id } = req.params;
+    const currentUser = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { id: true, role: true }
+    });
+
     const file = await prisma.file.findUnique({ where: { id } });
     if (!file) return res.status(404).json({ success: false, message: 'File not found' });
 
-    const access = await checkProjectAccess(file.projectId, req.userId);
-    if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
+    if (file.storageScope === 'PERSONAL' && !file.projectId) {
+      if (!permissionService.canAccessPersonalFile(currentUser, file.uploaderId)) {
+        return res.status(403).json({ success: false, message: 'Forbidden' });
+      }
+    } else if (file.teamId) {
+      const teamMembers = await prisma.teamMember.findMany({ where: { teamId: file.teamId } });
+      if (!permissionService.canAccessTeamFile(currentUser, teamMembers.map(m => m.userId))) {
+        return res.status(403).json({ success: false, message: 'Forbidden' });
+      }
+    } else if (file.projectId) {
+      const access = await checkProjectAccess(file.projectId, req.userId);
+      if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
 
     if (file.storageProvider === 'google_drive') {
       if (!file.driveFileId) {
         return res.status(400).json({ success: false, message: 'Missing Google Drive file ID' });
       }
 
-      // If stream explicitly requested or accessed via browser stream link
       if (req.query.stream === 'true' || req.query.stream === '1') {
         const { stream, mimeType, name, size } = await storageService.googleDriveDriver.downloadStream(file.driveFileId);
         res.setHeader('Content-Type', mimeType || file.type || 'application/octet-stream');
@@ -299,14 +402,12 @@ exports.downloadFile = async (req, res) => {
         return stream.pipe(res);
       }
 
-      // Return download endpoint URL for client
       return res.json({
         success: true,
         url: `/api/files/${file.id}/download?stream=true`
       });
     }
 
-    // Default S3 presigned URL
     const downloadUrl = await storageService.s3Driver.getDownloadUrl(file.storagePath);
     res.json({ success: true, url: downloadUrl });
   } catch (error) {
@@ -319,13 +420,28 @@ exports.updateFile = async (req, res) => {
   try {
     const { id } = req.params;
     const { name, folderId } = req.body;
+    const currentUser = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { id: true, role: true }
+    });
 
     const file = await prisma.file.findUnique({ where: { id } });
     if (!file) return res.status(404).json({ success: false, message: 'File not found' });
 
-    const access = await checkProjectAccess(file.projectId, req.userId);
-    if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
-    if (access.role === 'Viewer') return res.status(403).json({ success: false, message: 'Viewers cannot update files' });
+    if (file.storageScope === 'PERSONAL' && !file.projectId) {
+      if (!permissionService.canAccessPersonalFile(currentUser, file.uploaderId)) {
+        return res.status(403).json({ success: false, message: 'Forbidden' });
+      }
+    } else if (file.teamId) {
+      const teamMembers = await prisma.teamMember.findMany({ where: { teamId: file.teamId } });
+      if (!permissionService.canAccessTeamFile(currentUser, teamMembers.map(m => m.userId))) {
+        return res.status(403).json({ success: false, message: 'Forbidden' });
+      }
+    } else if (file.projectId) {
+      const access = await checkProjectAccess(file.projectId, req.userId);
+      if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
+      if (access.role === 'Viewer') return res.status(403).json({ success: false, message: 'Viewers cannot update files' });
+    }
 
     const updateData = {};
     if (name !== undefined) {
@@ -336,8 +452,14 @@ exports.updateFile = async (req, res) => {
     if (folderId !== undefined) {
       if (folderId && folderId !== 'null') {
         const folder = await prisma.folder.findUnique({ where: { id: folderId } });
-        if (!folder || folder.projectId !== file.projectId) {
-          return res.status(409).json({ success: false, message: 'Folder not found or belongs to a different project' });
+        if (!folder) {
+          return res.status(409).json({ success: false, message: 'Folder not found' });
+        }
+        if (file.projectId && folder.projectId !== file.projectId) {
+          return res.status(409).json({ success: false, message: 'Folder belongs to a different project' });
+        }
+        if (file.teamId && folder.teamId !== file.teamId) {
+          return res.status(409).json({ success: false, message: 'Folder belongs to a different team' });
         }
       }
       updateData.folderId = folderId && folderId !== 'null' ? folderId : null;
@@ -348,6 +470,7 @@ exports.updateFile = async (req, res) => {
       data: updateData,
       include: {
         project: { select: { id: true, name: true } },
+        team: { select: { id: true, name: true } },
         folder: { select: { id: true, name: true } },
         uploader: { select: { id: true, name: true } }
       }
@@ -363,6 +486,7 @@ exports.updateFile = async (req, res) => {
 
     res.json({ success: true, file: updatedFile });
   } catch (error) {
+    console.error('UpdateFile Error:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
@@ -370,16 +494,28 @@ exports.updateFile = async (req, res) => {
 exports.deleteFile = async (req, res) => {
   try {
     const { id } = req.params;
+    const currentUser = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { id: true, role: true }
+    });
 
     const file = await prisma.file.findUnique({ where: { id } });
     if (!file) return res.status(404).json({ success: false, message: 'File not found' });
 
-    const access = await checkProjectAccess(file.projectId, req.userId);
-    if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
-    const isUploader = file.uploaderId === req.userId;
-    const isProjectAdmin = access.role === 'Admin' || access.role === 'Owner';
-    if (!isUploader && !isProjectAdmin) {
-      return res.status(403).json({ success: false, message: 'Only the uploader or project Admins/Owners can delete files' });
+    let canDelete = false;
+    if (file.storageScope === 'PERSONAL' && !file.projectId) {
+      canDelete = file.uploaderId === req.userId || permissionService.isAdmin(currentUser);
+    } else if (file.teamId) {
+      const teamMembers = await prisma.teamMember.findMany({ where: { teamId: file.teamId } });
+      canDelete = file.uploaderId === req.userId || permissionService.canManageTeam(currentUser, teamMembers);
+    } else if (file.projectId) {
+      const access = await checkProjectAccess(file.projectId, req.userId);
+      if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
+      canDelete = file.uploaderId === req.userId || access.role === 'Admin' || access.role === 'Owner';
+    }
+
+    if (!canDelete) {
+      return res.status(403).json({ success: false, message: 'Only the uploader or authorized admin can delete files' });
     }
 
     try {

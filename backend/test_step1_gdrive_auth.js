@@ -214,17 +214,32 @@ async function runStep1Tests() {
     // TEST 6: GET System Storage Status Endpoint
     // -------------------------------------------------------------
     console.log('\n[Test 6] GET /api/integrations/google/system-storage (Query System Storage Status)');
-    const statusRes = await fetch(`${baseUrl}/integrations/google/system-storage`, {
+    // 6a: Regular user receives sanitized status (no Admin email, userId, or internal Drive info)
+    const statusResRegular = await fetch(`${baseUrl}/integrations/google/system-storage`, {
       headers: { Authorization: `Bearer ${regularToken}` }
     });
-    const statusData = await statusRes.json();
-    if (statusRes.ok && statusData.isSystemStorage === true && statusData.accountName === 'owner.5tb@gmail.com') {
-      console.log('  ✓ System storage status returned correctly:');
-      console.log(`    Status: ${statusData.status}`);
-      console.log(`    Account: ${statusData.accountName}`);
-      console.log(`    Owner: ${statusData.owner?.name} (${statusData.owner?.email})`);
+    const statusDataRegular = await statusResRegular.json();
+    const regularSanitized = statusResRegular.ok &&
+      statusDataRegular.isSystemStorage === true &&
+      !statusDataRegular.accountName &&
+      !statusDataRegular.owner;
+
+    // 6b: Admin receives full details
+    const statusResAdmin = await fetch(`${baseUrl}/integrations/google/system-storage`, {
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    const statusDataAdmin = await statusResAdmin.json();
+    const adminFull = statusResAdmin.ok &&
+      statusDataAdmin.isSystemStorage === true &&
+      statusDataAdmin.accountName === 'owner.5tb@gmail.com' &&
+      statusDataAdmin.owner?.email === adminUser.email;
+
+    if (regularSanitized && adminFull) {
+      console.log('  ✓ System storage status protected correctly:');
+      console.log(`    Regular User Sanitized: isSystemStorage=${statusDataRegular.isSystemStorage}, accountName=${statusDataRegular.accountName || 'HIDDEN'}, owner=${statusDataRegular.owner || 'HIDDEN'}`);
+      console.log(`    Admin Full Details: Account=${statusDataAdmin.accountName}, Owner=${statusDataAdmin.owner?.name} (${statusDataAdmin.owner?.email})`);
     } else {
-      console.error('  ✗ Failed to fetch system storage status:', statusData);
+      console.error('  ✗ Failed system storage status protection check:', { regularSanitized, adminFull, statusDataRegular, statusDataAdmin });
       allPassed = false;
     }
 

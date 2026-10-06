@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '../api/client';
-import { useStore } from '../store';
 import Modal from '../components/common/Modal';
 import { getStatusBadgeColor } from '../utils/colors';
 
 export default function PullRequests() {
-  const { projects, getRole } = useStore();
   const [pullRequests, setPullRequests] = useState([]);
   const [repositories, setRepositories] = useState([]);
   const [loading, setLoading] = useState(true);

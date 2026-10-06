@@ -16,9 +16,9 @@ export default function MemberSummary({ summary = {} }) {
     },
     {
       id: 'projects',
-      label: 'Shared Projects',
-      value: summary.sharedProjects ?? 0,
-      icon: 'fa-solid fa-folder-tree',
+      label: 'Teams',
+      value: summary.teamsCount ?? summary.sharedProjects ?? 0,
+      icon: 'fa-solid fa-users-rectangle',
       color: 'text-blue-400',
       bg: 'bg-blue-500/10'
     },
