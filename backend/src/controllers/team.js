@@ -652,3 +652,46 @@ exports.getTeamEntity = async (req, res) => {
   }
 };
 
+/**
+ * Delete team entity (Team Leader or Admin only)
+ */
+exports.deleteTeam = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const currentUserId = req.userId;
+
+    const team = await prisma.team.findUnique({
+      where: { id },
+      include: { members: true }
+    });
+
+    if (!team) {
+      return res.status(404).json({ success: false, message: 'Team not found' });
+    }
+
+    const caller = await prisma.user.findUnique({
+      where: { id: currentUserId },
+      select: { id: true, role: true }
+    });
+
+    if (!permissionService.canManageTeam(caller, team.members)) {
+      return res.status(403).json({ success: false, message: 'Only Team Leaders or Admins can delete teams' });
+    }
+
+    await teamService.deleteTeam(id);
+
+    createAuditLog({
+      userId: currentUserId,
+      action: 'Deleted',
+      entityType: 'Team',
+      entityId: id,
+      metadata: { name: team.name }
+    });
+
+    res.json({ success: true, message: 'Team deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting team:', err);
+    res.status(500).json({ success: false, message: err.message || 'Internal server error' });
+  }
+};
+

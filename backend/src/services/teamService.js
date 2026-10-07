@@ -145,6 +145,18 @@ class TeamService {
       }
     });
   }
+
+  /**
+   * Delete team and its associated files, folders, members, allocation
+   */
+  async deleteTeam(teamId) {
+    if (!teamId) throw new Error('teamId is required');
+    await prisma.file.deleteMany({ where: { teamId } });
+    await prisma.folder.deleteMany({ where: { teamId } });
+    await prisma.teamMember.deleteMany({ where: { teamId } });
+    await prisma.teamStorageAllocation.deleteMany({ where: { teamId } });
+    return await prisma.team.delete({ where: { id: teamId } });
+  }
 }
 
 module.exports = new TeamService();

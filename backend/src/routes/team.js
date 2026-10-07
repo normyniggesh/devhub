@@ -9,7 +9,8 @@ const {
   removeTeamMember,
   getMyTeams,
   createTeam,
-  getTeamEntity
+  getTeamEntity,
+  deleteTeam
 } = require('../controllers/team');
 
 router.use(authMiddleware);
@@ -18,6 +19,7 @@ router.use(authMiddleware);
 router.get('/list', getMyTeams);
 router.post('/create', createTeam);
 router.get('/entity/:id', getTeamEntity);
+router.delete('/entity/:id', deleteTeam);
 
 // Legacy/Aggregated team data routes
 router.get('/', getTeamData);

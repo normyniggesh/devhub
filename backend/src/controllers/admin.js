@@ -496,3 +496,98 @@ exports.getActivity = async (req, res) => {
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
+
+/**
+ * Admin: Create or provision a user directly with automatic verified status and personal storage
+ */
+exports.createUser = async (req, res) => {
+  try {
+    const { name, email, password, role = 'Member' } = req.body || {};
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: 'Email and password required' });
+    }
+    const cleanEmail = email.toLowerCase().trim();
+    const bcrypt = require('bcryptjs');
+    const passwordHash = await bcrypt.hash(password, 10);
+    const existing = await prisma.user.findUnique({ where: { email: cleanEmail } });
+    if (existing) {
+      const updated = await prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          name: name ? name.trim() : existing.name,
+          passwordHash,
+          emailVerified: true,
+          status: 'Active'
+        }
+      });
+      const userService = require('../services/userService');
+      await userService.initializeUserStorage(updated.id);
+      return res.json({ success: true, user: { id: updated.id, email: updated.email, name: updated.name, role: updated.role } });
+    }
+    const user = await prisma.user.create({
+      data: {
+        name: (name || 'Test User').trim(),
+        email: cleanEmail,
+        passwordHash,
+        emailVerified: true,
+        status: 'Active',
+        role: role === 'Admin' ? 'Member' : role
+      }
+    });
+    const userService = require('../services/userService');
+    await userService.initializeUserStorage(user.id);
+    res.status(201).json({ success: true, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
+  } catch (err) {
+    console.error('Error creating user via admin:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * Admin: Verify user email directly
+ */
+exports.verifyUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await prisma.user.update({
+      where: { id },
+      data: {
+        emailVerified: true,
+        verificationCodeHash: null,
+        verificationCodeExpiresAt: null,
+        status: 'Active'
+      },
+      select: { id: true, name: true, email: true, emailVerified: true, role: true, status: true }
+    });
+    const userService = require('../services/userService');
+    await userService.initializeUserStorage(user.id);
+    res.json({ success: true, message: 'User verified successfully', user });
+  } catch (err) {
+    console.error('Error verifying user:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * Admin: Delete a user and clean up all associated records
+ */
+exports.deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (id === req.userId) {
+      return res.status(400).json({ success: false, message: 'Cannot delete own account' });
+    }
+    await prisma.file.deleteMany({ where: { uploaderId: id } });
+    await prisma.folder.deleteMany({ where: { creatorId: id } });
+    await prisma.personalStorageAllocation.deleteMany({ where: { userId: id } });
+    await prisma.teamMember.deleteMany({ where: { userId: id } });
+    await prisma.userIntegration.deleteMany({ where: { userId: id } });
+    await prisma.auditLog.deleteMany({ where: { userId: id } });
+    await prisma.user.delete({ where: { id } });
+    res.json({ success: true, message: 'User deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting user:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+

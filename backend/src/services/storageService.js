@@ -275,11 +275,11 @@ const {
 } = require('./googleDriveDriver');
 
 const getPrimaryStorageProvider = () => {
-  const provider = (process.env.PRIMARY_STORAGE_PROVIDER || 's3').toLowerCase().trim();
+  const provider = (process.env.PRIMARY_STORAGE_PROVIDER || 'google_drive').toLowerCase().trim();
   if (provider === 'google_drive' || provider === 'googledrive' || provider === 'drive' || provider === 'devhub_cloud') {
     return 'google_drive';
   }
-  return 's3';
+  return 'google_drive';
 };
 
 
