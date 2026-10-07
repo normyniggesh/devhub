@@ -229,7 +229,10 @@ async function runPass10ALiveProductionVerification() {
       { storageScope: 'PERSONAL' },
       { name: `sys_storage_test_${Date.now()}.txt`, type: 'text/plain', buffer: testBaselineBuffer }
     );
-    const uploadBaselineData = JSON.parse(uploadBaselineRes.body || '{}');
+    let uploadBaselineData = {};
+    try {
+      uploadBaselineData = JSON.parse(uploadBaselineRes.body || '{}');
+    } catch (_) {}
     const baselineFile = uploadBaselineData.files?.[0];
 
     report(
@@ -632,7 +635,10 @@ async function runPass10ALiveProductionVerification() {
       { storageScope: 'PERSONAL' },
       { name: `usera_doc_${Date.now()}.txt`, type: 'text/plain', buffer: userATestBuffer }
     );
-    const userAUploadData = JSON.parse(userAUploadRes.body || '{}');
+    let userAUploadData = {};
+    try {
+      userAUploadData = JSON.parse(userAUploadRes.body || '{}');
+    } catch (_) {}
     const userAFile = userAUploadData.files?.[0];
 
     report(
