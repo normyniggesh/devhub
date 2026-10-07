@@ -112,6 +112,13 @@ exports.getProviderAuthUrl = async (req, res) => {
       redirectUri
     });
   } catch (error) {
+    if (error.message && (error.message.includes('not configured') || error.message.includes('Missing'))) {
+      return res.json({
+        success: true,
+        configured: false,
+        message: error.message
+      });
+    }
     res.status(400).json({ success: false, message: error.message });
   }
 };
@@ -442,7 +449,7 @@ exports.importProviderFile = async (req, res) => {
  */
 exports.getProviderQuota = async (req, res) => {
   try {
-    const { provider } = req.params;
+    const provider = req.params.provider || req.query.provider;
     const { teamId } = req.query;
     const userId = req.userId;
 

@@ -1,5 +1,6 @@
 const prisma = require('../db');
 const { Readable } = require('stream');
+const { decryptToken, encryptToken } = require('../utils/crypto');
 
 /**
  * Authoritative Google Drive Storage Driver for DEVHUB Cloud Storage
@@ -77,13 +78,18 @@ async function getSystemStorageIntegration() {
  * Retrieves or refreshes the access token for the System Storage Google Drive account.
  */
 async function getSystemStorageToken(customToken) {
-  if (customToken) return customToken;
+  if (customToken) return decryptToken(customToken);
 
   const sys = await getSystemStorageIntegration();
   const metadata = sys.metadata || {};
   const isExpired = metadata.expiresAt && Date.now() > (metadata.expiresAt - 60000);
 
-  if (isExpired && metadata.refreshToken && process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  const rawRefreshToken = metadata.refreshToken;
+  const refreshToken = decryptToken(rawRefreshToken);
+  const rawAccessToken = sys.accessToken;
+  const accessToken = decryptToken(rawAccessToken);
+
+  if (isExpired && refreshToken && process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     try {
       console.log('[GoogleDriveDriver] Refreshing expired system storage token...');
       const refreshRes = await fetch('https://oauth2.googleapis.com/token', {
@@ -92,7 +98,7 @@ async function getSystemStorageToken(customToken) {
         body: new URLSearchParams({
           client_id: process.env.GOOGLE_CLIENT_ID,
           client_secret: process.env.GOOGLE_CLIENT_SECRET,
-          refresh_token: metadata.refreshToken,
+          refresh_token: refreshToken,
           grant_type: 'refresh_token'
         })
       });
@@ -102,7 +108,7 @@ async function getSystemStorageToken(customToken) {
         const updated = await prisma.userIntegration.update({
           where: { id: sys.id },
           data: {
-            accessToken: newTokens.access_token,
+            accessToken: encryptToken(newTokens.access_token),
             metadata: {
               ...metadata,
               expiresAt: Date.now() + (newTokens.expires_in || 3600) * 1000
@@ -110,23 +116,22 @@ async function getSystemStorageToken(customToken) {
             updatedAt: new Date()
           }
         });
-        return updated.accessToken;
+        return newTokens.access_token;
       } else {
         const errText = await refreshRes.text();
         console.error('[GoogleDriveDriver] Refresh failed:', errText);
-        throw new Error('Failed to refresh Google Drive system storage access token.');
+        // Fall back to existing decrypted accessToken if refresh response was not ok
       }
     } catch (refreshErr) {
       console.error('[GoogleDriveDriver] Refresh error:', refreshErr.message);
-      throw new Error('Failed to refresh Google Drive system storage access token: ' + refreshErr.message);
     }
   }
 
-  if (!sys.accessToken) {
+  if (!accessToken) {
     throw new Error('Google Drive system storage has no active access token.');
   }
 
-  return sys.accessToken;
+  return accessToken;
 }
 
 const googleDriveDriver = {
