@@ -77,7 +77,9 @@ class StorageQuotaService {
       },
       _sum: { size: true }
     });
-    const used = BigInt(agg._sum.size || 0);
+    const fileUsed = BigInt(agg._sum.size || 0);
+    const allocUsed = BigInt(allocation.usedBytes || 0);
+    const used = fileUsed > allocUsed ? fileUsed : allocUsed;
     const remaining = allocated > used ? allocated - used : 0n;
     const percentage = allocated > 0n ? Number((used * 10000n) / allocated) / 100 : 0;
 
@@ -109,7 +111,9 @@ class StorageQuotaService {
       },
       _sum: { size: true }
     });
-    const used = BigInt(agg._sum.size || 0);
+    const fileUsed = BigInt(agg._sum.size || 0);
+    const allocUsed = BigInt(allocation.usedBytes || 0);
+    const used = fileUsed > allocUsed ? fileUsed : allocUsed;
     const remaining = allocated > used ? allocated - used : 0n;
     const percentage = allocated > 0n ? Number((used * 10000n) / allocated) / 100 : 0;
 
@@ -128,15 +132,32 @@ class StorageQuotaService {
 
   /**
    * Admin-only: Set personal storage quota
+   * Enforces that new allocation is strictly positive and never below current used storage.
    */
   async setPersonalQuota(userId, newAllocatedBytes) {
-    const bytes = BigInt(newAllocatedBytes);
-    if (bytes <= 0n) throw new Error('Allocated bytes must be greater than zero');
+    if (!userId) throw new Error('userId is required');
+    let bytes;
+    try {
+      bytes = BigInt(newAllocatedBytes);
+    } catch (_) {
+      throw new Error('Allocated bytes must be a valid number');
+    }
 
-    const updated = await prisma.personalStorageAllocation.upsert({
+    if (bytes <= 0n) {
+      throw new Error('Allocated bytes must be greater than zero');
+    }
+
+    // Get current usage to prevent allocation below actual usage
+    const currentQuota = await this.getPersonalQuota(userId);
+    const currentUsed = BigInt(currentQuota.usedBytes);
+    if (bytes < currentUsed) {
+      throw new Error(`Allocation cannot be lower than current usage (${currentQuota.usedGB} GB used).`);
+    }
+
+    await prisma.personalStorageAllocation.upsert({
       where: { userId },
       update: { allocatedBytes: bytes },
-      create: { userId, allocatedBytes: bytes, usedBytes: 0n }
+      create: { userId, allocatedBytes: bytes, usedBytes: currentUsed }
     });
 
     return await this.getPersonalQuota(userId);
@@ -144,15 +165,32 @@ class StorageQuotaService {
 
   /**
    * Admin-only: Set team storage quota
+   * Enforces that new allocation is strictly positive and never below current used storage.
    */
   async setTeamQuota(teamId, newAllocatedBytes) {
-    const bytes = BigInt(newAllocatedBytes);
-    if (bytes <= 0n) throw new Error('Allocated bytes must be greater than zero');
+    if (!teamId) throw new Error('teamId is required');
+    let bytes;
+    try {
+      bytes = BigInt(newAllocatedBytes);
+    } catch (_) {
+      throw new Error('Allocated bytes must be a valid number');
+    }
 
-    const updated = await prisma.teamStorageAllocation.upsert({
+    if (bytes <= 0n) {
+      throw new Error('Allocated bytes must be greater than zero');
+    }
+
+    // Get current usage to prevent allocation below actual usage
+    const currentQuota = await this.getTeamQuota(teamId);
+    const currentUsed = BigInt(currentQuota.usedBytes);
+    if (bytes < currentUsed) {
+      throw new Error(`Allocation cannot be lower than current usage (${currentQuota.usedGB} GB used).`);
+    }
+
+    await prisma.teamStorageAllocation.upsert({
       where: { teamId },
       update: { allocatedBytes: bytes },
-      create: { teamId, allocatedBytes: bytes, usedBytes: 0n }
+      create: { teamId, allocatedBytes: bytes, usedBytes: currentUsed }
     });
 
     return await this.getTeamQuota(teamId);

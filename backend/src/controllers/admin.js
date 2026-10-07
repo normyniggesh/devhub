@@ -66,11 +66,11 @@ exports.getOverview = async (req, res) => {
 };
 
 /**
- * List all users with status, verification, last active, and connected providers (no secrets)
+ * List all users with status, verification, last active, connected providers, and personal storage metrics
  */
 exports.getUsers = async (req, res) => {
   try {
-    const users = await prisma.user.findMany({
+    const rawUsers = await prisma.user.findMany({
       select: {
         id: true,
         name: true,
@@ -82,6 +82,12 @@ exports.getUsers = async (req, res) => {
         avatarUrl: true,
         createdAt: true,
         updatedAt: true,
+        personalStorage: {
+          select: {
+            allocatedBytes: true,
+            usedBytes: true
+          }
+        },
         _count: {
           select: {
             projectsOwned: true,
@@ -99,6 +105,26 @@ exports.getUsers = async (req, res) => {
         }
       },
       orderBy: { createdAt: 'desc' }
+    });
+
+    const users = rawUsers.map((u) => {
+      const allocated = u.personalStorage ? BigInt(u.personalStorage.allocatedBytes) : 5368709120n;
+      const used = u.personalStorage ? BigInt(u.personalStorage.usedBytes) : 0n;
+      const remaining = allocated > used ? allocated - used : 0n;
+      const percentage = allocated > 0n ? Number((used * 10000n) / allocated) / 100 : 0;
+
+      return {
+        ...u,
+        storage: {
+          allocatedBytes: allocated.toString(),
+          usedBytes: used.toString(),
+          remainingBytes: remaining.toString(),
+          allocatedGB: Number(allocated / (1024n * 1024n * 1024n)),
+          usedGB: (Number(used) / (1024 * 1024 * 1024)).toFixed(3),
+          remainingGB: (Number(remaining) / (1024 * 1024 * 1024)).toFixed(3),
+          percentage
+        }
+      };
     });
 
     res.json({ success: true, users });
@@ -267,6 +293,73 @@ exports.getProjects = async (req, res) => {
     res.json({ success: true, projects });
   } catch (error) {
     console.error('Error fetching admin projects:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+/**
+ * List all teams with leader, member counts, and team storage metrics
+ */
+exports.getTeams = async (req, res) => {
+  try {
+    const rawTeams = await prisma.team.findMany({
+      include: {
+        createdBy: {
+          select: { id: true, name: true, email: true, avatarUrl: true }
+        },
+        members: {
+          include: {
+            user: {
+              select: { id: true, name: true, email: true, avatarUrl: true }
+            }
+          }
+        },
+        storageAllocation: true,
+        _count: {
+          select: { members: true, files: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const teams = rawTeams.map((t) => {
+      const leaderMember = t.members.find((m) => m.role === 'Leader');
+      const leader = leaderMember ? leaderMember.user : t.createdBy;
+      const allocated = t.storageAllocation ? BigInt(t.storageAllocation.allocatedBytes) : 10737418240n;
+      const used = t.storageAllocation ? BigInt(t.storageAllocation.usedBytes) : 0n;
+      const remaining = allocated > used ? allocated - used : 0n;
+      const percentage = allocated > 0n ? Number((used * 10000n) / allocated) / 100 : 0;
+
+      return {
+        id: t.id,
+        name: t.name,
+        description: t.description,
+        createdAt: t.createdAt,
+        updatedAt: t.updatedAt,
+        leader,
+        memberCount: t._count.members,
+        storage: {
+          allocatedBytes: allocated.toString(),
+          usedBytes: used.toString(),
+          remainingBytes: remaining.toString(),
+          allocatedGB: Number(allocated / (1024n * 1024n * 1024n)),
+          usedGB: (Number(used) / (1024 * 1024 * 1024)).toFixed(3),
+          remainingGB: (Number(remaining) / (1024 * 1024 * 1024)).toFixed(3),
+          percentage
+        },
+        members: t.members.map((m) => ({
+          userId: m.userId,
+          role: m.role,
+          name: m.user.name,
+          email: m.user.email,
+          avatarUrl: m.user.avatarUrl
+        }))
+      };
+    });
+
+    res.json({ success: true, teams });
+  } catch (error) {
+    console.error('Error fetching admin teams:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };

@@ -12,7 +12,8 @@ export default function UsersTable({
   onUpdateRole,
   onUpdateStatus,
   onViewProjects,
-  onViewActivity
+  onViewActivity,
+  onEditStorage
 }) {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('All');
@@ -150,26 +151,25 @@ export default function UsersTable({
           <thead>
             <tr className="bg-[#0b0e18] border-b border-[#1e2538] text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
               <th className="py-3 px-4">User</th>
-              <th className="py-3 px-4">Role</th>
-              <th className="py-3 px-4">Account Status</th>
-              <th className="py-3 px-4">Email Verified</th>
-              <th className="py-3 px-4">Last Active</th>
-              <th className="py-3 px-4">Connected Providers</th>
-              <th className="py-3 px-4">Joined</th>
+              <th className="py-3 px-4">Role & Status</th>
+              <th className="py-3 px-4">Used Storage</th>
+              <th className="py-3 px-4">Allocated</th>
+              <th className="py-3 px-4">Remaining</th>
+              <th className="py-3 px-4">Usage %</th>
               <th className="py-3 px-4 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#182033]">
             {loading ? (
               <tr>
-                <td colSpan={8} className="py-12 text-center text-slate-400">
+                <td colSpan={7} className="py-12 text-center text-slate-400">
                   <i className="fa-solid fa-circle-notch fa-spin text-indigo-400 text-lg mb-2 block"></i>
                   Loading users...
                 </td>
               </tr>
             ) : filteredUsers.length === 0 ? (
               <tr>
-                <td colSpan={8} className="py-10 text-center text-slate-500">
+                <td colSpan={7} className="py-10 text-center text-slate-500">
                   No users match the selected filters.
                 </td>
               </tr>
@@ -198,53 +198,75 @@ export default function UsersTable({
                       </div>
                     </td>
 
-                    {/* Role */}
+                    {/* Role & Status */}
                     <td className="py-3 px-4">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${
-                          u.role === 'Admin'
-                            ? 'bg-purple-500/10 text-purple-400 border border-purple-500/25'
-                            : u.role === 'Member'
-                            ? 'bg-blue-500/10 text-blue-400 border border-blue-500/25'
-                            : 'bg-slate-700/30 text-slate-400 border border-slate-700/50'
-                        }`}
-                      >
-                        {u.role}
-                      </span>
+                      <div className="flex flex-col gap-1 items-start">
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
+                            u.role === 'Admin'
+                              ? 'bg-purple-500/10 text-purple-400 border border-purple-500/25'
+                              : u.role === 'Member'
+                              ? 'bg-blue-500/10 text-blue-400 border border-blue-500/25'
+                              : 'bg-slate-700/30 text-slate-400 border border-slate-700/50'
+                          }`}
+                        >
+                          {u.role}
+                        </span>
+                        <UserStatusBadge type="status" value={u.status} />
+                      </div>
                     </td>
 
-                    {/* Status */}
-                    <td className="py-3 px-4">
-                      <UserStatusBadge type="status" value={u.status} />
+                    {/* Used */}
+                    <td className="py-3 px-4 font-semibold text-slate-200">
+                      {u.storage?.usedGB || '0.000'} GB
                     </td>
 
-                    {/* Verification */}
-                    <td className="py-3 px-4">
-                      <UserStatusBadge type="verification" verified={u.emailVerified} />
+                    {/* Allocated */}
+                    <td className="py-3 px-4 font-semibold text-indigo-400">
+                      {u.storage?.allocatedGB || 5} GB
                     </td>
 
-                    {/* Last active */}
-                    <td className="py-3 px-4">
-                      <LastSeen lastSeen={u.lastSeen} />
+                    {/* Remaining */}
+                    <td className="py-3 px-4 font-semibold text-emerald-400">
+                      {u.storage?.remainingGB || '5.000'} GB
                     </td>
 
-                    {/* Connected Providers */}
+                    {/* Usage % */}
                     <td className="py-3 px-4">
-                      <ProviderStatus integrations={u.integrations || []} compact={true} />
-                    </td>
-
-                    {/* Created Date */}
-                    <td className="py-3 px-4 text-slate-400 whitespace-nowrap">
-                      {new Date(u.createdAt).toLocaleDateString(undefined, {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                      })}
+                      <div className="w-28 space-y-1">
+                        <div className="flex justify-between text-[10px] text-slate-400 font-medium">
+                          <span>{(u.storage?.percentage || 0).toFixed(1)}%</span>
+                        </div>
+                        <div className="w-full bg-[#192238] rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ${
+                              (u.storage?.percentage || 0) > 90
+                                ? 'bg-rose-500'
+                                : (u.storage?.percentage || 0) > 75
+                                ? 'bg-amber-500'
+                                : 'bg-indigo-500'
+                            }`}
+                            style={{ width: `${Math.min(100, Math.max(1, u.storage?.percentage || 0))}%` }}
+                          />
+                        </div>
+                      </div>
                     </td>
 
                     {/* Actions */}
                     <td className="py-3 px-4 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1.5">
+                        {onEditStorage && (
+                          <button
+                            type="button"
+                            title="Edit storage quota"
+                            onClick={() => onEditStorage(u)}
+                            className="px-2 py-1 rounded-lg bg-[#192238] hover:bg-[#232f4e] text-indigo-400 hover:text-white transition flex items-center gap-1 text-xs font-semibold"
+                          >
+                            <i className="fa-solid fa-hard-drive text-[10px]"></i>
+                            <span>Edit Storage</span>
+                          </button>
+                        )}
+
                         {/* View Details */}
                         <button
                           title="View user details"

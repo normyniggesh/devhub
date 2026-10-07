@@ -65,6 +65,73 @@ class StoragePoolService {
     const poolPercentage = physicalCapacityBytes > 0n ? Number((actualUsedBytes * 10000n) / physicalCapacityBytes) / 100 : 0;
     const allocatedPercentage = physicalCapacityBytes > 0n ? Number((totalLogicalAllocatedBytes * 10000n) / physicalCapacityBytes) / 100 : 0;
 
+    // 7. Aggregate counts and highest-usage users/teams
+    const [userCount, teamCount, highestUsersRaw, highestTeamsRaw] = await Promise.all([
+      prisma.user.count(),
+      prisma.team.count(),
+      prisma.personalStorageAllocation.findMany({
+        take: 5,
+        orderBy: { usedBytes: 'desc' },
+        include: {
+          user: { select: { id: true, name: true, email: true, avatarUrl: true, role: true } }
+        }
+      }),
+      prisma.teamStorageAllocation.findMany({
+        take: 5,
+        orderBy: { usedBytes: 'desc' },
+        include: {
+          team: {
+            select: {
+              id: true,
+              name: true,
+              createdBy: { select: { id: true, name: true, email: true } },
+              _count: { select: { members: true } }
+            }
+          }
+        }
+      })
+    ]);
+
+    const highestUsageUsers = highestUsersRaw.map((u) => {
+      const allocated = BigInt(u.allocatedBytes);
+      const used = BigInt(u.usedBytes);
+      const remaining = allocated > used ? allocated - used : 0n;
+      const pct = allocated > 0n ? Number((used * 10000n) / allocated) / 100 : 0;
+      return {
+        userId: u.userId,
+        name: u.user?.name || 'User',
+        email: u.user?.email || '',
+        role: u.user?.role || 'User',
+        allocatedBytes: allocated.toString(),
+        usedBytes: used.toString(),
+        remainingBytes: remaining.toString(),
+        allocatedGB: Number(allocated / (1024n * 1024n * 1024n)),
+        usedGB: (Number(used) / (1024 * 1024 * 1024)).toFixed(3),
+        remainingGB: (Number(remaining) / (1024 * 1024 * 1024)).toFixed(3),
+        percentage: pct
+      };
+    });
+
+    const highestUsageTeams = highestTeamsRaw.map((t) => {
+      const allocated = BigInt(t.allocatedBytes);
+      const used = BigInt(t.usedBytes);
+      const remaining = allocated > used ? allocated - used : 0n;
+      const pct = allocated > 0n ? Number((used * 10000n) / allocated) / 100 : 0;
+      return {
+        teamId: t.teamId,
+        name: t.team?.name || 'Unnamed Team',
+        leaderName: t.team?.createdBy?.name || 'Leader',
+        memberCount: t.team?._count?.members || 0,
+        allocatedBytes: allocated.toString(),
+        usedBytes: used.toString(),
+        remainingBytes: remaining.toString(),
+        allocatedGB: Number(allocated / (1024n * 1024n * 1024n)),
+        usedGB: (Number(used) / (1024 * 1024 * 1024)).toFixed(3),
+        remainingGB: (Number(remaining) / (1024 * 1024 * 1024)).toFixed(3),
+        percentage: pct
+      };
+    });
+
     return {
       physicalCapacityBytes: physicalCapacityBytes.toString(),
       physicalCapacityFormatted: `${Number(physicalCapacityBytes / (1024n * 1024n * 1024n * 1024n))} TB`,
@@ -87,7 +154,11 @@ class StoragePoolService {
       isPhysicalPoolExhausted,
       logicalOvercommitRatio: actualUsedBytes > 0n
         ? (Number(totalLogicalAllocatedBytes) / Number(actualUsedBytes)).toFixed(2)
-        : '0.00'
+        : '0.00',
+      userCount,
+      teamCount,
+      highestUsageUsers,
+      highestUsageTeams
     };
   }
 

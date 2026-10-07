@@ -31,6 +31,7 @@ export default function Admin() {
     connectedGithub: 0
   });
   const [users, setUsers] = useState([]);
+  const [teams, setTeams] = useState([]);
   const [projects, setProjects] = useState([]);
   const [cloudConnections, setCloudConnections] = useState([]);
   const [activity, setActivity] = useState([]);
@@ -48,7 +49,8 @@ export default function Admin() {
   const [storageData, setStorageData] = useState({ personalAllocations: [], teamAllocations: [], poolStatus: null });
   const [storageLoading, setStorageLoading] = useState(false);
   const [quotaModalOpen, setQuotaModalOpen] = useState(false);
-  const [quotaForm, setQuotaForm] = useState({ type: 'user', targetId: '', targetName: '', allocatedGB: 5 });
+  const [quotaForm, setQuotaForm] = useState({ type: 'user', targetId: '', targetName: '', allocatedGB: 5, currentUsedGB: 0 });
+  const [quotaError, setQuotaError] = useState('');
   const [quotaSubmitting, setQuotaSubmitting] = useState(false);
 
   // Fetch all admin data
@@ -56,12 +58,13 @@ export default function Admin() {
     setLoading(true);
     setError(null);
     try {
-      const [ovRes, usRes, prRes, ccRes, acRes] = await Promise.all([
+      const [ovRes, usRes, prRes, ccRes, acRes, tmRes] = await Promise.all([
         apiClient('/admin/overview').catch(() => ({ stats: {} })),
         apiClient('/admin/users').catch(() => ({ users: [] })),
         apiClient('/admin/projects').catch(() => ({ projects: [] })),
         apiClient('/admin/cloud-connections').catch(() => ({ connections: [] })),
-        apiClient('/admin/activity').catch(() => ({ activity: [] }))
+        apiClient('/admin/activity').catch(() => ({ activity: [] })),
+        apiClient('/admin/teams').catch(() => ({ teams: [] }))
       ]);
 
       if (ovRes.stats) setStats(ovRes.stats);
@@ -69,6 +72,7 @@ export default function Admin() {
       if (prRes.projects) setProjects(prRes.projects);
       if (ccRes.connections) setCloudConnections(ccRes.connections);
       if (acRes.activity) setActivity(acRes.activity);
+      if (tmRes.teams) setTeams(tmRes.teams);
     } catch (err) {
       console.error('Failed to load admin data:', err);
       setError(err.message || 'Failed to load administration data');
@@ -125,22 +129,50 @@ export default function Admin() {
     return res;
   };
 
-  const handleOpenSetQuota = (allocation = null, type = 'user') => {
-    if (allocation) {
-      const gb = Number(BigInt(allocation.allocatedBytes) / (1024n * 1024n * 1024n));
-      setQuotaForm({
-        type,
-        targetId: type === 'user' ? allocation.userId : allocation.teamId,
-        targetName: type === 'user' ? (allocation.user?.name || allocation.user?.email) : (allocation.team?.name || 'Team'),
-        allocatedGB: gb > 0 ? gb : (type === 'user' ? 5 : 10)
-      });
+  const handleOpenSetQuota = (target = null, type = 'user') => {
+    setQuotaError('');
+    if (target) {
+      if (type === 'user') {
+        const allocGB = target.storage?.allocatedGB ?? (target.allocatedBytes ? Number(BigInt(target.allocatedBytes) / (1024n * 1024n * 1024n)) : 5);
+        const usedGB = target.storage?.usedGB ?? (target.usedBytes ? Number((Number(BigInt(target.usedBytes)) / (1024 * 1024 * 1024)).toFixed(3)) : 0);
+        setQuotaForm({
+          type: 'user',
+          targetId: target.id || target.userId,
+          targetName: target.name || target.email || target.user?.name || target.user?.email || 'User',
+          allocatedGB: Number(allocGB) || 5,
+          currentUsedGB: Number(usedGB) || 0
+        });
+      } else {
+        const allocGB = target.storage?.allocatedGB ?? (target.allocatedBytes ? Number(BigInt(target.allocatedBytes) / (1024n * 1024n * 1024n)) : 10);
+        const usedGB = target.storage?.usedGB ?? (target.usedBytes ? Number((Number(BigInt(target.usedBytes)) / (1024 * 1024 * 1024)).toFixed(3)) : 0);
+        setQuotaForm({
+          type: 'team',
+          targetId: target.id || target.teamId,
+          targetName: target.name || target.team?.name || 'Team',
+          allocatedGB: Number(allocGB) || 10,
+          currentUsedGB: Number(usedGB) || 0
+        });
+      }
     } else {
-      setQuotaForm({
-        type: 'user',
-        targetId: users[0]?.id || '',
-        targetName: users[0]?.name || users[0]?.email || '',
-        allocatedGB: 5
-      });
+      if (type === 'team') {
+        const firstTeam = teams[0];
+        setQuotaForm({
+          type: 'team',
+          targetId: firstTeam?.id || '',
+          targetName: firstTeam?.name || 'Team',
+          allocatedGB: firstTeam?.storage?.allocatedGB || 10,
+          currentUsedGB: Number(firstTeam?.storage?.usedGB || 0)
+        });
+      } else {
+        const firstUser = users[0];
+        setQuotaForm({
+          type: 'user',
+          targetId: firstUser?.id || '',
+          targetName: firstUser?.name || firstUser?.email || 'User',
+          allocatedGB: firstUser?.storage?.allocatedGB || 5,
+          currentUsedGB: Number(firstUser?.storage?.usedGB || 0)
+        });
+      }
     }
     setQuotaModalOpen(true);
   };
@@ -148,15 +180,29 @@ export default function Admin() {
   const handleSaveQuota = async (e) => {
     e.preventDefault();
     if (!quotaForm.targetId) return;
+
+    const newAllocGB = Number(quotaForm.allocatedGB);
+    const curUsedGB = Number(quotaForm.currentUsedGB || 0);
+
+    if (isNaN(newAllocGB) || newAllocGB <= 0) {
+      setQuotaError('Allocated storage must be a positive number.');
+      return;
+    }
+
+    if (newAllocGB < curUsedGB) {
+      setQuotaError(`Allocation cannot be lower than current usage (${curUsedGB} GB).`);
+      return;
+    }
+
     try {
       setQuotaSubmitting(true);
-      const allocatedBytes = (BigInt(quotaForm.allocatedGB) * 1024n * 1024n * 1024n).toString();
+      setQuotaError('');
       if (quotaForm.type === 'team') {
         await apiClient('/admin/quotas/team', {
           method: 'POST',
           body: {
             teamId: quotaForm.targetId,
-            allocatedBytes
+            allocatedGB: newAllocGB
           }
         });
       } else {
@@ -164,14 +210,14 @@ export default function Admin() {
           method: 'POST',
           body: {
             userId: quotaForm.targetId,
-            allocatedBytes
+            allocatedGB: newAllocGB
           }
         });
       }
-      await loadStorageQuotas();
+      await Promise.all([loadStorageQuotas(), loadAdminData()]);
       setQuotaModalOpen(false);
     } catch (err) {
-      alert(err.message || 'Failed to save storage quota');
+      setQuotaError(err.message || 'Failed to save storage quota');
     } finally {
       setQuotaSubmitting(false);
     }
@@ -330,7 +376,8 @@ export default function Admin() {
         {[
           { id: 'overview', label: 'Admin Overview', icon: 'fa-chart-pie' },
           { id: 'users', label: `Users (${users.length})`, icon: 'fa-users' },
-          { id: 'projects', label: `Projects & Teams (${projects.length})`, icon: 'fa-folder-tree' },
+          { id: 'teams', label: `Teams (${teams.length})`, icon: 'fa-people-group' },
+          { id: 'projects', label: `Projects (${projects.length})`, icon: 'fa-folder-tree' },
           { id: 'storage', label: 'Storage Quotas', icon: 'fa-hard-drive' },
           { id: 'integrations', label: `Cloud & GitHub (${cloudConnections.length})`, icon: 'fa-cloud' },
           { id: 'activity', label: 'Platform Activity', icon: 'fa-clock-rotate-left' }
@@ -443,6 +490,7 @@ export default function Admin() {
                 onUpdateStatus={handleUpdateStatus}
                 onViewProjects={() => setActiveTab('projects')}
                 onViewActivity={() => setActiveTab('activity')}
+                onEditStorage={(u) => handleOpenSetQuota(u, 'user')}
               />
             </div>
 
@@ -490,7 +538,127 @@ export default function Admin() {
             onUpdateStatus={handleUpdateStatus}
             onViewProjects={() => setActiveTab('projects')}
             onViewActivity={() => setActiveTab('activity')}
+            onEditStorage={(u) => handleOpenSetQuota(u, 'user')}
           />
+        </div>
+      )}
+
+      {/* TAB: TEAMS */}
+      {activeTab === 'teams' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-bold text-white">Teams & Storage Allocation</h2>
+              <p className="text-xs text-slate-400">
+                Manage DEVHUB team workspaces, leaders, members, and authoritative cloud storage allocations.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleOpenSetQuota(null, 'team')}
+              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition flex items-center gap-2 shadow-sm"
+            >
+              <i className="fa-solid fa-hard-drive text-xs"></i>
+              <span>Set Team Quota</span>
+            </button>
+          </div>
+
+          <div className="bg-[#121624] border border-[#1e2538] rounded-2xl overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-[#0b0e18] border-b border-[#1e2538] text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
+                    <th className="py-3 px-4">Team</th>
+                    <th className="py-3 px-4">Leader</th>
+                    <th className="py-3 px-4">Members</th>
+                    <th className="py-3 px-4">Used Storage</th>
+                    <th className="py-3 px-4">Allocated</th>
+                    <th className="py-3 px-4">Remaining</th>
+                    <th className="py-3 px-4">Usage %</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#182033]">
+                  {teams.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-12 text-center text-slate-500">
+                        No teams registered yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    teams.map((t) => {
+                      return (
+                        <tr key={t.id} className="hover:bg-[#151c2e]/60 transition">
+                          <td className="py-3 px-4">
+                            <div>
+                              <p className="font-bold text-white text-xs">{t.name}</p>
+                              {t.description && (
+                                <p className="text-[11px] text-slate-400 truncate max-w-xs">{t.description}</p>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-2">
+                              <Avatar user={t.leader} size="xs" />
+                              <div className="min-w-0">
+                                <p className="text-white font-medium text-xs truncate">{t.leader?.name || 'Leader'}</p>
+                                <p className="text-[10px] text-slate-400 truncate">{t.leader?.email}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-[#192238] text-slate-300 border border-[#232d47]">
+                              <i className="fa-solid fa-users text-[10px] text-indigo-400"></i>
+                              {t.memberCount ?? (t.members?.length || 0)} members
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 font-semibold text-slate-200">
+                            {t.storage?.usedGB || '0.000'} GB
+                          </td>
+                          <td className="py-3 px-4 font-semibold text-purple-400">
+                            {t.storage?.allocatedGB || 10} GB
+                          </td>
+                          <td className="py-3 px-4 font-semibold text-emerald-400">
+                            {t.storage?.remainingGB || '10.000'} GB
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="w-28 space-y-1">
+                              <div className="flex justify-between text-[10px] text-slate-400 font-medium">
+                                <span>{(t.storage?.percentage || 0).toFixed(1)}%</span>
+                              </div>
+                              <div className="w-full bg-[#192238] rounded-full h-1.5 overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all duration-300 ${
+                                    (t.storage?.percentage || 0) > 90
+                                      ? 'bg-rose-500'
+                                      : (t.storage?.percentage || 0) > 75
+                                      ? 'bg-amber-500'
+                                      : 'bg-purple-500'
+                                  }`}
+                                  style={{ width: `${Math.min(100, Math.max(1, t.storage?.percentage || 0))}%` }}
+                                />
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-right whitespace-nowrap">
+                            <button
+                              type="button"
+                              title="Edit team storage quota"
+                              onClick={() => handleOpenSetQuota(t, 'team')}
+                              className="px-2.5 py-1.5 rounded-lg bg-[#192238] hover:bg-[#232f4e] text-purple-400 hover:text-white transition flex items-center gap-1.5 text-xs font-semibold ml-auto"
+                            >
+                              <i className="fa-solid fa-hard-drive text-[10px]"></i>
+                              <span>Edit Storage</span>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 
@@ -979,9 +1147,123 @@ export default function Admin() {
                     <span>System Status: {storageData.poolStatus.isPhysicalPoolExhausted ? 'Exhausted' : 'Healthy'}</span>
                   </div>
                 </div>
+
+                {/* Logical & Membership Highlights */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-[#1e2538] text-xs">
+                  <div className="p-3 rounded-xl bg-[#090c14] border border-[#192238] flex items-center justify-between">
+                    <span className="text-slate-400">Total Logical Allocated:</span>
+                    <strong className="text-white font-bold">{storageData.poolStatus.allocatedGB || '0.00'} GB</strong>
+                  </div>
+                  <div className="p-3 rounded-xl bg-[#090c14] border border-[#192238] flex items-center justify-between">
+                    <span className="text-slate-400">Total Registered Users:</span>
+                    <strong className="text-indigo-400 font-bold">{storageData.poolStatus.userCount ?? users.length}</strong>
+                  </div>
+                  <div className="p-3 rounded-xl bg-[#090c14] border border-[#192238] flex items-center justify-between">
+                    <span className="text-slate-400">Total Managed Teams:</span>
+                    <strong className="text-purple-400 font-bold">{storageData.poolStatus.teamCount ?? teams.length}</strong>
+                  </div>
+                </div>
               </div>
             )}
           </div>
+
+          {/* Top Storage Consumers (Users & Teams) */}
+          {storageData.poolStatus && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Highest-Usage Users */}
+              <div className="bg-[#121624] border border-[#1e2538] rounded-2xl p-4 shadow-sm">
+                <div className="flex items-center justify-between pb-3 border-b border-[#1e2538] mb-3">
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                    <i className="fa-solid fa-fire text-amber-400"></i>
+                    <span>Top Storage Consumers — Users</span>
+                  </h4>
+                  <span className="text-[11px] text-slate-400">Top 5 by actual used bytes</span>
+                </div>
+                {(storageData.poolStatus.highestUsageUsers || []).length === 0 ? (
+                  <p className="text-xs text-slate-500 py-4 text-center">No user storage usage recorded yet.</p>
+                ) : (
+                  <div className="space-y-2.5">
+                    {storageData.poolStatus.highestUsageUsers.map((u) => (
+                      <div
+                        key={u.userId}
+                        className="p-2.5 rounded-xl bg-[#090c14] border border-[#192238] flex items-center justify-between gap-3 text-xs"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-bold text-white truncate">{u.name}</span>
+                            <span className="text-[11px] text-slate-400">
+                              <strong className="text-amber-400">{u.usedGB} GB</strong> / {u.allocatedGB} GB ({u.percentage.toFixed(1)}%)
+                            </span>
+                          </div>
+                          <div className="w-full bg-[#192238] rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className="h-full bg-amber-500 rounded-full"
+                              style={{ width: `${Math.min(100, Math.max(1, u.percentage))}%` }}
+                            />
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenSetQuota(u, 'user')}
+                          className="px-2 py-1 bg-[#192238] hover:bg-[#232f4e] text-indigo-400 hover:text-white rounded-lg text-[11px] font-semibold transition shrink-0"
+                        >
+                          Edit Quota
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Highest-Usage Teams */}
+              <div className="bg-[#121624] border border-[#1e2538] rounded-2xl p-4 shadow-sm">
+                <div className="flex items-center justify-between pb-3 border-b border-[#1e2538] mb-3">
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                    <i className="fa-solid fa-people-group text-purple-400"></i>
+                    <span>Top Storage Consumers — Teams</span>
+                  </h4>
+                  <span className="text-[11px] text-slate-400">Top 5 by actual used bytes</span>
+                </div>
+                {(storageData.poolStatus.highestUsageTeams || []).length === 0 ? (
+                  <p className="text-xs text-slate-500 py-4 text-center">No team storage usage recorded yet.</p>
+                ) : (
+                  <div className="space-y-2.5">
+                    {storageData.poolStatus.highestUsageTeams.map((t) => (
+                      <div
+                        key={t.teamId}
+                        className="p-2.5 rounded-xl bg-[#090c14] border border-[#192238] flex items-center justify-between gap-3 text-xs"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <div>
+                              <span className="font-bold text-white truncate mr-2">{t.name}</span>
+                              <span className="text-[10px] text-slate-500">({t.leaderName})</span>
+                            </div>
+                            <span className="text-[11px] text-slate-400">
+                              <strong className="text-purple-400">{t.usedGB} GB</strong> / {t.allocatedGB} GB ({t.percentage.toFixed(1)}%)
+                            </span>
+                          </div>
+                          <div className="w-full bg-[#192238] rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className="h-full bg-purple-500 rounded-full"
+                              style={{ width: `${Math.min(100, Math.max(1, t.percentage))}%` }}
+                            />
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenSetQuota(t, 'team')}
+                          className="px-2 py-1 bg-[#192238] hover:bg-[#232f4e] text-purple-400 hover:text-white rounded-lg text-[11px] font-semibold transition shrink-0"
+                        >
+                          Edit Quota
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Personal Allocations Table */}
           <div className="bg-[#121624] border border-[#1e2538] rounded-2xl overflow-hidden shadow-sm">
@@ -1127,60 +1409,80 @@ export default function Admin() {
         title={`Configure ${quotaForm.type === 'team' ? 'Team' : 'User'} Storage Quota`}
       >
         <form onSubmit={handleSaveQuota} className="space-y-4">
+          {quotaError && (
+            <div className="bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-2">
+              <i className="fa-solid fa-circle-exclamation text-rose-400"></i>
+              <span>{quotaError}</span>
+            </div>
+          )}
+
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1.5">
               Target {quotaForm.type === 'team' ? 'Team' : 'User'}
             </label>
             {quotaForm.type === 'team' ? (
-              <div className="bg-[#121624] border border-[#232d47] rounded-xl px-3 py-2 text-xs text-white">
-                {quotaForm.targetName || 'Team'}
+              <div className="bg-[#121624] border border-[#232d47] rounded-xl px-3 py-2 text-xs text-white flex items-center justify-between">
+                <span className="font-semibold">{quotaForm.targetName || 'Team'}</span>
+                <span className="text-[10px] text-purple-400 font-bold uppercase tracking-wider">Team Workspace</span>
               </div>
             ) : (
-              <select
-                value={quotaForm.targetId}
-                onChange={(e) => {
-                  const u = users.find(usr => usr.id === e.target.value);
-                  setQuotaForm(prev => ({
-                    ...prev,
-                    targetId: e.target.value,
-                    targetName: u ? u.name : prev.targetName
-                  }));
-                }}
-                className="w-full bg-[#121624] border border-[#232d47] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
-                required
-              >
-                <option value="" disabled>Select a user</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name} ({u.email})
-                  </option>
-                ))}
-              </select>
+              <div className="bg-[#121624] border border-[#232d47] rounded-xl px-3 py-2 text-xs text-white flex items-center justify-between">
+                <span className="font-semibold">{quotaForm.targetName || 'User'}</span>
+                <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider">Personal Storage</span>
+              </div>
             )}
+          </div>
+
+          {/* Current Usage Indicator */}
+          <div className="p-3 bg-[#090c14] border border-[#1e2538] rounded-xl flex items-center justify-between text-xs">
+            <span className="text-slate-400">Current Storage Used:</span>
+            <span className="font-bold text-amber-400">
+              {quotaForm.currentUsedGB ? `${quotaForm.currentUsedGB} GB` : '0.000 GB'}
+            </span>
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Allocated Storage (in GB)
+              New Allocated Storage (in GB)
             </label>
             <input
               type="number"
-              min="1"
+              step="any"
+              min="0.1"
               max="5000"
               value={quotaForm.allocatedGB}
-              onChange={(e) => setQuotaForm(prev => ({ ...prev, allocatedGB: Number(e.target.value) }))}
-              className="w-full bg-[#121624] border border-[#232d47] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+              onChange={(e) => {
+                setQuotaError('');
+                setQuotaForm(prev => ({ ...prev, allocatedGB: e.target.value }));
+              }}
+              className={`w-full bg-[#121624] border rounded-xl px-3 py-2 text-xs text-white focus:outline-none transition ${
+                Number(quotaForm.allocatedGB) < Number(quotaForm.currentUsedGB)
+                  ? 'border-rose-500/80 focus:border-rose-500'
+                  : 'border-[#232d47] focus:border-indigo-500'
+              }`}
               required
             />
+
+            {/* Validation Message */}
+            {Number(quotaForm.allocatedGB) < Number(quotaForm.currentUsedGB) && (
+              <p className="text-xs text-rose-400 flex items-center gap-1.5 mt-1.5 font-medium">
+                <i className="fa-solid fa-triangle-exclamation"></i>
+                <span>Allocation cannot be lower than current usage ({quotaForm.currentUsedGB} GB).</span>
+              </p>
+            )}
+
             {/* Presets */}
-            <div className="flex gap-2 mt-2">
+            <div className="flex gap-2 mt-2 flex-wrap">
               {[5, 10, 20, 50, 100, 500].map((preset) => (
                 <button
                   key={preset}
                   type="button"
-                  onClick={() => setQuotaForm(prev => ({ ...prev, allocatedGB: preset }))}
+                  onClick={() => {
+                    setQuotaError('');
+                    setQuotaForm(prev => ({ ...prev, allocatedGB: preset }));
+                  }}
                   className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition ${
-                    quotaForm.allocatedGB === preset
+                    Number(quotaForm.allocatedGB) === preset
                       ? 'bg-indigo-600 text-white border-indigo-500'
                       : 'bg-[#192238] text-slate-300 border-[#232d47] hover:border-slate-500'
                   }`}
@@ -1201,8 +1503,12 @@ export default function Admin() {
             </button>
             <button
               type="submit"
-              disabled={quotaSubmitting}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition disabled:opacity-50"
+              disabled={
+                quotaSubmitting ||
+                Number(quotaForm.allocatedGB) < Number(quotaForm.currentUsedGB) ||
+                Number(quotaForm.allocatedGB) <= 0
+              }
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {quotaSubmitting ? 'Saving...' : 'Save Allocation'}
             </button>
