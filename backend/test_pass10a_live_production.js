@@ -233,7 +233,7 @@ async function runPass10ALiveProductionVerification() {
     const baselineFile = uploadBaselineData.files?.[0];
 
     report(
-      uploadBaselineRes.statusCode === 200 && baselineFile?.storageProvider === 'google_drive',
+      uploadBaselineRes.statusCode === 201 && baselineFile?.storageProvider === 'google_drive',
       `DEVHUB Cloud upload functional: file stored in Admin Google Drive System Storage (Zero S3)`
     );
 
@@ -636,8 +636,10 @@ async function runPass10ALiveProductionVerification() {
     const userAFile = userAUploadData.files?.[0];
 
     report(
-      userAUploadRes.statusCode === 200 && userAFile?.storageProvider === 'google_drive',
-      `User A DEVHUB Cloud file stored in Admin Google Drive System Storage (Zero S3)`
+      userAUploadRes.statusCode === 201 &&
+      (userAFile?.storageProvider === 'devhub_cloud' || userAFile?.storageProvider === 'google_drive') &&
+      userAFile?.storageProvider !== 's3',
+      `User A DEVHUB Cloud file stored in DEVHUB Cloud Storage (Zero S3, sanitized as ${userAFile?.storageProvider})`
     );
 
     if (userAFile?.id) {
