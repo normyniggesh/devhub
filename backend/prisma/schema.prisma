@@ -40,6 +40,10 @@ model User {
   calendarEvents       CalendarEvent[]
   foldersCreated       Folder[]
   filesUploaded        File[]
+  fileSharesOwned      FileShare[]           @relation("FileShareOwner")
+  fileSharesReceived   FileShare[]           @relation("FileShareTarget")
+  folderSharesOwned    FolderShare[]         @relation("FolderShareOwner")
+  folderSharesReceived FolderShare[]         @relation("FolderShareTarget")
   notifications        Notification[]
   auditLogs            AuditLog[]
   activityInvolvements ActivityInvolvement[]
@@ -280,6 +284,7 @@ model Folder {
   children Folder[] @relation("FolderToFolder")
   creator  User     @relation(fields: [creatorId], references: [id])
   files    File[]
+  shares   FolderShare[]
 
   @@index([projectId])
   @@index([teamId])
@@ -307,6 +312,7 @@ model File {
   team     Team?    @relation(fields: [teamId], references: [id])
   folder   Folder?  @relation(fields: [folderId], references: [id])
   uploader User     @relation(fields: [uploaderId], references: [id])
+  shares   FileShare[]
 
   @@index([projectId])
   @@index([teamId])
@@ -499,4 +505,42 @@ model TeamStorageAllocation {
   team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   @@index([teamId])
+}
+
+model FileShare {
+  id           String   @id @default(uuid())
+  fileId       String
+  ownerId      String
+  sharedWithId String
+  permission   String   @default("VIEW") // "VIEW" | "EDIT"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  file       File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  owner      User @relation("FileShareOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  sharedWith User @relation("FileShareTarget", fields: [sharedWithId], references: [id], onDelete: Cascade)
+
+  @@unique([fileId, sharedWithId])
+  @@index([fileId])
+  @@index([ownerId])
+  @@index([sharedWithId])
+}
+
+model FolderShare {
+  id           String   @id @default(uuid())
+  folderId     String
+  ownerId      String
+  sharedWithId String
+  permission   String   @default("VIEW") // "VIEW" | "EDIT"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  folder     Folder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  owner      User   @relation("FolderShareOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  sharedWith User   @relation("FolderShareTarget", fields: [sharedWithId], references: [id], onDelete: Cascade)
+
+  @@unique([folderId, sharedWithId])
+  @@index([folderId])
+  @@index([ownerId])
+  @@index([sharedWithId])
 }

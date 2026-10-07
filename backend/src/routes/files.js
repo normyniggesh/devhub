@@ -10,6 +10,8 @@ const upload = multer({
   limits: { fileSize: maxFileSizeMB * 1024 * 1024 }
 });
 
+const sharesController = require('../controllers/shares');
+
 router.use(authMiddleware);
 
 router.get('/', controller.getFiles);
@@ -27,5 +29,10 @@ router.get('/:id', controller.getFileById);
 router.get('/:id/download', controller.downloadFile);
 router.patch('/:id', controller.updateFile);
 router.delete('/:id', controller.deleteFile);
+
+// Personal File Sharing
+router.post('/:id/share', sharesController.shareFile);
+router.get('/:id/shares', sharesController.listFileShares);
+router.delete('/:id/shares/:userId', sharesController.revokeFileShare);
 
 module.exports = router;

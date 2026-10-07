@@ -56,6 +56,16 @@ export default function Files() {
   const [confirmDelete, setConfirmDelete] = useState(null); // { type: 'file'|'folder', id, name }
   const [deleting, setDeleting] = useState(false);
 
+  // Sharing State
+  const [shareModal, setShareModal] = useState({ open: false, type: 'file', resource: null });
+  const [shareList, setShareList] = useState([]);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [shareSubmitting, setShareSubmitting] = useState(false);
+  const [shareTargetUser, setShareTargetUser] = useState('');
+  const [sharePermission, setSharePermission] = useState('VIEW');
+  const [shareError, setShareError] = useState(null);
+  const [shareSuccess, setShareSuccess] = useState(null);
+
   const [openMenuId, setOpenMenuId] = useState(null);
   const menuRef = useRef(null);
   useClickOutside(menuRef, () => setOpenMenuId(null));
@@ -74,10 +84,11 @@ export default function Files() {
   }, [selectedTeam, currentUser]);
 
   const canUploadOrAddFolder = useMemo(() => {
+    if (activeTab === 'Shared with Me') return Boolean(currentFolderId);
     if (activeTab === 'My Cloud Storage') return true;
     if (activeTab === 'Team Cloud Storage') return canManageCurrentTeam;
     return true;
-  }, [activeTab, canManageCurrentTeam]);
+  }, [activeTab, canManageCurrentTeam, currentFolderId]);
 
   // 1. Fetch authoritative Quotas
   const fetchQuotas = useCallback(async (teamIdOverride) => {
@@ -122,6 +133,9 @@ export default function Files() {
       if (activeTab === 'My Cloud Storage') {
         folderQuery += 'scope=PERSONAL';
         fileQuery += 'scope=PERSONAL';
+      } else if (activeTab === 'Shared with Me') {
+        folderQuery += 'shared=true';
+        fileQuery += 'shared=true';
       } else if (activeTab === 'Team Cloud Storage') {
         if (!selectedTeamId) {
           setFolders([]);
@@ -396,6 +410,78 @@ export default function Files() {
     }
   };
 
+  // Sharing Handlers
+  const handleOpenShareModal = async (type, resource) => {
+    setShareModal({ open: true, type, resource });
+    setShareTargetUser('');
+    setSharePermission('VIEW');
+    setShareError(null);
+    setShareSuccess(null);
+    await loadShares(type, resource.id);
+  };
+
+  const loadShares = async (type, id) => {
+    try {
+      setShareLoading(true);
+      const endpoint = type === 'folder' ? `/folders/${id}/shares` : `/files/${id}/shares`;
+      const res = await apiClient(endpoint);
+      setShareList(res?.shares || []);
+    } catch (err) {
+      console.warn('Could not load shares:', err);
+      setShareList([]);
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const handleCreateShare = async (e) => {
+    e.preventDefault();
+    if (!shareTargetUser.trim()) return;
+    setShareSubmitting(true);
+    setShareError(null);
+    setShareSuccess(null);
+
+    try {
+      const endpoint = shareModal.type === 'folder'
+        ? `/folders/${shareModal.resource.id}/share`
+        : `/files/${shareModal.resource.id}/share`;
+
+      await apiClient(endpoint, {
+        method: 'POST',
+        body: {
+          targetUser: shareTargetUser.trim(),
+          permission: sharePermission
+        }
+      });
+
+      setShareSuccess(`Shared successfully with ${shareTargetUser.trim()} as ${sharePermission}`);
+      setShareTargetUser('');
+      await loadShares(shareModal.type, shareModal.resource.id);
+      await loadContents();
+    } catch (err) {
+      setShareError(err.message || 'Failed to share resource');
+    } finally {
+      setShareSubmitting(false);
+    }
+  };
+
+  const handleRevokeShare = async (targetUserId) => {
+    try {
+      setShareError(null);
+      setShareSuccess(null);
+      const endpoint = shareModal.type === 'folder'
+        ? `/folders/${shareModal.resource.id}/shares/${targetUserId}`
+        : `/files/${shareModal.resource.id}/shares/${targetUserId}`;
+
+      await apiClient(endpoint, { method: 'DELETE' });
+      setShareSuccess('Share access revoked successfully');
+      await loadShares(shareModal.type, shareModal.resource.id);
+      await loadContents();
+    } catch (err) {
+      setShareError(err.message || 'Failed to revoke share');
+    }
+  };
+
   // Filter and sort items
   const filteredFolders = useMemo(() => {
     if (!searchQuery.trim()) return folders;
@@ -443,6 +529,7 @@ export default function Files() {
   // Hero tabs config
   const heroTabs = [
     { id: 'My Cloud Storage', label: 'My Cloud Storage', icon: 'fa-solid fa-cloud' },
+    { id: 'Shared with Me', label: 'Shared with Me', icon: 'fa-solid fa-user-group' },
     { id: 'Team Cloud Storage', label: 'Team Cloud Storage', icon: 'fa-solid fa-users' },
     { id: 'All Files', label: 'All Files', icon: 'fa-solid fa-folder-tree' }
   ];
@@ -809,8 +896,11 @@ export default function Files() {
                           <div className="flex items-center gap-3 min-w-0">
                             <i className="fa-solid fa-folder text-2xl text-indigo-400 group-hover:scale-105 transition-transform shrink-0"></i>
                             <div className="min-w-0">
-                              <span className="text-xs font-bold text-white truncate block group-hover:text-indigo-300 transition" title={folder.name}>
-                                {folder.name}
+                              <span className="text-xs font-bold text-white truncate flex items-center gap-1 group-hover:text-indigo-300 transition" title={folder.name}>
+                                <span className="truncate">{folder.name}</span>
+                                {folder.isShared && (
+                                  <i className="fa-solid fa-user-group text-indigo-400 text-[10px] shrink-0" title="Shared folder"></i>
+                                )}
                               </span>
                               <span className="text-[10px] text-slate-500 truncate block">
                                 {folder.team?.name ? `${folder.team.name} (Team)` : 'Personal Folder'}
@@ -846,6 +936,18 @@ export default function Files() {
                                   >
                                     <i className="fa-solid fa-folder-open w-3 text-indigo-400"></i> Open
                                   </button>
+                                  {!isTeamFolder && (folder.creatorId === currentUser?.id || currentUser?.role === 'Admin') && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenMenuId(null);
+                                        handleOpenShareModal('folder', folder);
+                                      }}
+                                      className="flex items-center gap-2 w-full px-3 py-1.5 text-xs font-semibold text-indigo-300 hover:bg-[#2a344a] hover:text-white text-left"
+                                    >
+                                      <i className="fa-solid fa-share-nodes w-3 text-indigo-400"></i> Share
+                                    </button>
+                                  )}
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -942,8 +1044,11 @@ export default function Files() {
                                     <i className={`${icon} ${color} text-sm`}></i>
                                   </div>
                                   <div className="min-w-0">
-                                    <span className="font-semibold text-white truncate block group-hover:text-indigo-300 transition" title={file.name}>
-                                      {file.name}
+                                    <span className="font-semibold text-white truncate flex items-center gap-1.5 group-hover:text-indigo-300 transition" title={file.name}>
+                                      <span className="truncate">{file.name}</span>
+                                      {file.isShared && (
+                                        <i className="fa-solid fa-user-group text-indigo-400 text-[10px] shrink-0" title="Shared file"></i>
+                                      )}
                                     </span>
                                     <span className="text-[10px] text-slate-500 uppercase sm:hidden">
                                       {formatSize(file.size)}
@@ -978,6 +1083,16 @@ export default function Files() {
                                   >
                                     <i className="fa-solid fa-download text-xs"></i>
                                   </button>
+                                  {!isTeamFile && (file.uploaderId === currentUser?.id || currentUser?.role === 'Admin') && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenShareModal('file', file)}
+                                      title="Share file"
+                                      className="w-7 h-7 flex items-center justify-center rounded text-slate-400 hover:text-indigo-400 hover:bg-[#1a2333] transition"
+                                    >
+                                      <i className="fa-solid fa-share-nodes text-xs"></i>
+                                    </button>
+                                  )}
                                   {canManageThisFile && (
                                     <>
                                       <button
@@ -1023,9 +1138,17 @@ export default function Files() {
                         >
                           <div className="flex items-start justify-between mb-2.5">
                             <i className={`${icon} ${color} text-2xl`}></i>
-                            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 bg-[#0f1422] px-2 py-0.5 rounded">
-                              {isTeamFile ? 'Team' : 'Personal'}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              {file.isShared && (
+                                <span className="text-[9px] font-bold text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                  <i className="fa-solid fa-user-group text-[8px]"></i>
+                                  <span>Shared</span>
+                                </span>
+                              )}
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 bg-[#0f1422] px-2 py-0.5 rounded">
+                                {isTeamFile ? 'Team' : 'Personal'}
+                              </span>
+                            </div>
                           </div>
                           <h4 className="text-xs font-bold text-white truncate mb-0.5" title={file.name}>
                             {file.name}
@@ -1035,7 +1158,22 @@ export default function Files() {
                           </p>
                           <div className="mt-auto pt-2 border-t border-[#1f2a44]/60 flex items-center justify-between text-[10px] text-slate-400">
                             <span className="text-indigo-400 font-semibold">Click to Download</span>
-                            <i className="fa-solid fa-download text-xs text-slate-400 group-hover:text-white"></i>
+                            <div className="flex items-center gap-2">
+                              {!isTeamFile && (file.uploaderId === currentUser?.id || currentUser?.role === 'Admin') && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenShareModal('file', file);
+                                  }}
+                                  title="Share file"
+                                  className="w-5 h-5 flex items-center justify-center rounded hover:text-indigo-400 transition"
+                                >
+                                  <i className="fa-solid fa-share-nodes text-[10px]"></i>
+                                </button>
+                              )}
+                              <i className="fa-solid fa-download text-xs text-slate-400 group-hover:text-white"></i>
+                            </div>
                           </div>
                         </div>
                       );
@@ -1239,6 +1377,168 @@ export default function Files() {
           loading={deleting}
           danger={true}
         />
+      )}
+
+      {/* Share Resource Modal (Personal Files & Folders) */}
+      {shareModal.open && shareModal.resource && (
+        <Modal
+          open={shareModal.open}
+          onClose={() => setShareModal({ open: false, type: 'file', resource: null })}
+          className="max-w-md p-6"
+        >
+          <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#1f2a44]">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
+                <i className={`fa-solid ${shareModal.type === 'folder' ? 'fa-folder' : 'fa-file'} text-sm`}></i>
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-sm text-white font-bold truncate">
+                  Share {shareModal.type === 'folder' ? 'Folder' : 'File'}
+                </h2>
+                <p className="text-[11px] text-slate-400 truncate" title={shareModal.resource.name}>
+                  {shareModal.resource.name}
+                </p>
+              </div>
+            </div>
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 shrink-0">
+              Personal Storage
+            </span>
+          </div>
+
+          {/* Feedback messages */}
+          {shareError && (
+            <div className="mb-3 px-3 py-2 rounded-lg text-xs bg-rose-500/10 border border-rose-500/25 text-rose-300 flex items-center gap-2">
+              <i className="fa-solid fa-circle-exclamation text-rose-400"></i>
+              <span>{shareError}</span>
+            </div>
+          )}
+          {shareSuccess && (
+            <div className="mb-3 px-3 py-2 rounded-lg text-xs bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 flex items-center gap-2">
+              <i className="fa-solid fa-circle-check text-emerald-400"></i>
+              <span>{shareSuccess}</span>
+            </div>
+          )}
+
+          {/* Share Form */}
+          <form onSubmit={handleCreateShare} className="flex flex-col gap-3.5 mb-6">
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                Target DEVHUB User (Email or User ID) <span className="text-rose-400">*</span>
+              </label>
+              <input
+                required
+                type="text"
+                value={shareTargetUser}
+                onChange={e => setShareTargetUser(e.target.value)}
+                placeholder="colleague@devhub.com or user ID"
+                className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition shadow-inner"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                  Permission Level
+                </label>
+                <select
+                  value={sharePermission}
+                  onChange={e => setSharePermission(e.target.value)}
+                  className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:border-indigo-500 transition cursor-pointer"
+                >
+                  <option value="VIEW">View (Read & Download)</option>
+                  <option value="EDIT">Edit (Modify & Delete)</option>
+                </select>
+              </div>
+
+              <div className="flex items-end">
+                <button
+                  type="submit"
+                  disabled={shareSubmitting || !shareTargetUser.trim()}
+                  className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-900/30 transition flex items-center justify-center gap-1.5"
+                >
+                  {shareSubmitting ? (
+                    <i className="fa-solid fa-spinner fa-spin text-xs"></i>
+                  ) : (
+                    <i className="fa-solid fa-user-plus text-xs"></i>
+                  )}
+                  <span>Grant Access</span>
+                </button>
+              </div>
+            </div>
+          </form>
+
+          {/* Current Shared Users List */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                Current Access ({shareList.length})
+              </span>
+              <span className="text-[10px] text-slate-500">
+                Private by default
+              </span>
+            </div>
+
+            {shareLoading ? (
+              <div className="py-6 text-center text-slate-400 text-xs">
+                <i className="fa-solid fa-circle-notch fa-spin text-indigo-400 mr-2"></i>
+                Loading permissions...
+              </div>
+            ) : shareList.length === 0 ? (
+              <div className="py-5 text-center text-slate-400 text-xs bg-[#161d2f]/50 border border-[#1f2a44] rounded-xl">
+                <i className="fa-solid fa-lock text-slate-500 text-sm mb-1 block"></i>
+                <span>This personal resource is not shared with anyone yet.</span>
+              </div>
+            ) : (
+              <div className="max-h-48 overflow-y-auto divide-y divide-[#1f2a44] border border-[#1f2a44] rounded-xl bg-[#161d2f]/40">
+                {shareList.map(share => (
+                  <div key={share.id} className="p-2.5 flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-7 h-7 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-300 font-bold text-xs shrink-0">
+                        {share.sharedWith?.name?.charAt(0).toUpperCase() || 'U'}
+                      </div>
+                      <div className="min-w-0">
+                        <span className="font-semibold text-white truncate block">
+                          {share.sharedWith?.name || 'DEVHUB User'}
+                        </span>
+                        <span className="text-[10px] text-slate-400 truncate block">
+                          {share.sharedWith?.email}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        share.permission === 'EDIT'
+                          ? 'bg-purple-500/10 border border-purple-500/20 text-purple-300'
+                          : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-300'
+                      }`}>
+                        {share.permission}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleRevokeShare(share.sharedWith?.id)}
+                        title="Revoke access"
+                        className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition"
+                      >
+                        <i className="fa-solid fa-xmark text-xs"></i>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="mt-5 pt-3 border-t border-[#1f2a44] flex justify-end">
+            <button
+              type="button"
+              onClick={() => setShareModal({ open: false, type: 'file', resource: null })}
+              className="px-4 py-1.5 text-xs font-bold text-slate-300 hover:text-white hover:bg-[#1a2333] rounded-lg transition"
+            >
+              Done
+            </button>
+          </div>
+        </Modal>
       )}
 
     </div>

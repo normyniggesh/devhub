@@ -24,7 +24,7 @@ async function isDescendant(folderId, potentialParentId) {
 
 exports.getFolders = async (req, res) => {
   try {
-    const { projectId, teamId, scope, storageScope, parentId } = req.query;
+    const { projectId, teamId, scope, storageScope, parentId, shared } = req.query;
     const currentUser = await prisma.user.findUnique({
       where: { id: req.userId },
       select: { id: true, role: true }
@@ -32,7 +32,12 @@ exports.getFolders = async (req, res) => {
 
     let whereClause = {};
 
-    if (projectId) {
+    if (shared === 'true') {
+      whereClause = {
+        storageScope: 'PERSONAL',
+        shares: { some: { sharedWithId: req.userId } }
+      };
+    } else if (projectId) {
       const access = await checkProjectAccess(projectId, req.userId);
       if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
       whereClause.projectId = projectId;
@@ -68,14 +73,28 @@ exports.getFolders = async (req, res) => {
       include: {
         project: { select: { id: true, name: true } },
         team: { select: { id: true, name: true } },
-        creator: { select: { id: true, name: true } }
+        creator: { select: { id: true, name: true, email: true } },
+        shares: {
+          select: {
+            id: true,
+            permission: true,
+            sharedWithId: true,
+            sharedWith: { select: { id: true, name: true, email: true } }
+          }
+        }
       },
       orderBy: { name: 'asc' }
     });
 
     res.json({
       success: true,
-      folders: folders.map(f => sanitizeFolderForClient(f, currentUser))
+      folders: folders.map(f => {
+        const sanitized = sanitizeFolderForClient(f, currentUser);
+        if (sanitized) {
+          sanitized.isShared = Boolean(f.shares && f.shares.length > 0);
+        }
+        return sanitized;
+      })
     });
   } catch (error) {
     console.error('getFolders error:', error);
@@ -96,9 +115,17 @@ exports.getFolderById = async (req, res) => {
       include: {
         project: { select: { id: true, name: true } },
         team: { select: { id: true, name: true } },
-        creator: { select: { id: true, name: true } },
+        creator: { select: { id: true, name: true, email: true } },
         children: { select: { id: true, name: true, storageScope: true, teamId: true } },
-        files: { select: { id: true, name: true, type: true, size: true, storageScope: true, storageProvider: true } }
+        files: { select: { id: true, name: true, type: true, size: true, storageScope: true, storageProvider: true } },
+        shares: {
+          select: {
+            id: true,
+            permission: true,
+            sharedWithId: true,
+            sharedWith: { select: { id: true, name: true, email: true } }
+          }
+        }
       }
     });
 
@@ -108,7 +135,8 @@ exports.getFolderById = async (req, res) => {
       user: currentUser,
       scope: folder.storageScope,
       ownerId: folder.creatorId,
-      teamId: folder.teamId
+      teamId: folder.teamId,
+      folderId: folder.id
     });
 
     if (!accessCheck.allowed) {
@@ -120,9 +148,14 @@ exports.getFolderById = async (req, res) => {
       if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
     }
 
+    const sanitized = sanitizeFolderForClient(folder, currentUser);
+    if (sanitized) {
+      sanitized.isShared = Boolean(folder.shares && folder.shares.length > 0);
+    }
+
     res.json({
       success: true,
-      folder: sanitizeFolderForClient(folder, currentUser)
+      folder: sanitized
     });
   } catch (error) {
     console.error('getFolderById error:', error);
@@ -226,11 +259,9 @@ exports.updateFolder = async (req, res) => {
     const folder = await prisma.folder.findUnique({ where: { id } });
     if (!folder) return res.status(404).json({ success: false, message: 'Folder not found' });
 
-    const manageCheck = await storageScopeService.canManage({
+    const manageCheck = await storageScopeService.canManageFolder({
       user: currentUser,
-      scope: folder.storageScope,
-      ownerId: folder.creatorId,
-      teamId: folder.teamId
+      folder
     });
 
     if (!manageCheck.allowed) {
@@ -264,6 +295,9 @@ exports.updateFolder = async (req, res) => {
         }
         if (folder.teamId && parentFolder.teamId !== folder.teamId) {
           return res.status(409).json({ success: false, message: 'Parent folder belongs to a different team' });
+        }
+        if (folder.storageScope === 'PERSONAL' && parentFolder.creatorId !== folder.creatorId) {
+          return res.status(409).json({ success: false, message: 'Parent folder belongs to a different user' });
         }
         
         const cyclic = await isDescendant(id, parentId);
@@ -318,11 +352,9 @@ exports.deleteFolder = async (req, res) => {
     
     if (!folder) return res.status(404).json({ success: false, message: 'Folder not found' });
 
-    const manageCheck = await storageScopeService.canManage({
+    const manageCheck = await storageScopeService.canManageFolder({
       user: currentUser,
-      scope: folder.storageScope,
-      ownerId: folder.creatorId,
-      teamId: folder.teamId
+      folder
     });
 
     if (!manageCheck.allowed) {

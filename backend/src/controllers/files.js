@@ -14,20 +14,22 @@ const permissionService = require('../services/permissionService');
 function sanitizeFileForClient(file, user) {
   if (!file) return null;
   const isPrivileged = user && user.role === 'Admin';
-  if (isPrivileged) return file;
 
   const copy = { ...file };
-  delete copy.driveFileId;
-  delete copy.storagePath;
-  if (copy.storageProvider === 'google_drive') {
-    copy.storageProvider = 'devhub_cloud';
+  if (!isPrivileged) {
+    delete copy.driveFileId;
+    delete copy.storagePath;
+    if (copy.storageProvider === 'google_drive') {
+      copy.storageProvider = 'devhub_cloud';
+    }
   }
+  copy.isShared = Boolean(copy.shares && copy.shares.length > 0);
   return copy;
 }
 
 exports.getFiles = async (req, res) => {
   try {
-    const { projectId, teamId, scope, storageScope, folderId } = req.query;
+    const { projectId, teamId, scope, storageScope, folderId, shared } = req.query;
     const currentUser = await prisma.user.findUnique({
       where: { id: req.userId },
       select: { id: true, role: true }
@@ -35,7 +37,15 @@ exports.getFiles = async (req, res) => {
 
     let whereClause = {};
 
-    if (projectId) {
+    if (shared === 'true') {
+      whereClause = {
+        storageScope: 'PERSONAL',
+        OR: [
+          { shares: { some: { sharedWithId: req.userId } } },
+          { folder: { shares: { some: { sharedWithId: req.userId } } } }
+        ]
+      };
+    } else if (projectId) {
       const access = await checkProjectAccess(projectId, req.userId);
       if (!access.accessible) return res.status(403).json({ success: false, message: 'Forbidden' });
       whereClause.projectId = projectId;
@@ -72,7 +82,15 @@ exports.getFiles = async (req, res) => {
         project: { select: { id: true, name: true } },
         team: { select: { id: true, name: true } },
         folder: { select: { id: true, name: true } },
-        uploader: { select: { id: true, name: true } }
+        uploader: { select: { id: true, name: true, email: true } },
+        shares: {
+          select: {
+            id: true,
+            permission: true,
+            sharedWithId: true,
+            sharedWith: { select: { id: true, name: true, email: true } }
+          }
+        }
       },
       orderBy: { name: 'asc' }
     });
@@ -101,7 +119,15 @@ exports.getFileById = async (req, res) => {
         project: { select: { id: true, name: true } },
         team: { select: { id: true, name: true } },
         folder: { select: { id: true, name: true } },
-        uploader: { select: { id: true, name: true, email: true } }
+        uploader: { select: { id: true, name: true, email: true } },
+        shares: {
+          select: {
+            id: true,
+            permission: true,
+            sharedWithId: true,
+            sharedWith: { select: { id: true, name: true, email: true } }
+          }
+        }
       }
     });
 
@@ -111,7 +137,8 @@ exports.getFileById = async (req, res) => {
       user: currentUser,
       scope: file.storageScope,
       ownerId: file.uploaderId,
-      teamId: file.teamId
+      teamId: file.teamId,
+      fileId: file.id
     });
 
     if (!accessCheck.allowed) {
@@ -414,7 +441,8 @@ exports.downloadFile = async (req, res) => {
       user: currentUser,
       scope: file.storageScope,
       ownerId: file.uploaderId,
-      teamId: file.teamId
+      teamId: file.teamId,
+      fileId: file.id
     });
 
     if (!accessCheck.allowed) {
@@ -491,6 +519,9 @@ exports.updateFile = async (req, res) => {
         }
         if (file.teamId && folder.teamId !== file.teamId) {
           return res.status(409).json({ success: false, message: 'Folder belongs to a different team' });
+        }
+        if (file.storageScope === 'PERSONAL' && folder.creatorId !== file.uploaderId) {
+          return res.status(409).json({ success: false, message: 'Folder belongs to a different user' });
         }
       }
       updateData.folderId = folderId && folderId !== 'null' ? folderId : null;

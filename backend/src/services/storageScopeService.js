@@ -90,7 +90,7 @@ class StorageScopeService {
    * @param {string} [params.teamId] - Team ID for team resources
    * @returns {Promise<{ allowed: boolean, reason?: string, role?: string }>}
    */
-  async canAccess({ user, scope, ownerId, teamId }) {
+  async canAccess({ user, scope, ownerId, teamId, fileId, folderId } = {}) {
     if (!user) {
       return { allowed: false, reason: 'Authentication required' };
     }
@@ -102,12 +102,49 @@ class StorageScopeService {
 
     const resolvedScope = this.resolveScope({ scope, teamId });
 
-    // 2. Personal scope: private to owner
+    // 2. Personal scope: private to owner, or explicitly shared
     if (resolvedScope === this.SCOPES.PERSONAL) {
       const targetUserId = ownerId || user.id;
       if (user.id === targetUserId) {
         return { allowed: true, reason: 'Personal owner access', role: 'Owner' };
       }
+
+      // Check shared file or shared folder access
+      const storageShareService = require('./storageShareService');
+      if (fileId) {
+        const shareCheck = await storageShareService.canReadSharedResource({
+          user,
+          resourceType: 'file',
+          resourceId: fileId
+        });
+        if (shareCheck.allowed) {
+          return {
+            allowed: true,
+            reason: shareCheck.reason || 'Shared personal file access',
+            role: shareCheck.permission === 'EDIT' ? 'Editor' : 'Viewer',
+            permission: shareCheck.permission,
+            inherited: shareCheck.inherited
+          };
+        }
+      }
+
+      if (folderId) {
+        const shareCheck = await storageShareService.canReadSharedResource({
+          user,
+          resourceType: 'folder',
+          resourceId: folderId
+        });
+        if (shareCheck.allowed) {
+          return {
+            allowed: true,
+            reason: shareCheck.reason || 'Shared personal folder access',
+            role: shareCheck.permission === 'EDIT' ? 'Editor' : 'Viewer',
+            permission: shareCheck.permission,
+            inherited: shareCheck.inherited
+          };
+        }
+      }
+
       return {
         allowed: false,
         reason: 'Personal storage is private to the owner'
@@ -199,9 +236,23 @@ class StorageScopeService {
 
     if (resolvedScope === this.SCOPES.PERSONAL) {
       const isOwner = file.uploaderId === user.id;
+      if (isOwner) {
+        return { allowed: true, reason: 'Owner file management' };
+      }
+
+      const storageShareService = require('./storageShareService');
+      const shareCheck = await storageShareService.canEditSharedResource({
+        user,
+        resourceType: 'file',
+        resourceId: file.id
+      });
+      if (shareCheck.allowed) {
+        return { allowed: true, reason: 'Shared editor permissions' };
+      }
+
       return {
-        allowed: isOwner,
-        reason: isOwner ? 'Owner file management' : 'Personal file can only be deleted/managed by owner or Admin'
+        allowed: false,
+        reason: 'Personal file can only be deleted/managed by owner or Admin'
       };
     }
 
@@ -219,6 +270,58 @@ class StorageScopeService {
     }
 
     return { allowed: false, reason: 'Invalid file storage scope' };
+  }
+
+  /**
+   * Check if a user can manage (delete/rename) a specific Folder record.
+   *
+   * @param {Object} params
+   * @param {Object} params.user - { id, role }
+   * @param {Object} params.folder - Folder record
+   * @returns {Promise<{ allowed: boolean, reason?: string }>}
+   */
+  async canManageFolder({ user, folder }) {
+    if (!user || !folder) return { allowed: false, reason: 'Authentication and folder required' };
+    if (user.role === USER_ROLES.ADMIN) return { allowed: true, reason: 'Admin full access' };
+
+    const resolvedScope = folder.storageScope || (folder.teamId ? this.SCOPES.TEAM : this.SCOPES.PERSONAL);
+
+    if (resolvedScope === this.SCOPES.PERSONAL) {
+      const isOwner = folder.creatorId === user.id;
+      if (isOwner) {
+        return { allowed: true, reason: 'Owner folder management' };
+      }
+
+      const storageShareService = require('./storageShareService');
+      const shareCheck = await storageShareService.canEditSharedResource({
+        user,
+        resourceType: 'folder',
+        resourceId: folder.id
+      });
+      if (shareCheck.allowed) {
+        return { allowed: true, reason: 'Shared editor permissions' };
+      }
+
+      return {
+        allowed: false,
+        reason: 'Personal folder can only be modified/deleted by owner or Admin'
+      };
+    }
+
+    if (resolvedScope === this.SCOPES.TEAM) {
+      if (!folder.teamId) return { allowed: false, reason: 'Missing teamId on team folder' };
+      const membership = await prisma.teamMember.findUnique({
+        where: { teamId_userId: { teamId: folder.teamId, userId: user.id } }
+      });
+      if (!membership) return { allowed: false, reason: 'Access denied: not a member of this team' };
+      const isLeader = membership.role === TEAM_ROLES.LEADER;
+      return {
+        allowed: isLeader,
+        reason: isLeader ? 'Team leader management' : 'Only Team Leaders or Admin can manage team folders'
+      };
+    }
+
+    return { allowed: false, reason: 'Invalid folder storage scope' };
   }
 
   /**
