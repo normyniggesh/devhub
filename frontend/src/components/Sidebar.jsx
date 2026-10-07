@@ -268,6 +268,29 @@ export default function Sidebar({ isOpen, setIsOpen }) {
               </div>
             </div>
 
+            {/* Section: PREFERENCES */}
+            <div>
+              {collapsed ? (
+                <div
+                  className="my-2 border-t border-[#191e2e]/80 mx-2"
+                  title="PREFERENCES"
+                ></div>
+              ) : (
+                <h3 className="px-3 text-[10px] font-bold text-slate-500 sidebar-heading tracking-wider uppercase mb-1">
+                  PREFERENCES
+                </h3>
+              )}
+              <div className="space-y-0.5">
+                <NavItem
+                  to="/settings"
+                  icon="fa-solid fa-gear"
+                  label="Settings"
+                  collapsed={collapsed}
+                  onClick={handleLinkClick}
+                />
+              </div>
+            </div>
+
             {/* Section: ADMINISTRATION (Admin role only) */}
             {currentUser?.role === 'Admin' && (
               <div>

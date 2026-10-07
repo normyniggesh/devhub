@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useStore } from '../store';
 import { formatSize } from '../utils/formatting';
@@ -11,6 +12,7 @@ import { useClickOutside } from '../hooks/useClickOutside';
 
 export default function Files() {
   const { currentUser } = useStore();
+  const navigate = useNavigate();
   const [folders, setFolders] = useState([]);
   const [files, setFiles] = useState([]);
   const [userTeams, setUserTeams] = useState([]);
@@ -587,6 +589,17 @@ export default function Files() {
                   </button>
                 )}
               </div>
+
+              {/* External Storage Nav Button */}
+              <button
+                type="button"
+                onClick={() => navigate('/settings')}
+                className="flex items-center gap-1.5 px-3 py-2 border rounded-xl text-xs font-bold transition shrink-0 bg-[#161d2f] hover:bg-[#1f2a44] text-slate-200 hover:text-white border-[#1f2a44]"
+                title="Manage Connected External Storage (Google Drive, Dropbox, OneDrive)"
+              >
+                <i className="fa-solid fa-cloud text-xs text-indigo-400"></i>
+                <span>External Storage</span>
+              </button>
 
               {/* Upload Button */}
               <button

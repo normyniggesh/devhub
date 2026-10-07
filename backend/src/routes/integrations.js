@@ -5,10 +5,13 @@ const authMiddleware = require('../middleware/auth');
 const {
   getUserIntegrations,
   getGoogleAuthUrl,
+  getProviderAuthUrl,
   handleGoogleCallback,
+  handleProviderCallback,
   connectIntegration,
   disconnectIntegration,
   listProviderFiles,
+  getProviderFileMetadata,
   downloadProviderFile,
   importProviderFile,
   getProviderQuota,
@@ -98,6 +101,7 @@ const oauthCallbackAuth = (req, res, next) => {
 
 // OAuth callback with flexible auth (cookie, bearer, or state token)
 router.post('/google/callback', oauthCallbackAuth, handleGoogleCallback);
+router.post('/:provider/callback', oauthCallbackAuth, handleProviderCallback);
 
 // Standard auth required for all other endpoints
 router.use(authMiddleware);
@@ -109,8 +113,10 @@ router.get('/google/system-storage', getSystemStorageStatus);
 router.post('/google/system-storage', setSystemStorage);
 router.post('/connect', connectIntegration);
 router.post('/disconnect', disconnectIntegration);
+router.get('/:provider/auth-url', getProviderAuthUrl);
 router.get('/:provider/quota', getProviderQuota);
 router.get('/:provider/files', listProviderFiles);
+router.get('/:provider/metadata/:fileId', getProviderFileMetadata);
 router.get('/:provider/download/:fileId', downloadProviderFile);
 router.post('/:provider/import', importProviderFile);
 

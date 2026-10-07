@@ -17,6 +17,7 @@ import Deployments from './pages/Deployments';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Admin from './pages/Admin';
+import Settings from './pages/Settings';
 import { ThemeProvider } from './context/ThemeContext';
 
 const GoogleCallbackRedirect = () => {
@@ -92,6 +93,7 @@ function App() {
             <Route path="pull-requests" element={<PullRequests />} />
             <Route path="deployments" element={<Deployments />} />
             <Route path="team" element={<Team />} />
+            <Route path="settings" element={<Settings />} />
             <Route path="admin" element={
               <AdminRoute>
                 <Admin />
