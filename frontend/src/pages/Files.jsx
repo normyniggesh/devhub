@@ -4,9 +4,6 @@ import { useStore } from '../store';
 import { formatSize } from '../utils/formatting';
 import CompactPageHeader from '../components/common/CompactPageHeader';
 import StorageUsage from '../components/files/StorageUsage';
-import CloudIntegrations from '../components/files/CloudIntegrations';
-import DriveFolderRow from '../components/files/DriveFolderRow';
-import DriveFileRow from '../components/files/DriveFileRow';
 import ActivityFeed from '../components/activity/ActivityFeed';
 import Modal from '../components/common/Modal';
 import ConfirmDialog from '../components/common/ConfirmDialog';
@@ -14,53 +11,45 @@ import { useClickOutside } from '../hooks/useClickOutside';
 
 export default function Files() {
   const { currentUser } = useStore();
-  const [projects, setProjects] = useState([]);
   const [folders, setFolders] = useState([]);
   const [files, setFiles] = useState([]);
+  const [userTeams, setUserTeams] = useState([]);
+  const [selectedTeamId, setSelectedTeamId] = useState(null);
   const [recentActivity, setRecentActivity] = useState([]);
-  
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   // Active navigation tab
-  // 'All Files' | 'Google Drive' | 'DEVHUB' | 'Shared with Me' | 'Dropbox' | 'OneDrive'
-  const [activeTab, setActiveTab] = useState('All Files');
+  // 'My Cloud Storage' (PERSONAL) | 'Team Cloud Storage' (TEAM) | 'All Files'
+  const [activeTab, setActiveTab] = useState('My Cloud Storage');
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'grid'
   const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: 'updatedAt', direction: 'desc' });
 
-  // Navigation state for DEVHUB files
+  // Navigation state for folders
   const [currentFolderId, setCurrentFolderId] = useState(null);
-  const [folderHistory, setFolderHistory] = useState([]); // [{id, name, projectId}]
+  const [folderHistory, setFolderHistory] = useState([]); // [{id, name}]
 
-  // Cloud Storage Integrations state
-  const [integrations, setIntegrations] = useState({
-    google_drive: { connected: false },
-    dropbox: { connected: false },
-    onedrive: { connected: false }
-  });
-
-  // Storage Quota State (Dynamic Quotas for all providers)
+  // Storage Quota State (authoritative backend quotas)
   const [quotas, setQuotas] = useState({});
   const [quotasLoading, setQuotasLoading] = useState(false);
 
-  // Inline Cloud Provider browsing state (for Google Drive, Dropbox, OneDrive tabs)
-  const [cloudItems, setCloudItems] = useState([]);
-  const [cloudLoading, setCloudLoading] = useState(false);
-  const [cloudError, setCloudError] = useState(null);
-  const [cloudBreadcrumbs, setCloudBreadcrumbs] = useState([{ id: 'root', name: 'My Drive' }]);
-  const [importingFileId, setImportingFileId] = useState(null);
-  const [importMessage, setImportMessage] = useState(null);
+  // Drag and Drop & Upload State
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [statusBanner, setStatusBanner] = useState(null); // { type: 'success'|'error', message }
 
   // Modals state
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [editingFolder, setEditingFolder] = useState(null);
-  const [folderForm, setFolderForm] = useState({ name: '', projectId: '' });
+  const [folderForm, setFolderForm] = useState({ name: '' });
   const [folderSubmitting, setFolderSubmitting] = useState(false);
 
   const [showFileModal, setShowFileModal] = useState(false);
   const [editingFile, setEditingFile] = useState(null);
-  const [fileForm, setFileForm] = useState({ name: '', projectId: '' });
+  const [fileForm, setFileForm] = useState({ name: '' });
   const [fileSubmitting, setFileSubmitting] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState(null);
 
@@ -70,98 +59,138 @@ export default function Files() {
   const [openMenuId, setOpenMenuId] = useState(null);
   const menuRef = useRef(null);
   useClickOutside(menuRef, () => setOpenMenuId(null));
+  const fileInputRef = useRef(null);
 
-  const projectsRef = useRef([]);
+  // Current selected team object
+  const selectedTeam = useMemo(() => {
+    return userTeams.find(t => t.id === selectedTeamId) || null;
+  }, [userTeams, selectedTeamId]);
 
-  const fetchQuotas = useCallback(async () => {
+  // Authorization checks
+  const canManageCurrentTeam = useMemo(() => {
+    if (!selectedTeam) return false;
+    if (currentUser?.role === 'Admin') return true;
+    return selectedTeam.myRole === 'Leader';
+  }, [selectedTeam, currentUser]);
+
+  const canUploadOrAddFolder = useMemo(() => {
+    if (activeTab === 'My Cloud Storage') return true;
+    if (activeTab === 'Team Cloud Storage') return canManageCurrentTeam;
+    return true;
+  }, [activeTab, canManageCurrentTeam]);
+
+  // 1. Fetch authoritative Quotas
+  const fetchQuotas = useCallback(async (teamIdOverride) => {
     try {
       setQuotasLoading(true);
-      const res = await apiClient('/integrations/quota').catch(() => ({ quotas: {} }));
+      const targetTeamId = teamIdOverride !== undefined ? teamIdOverride : selectedTeamId;
+      const queryUrl = `/integrations/quota${targetTeamId ? `?teamId=${targetTeamId}` : ''}`;
+      const res = await apiClient(queryUrl).catch(() => ({ quotas: {} }));
       setQuotas(res?.quotas || {});
     } catch (err) {
       console.warn('Could not fetch storage quotas:', err);
     } finally {
       setQuotasLoading(false);
     }
-  }, []);
+  }, [selectedTeamId]);
 
-  // 1. Fetch initial data and storage quota
-  const loadData = useCallback(async () => {
+  // 2. Fetch Teams for current user
+  const fetchTeams = useCallback(async () => {
+    try {
+      const res = await apiClient('/team/list').catch(() => ({ teams: [] }));
+      const loadedTeams = res.teams || [];
+      setUserTeams(loadedTeams);
+      if (loadedTeams.length > 0 && !selectedTeamId) {
+        setSelectedTeamId(loadedTeams[0].id);
+      }
+      return loadedTeams;
+    } catch (err) {
+      console.warn('Could not fetch user teams:', err);
+      return [];
+    }
+  }, [selectedTeamId]);
+
+  // 3. Load Storage Contents (folders and files according to active scope and folder)
+  const loadContents = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const [projRes, foldRes, fileRes, dashRes, intRes] = await Promise.all([
-        apiClient('/projects'),
-        apiClient('/folders'),
-        apiClient('/files'),
-        apiClient('/dashboard').catch(() => ({ dashboard: { recentActivity: [] } })),
-        apiClient('/integrations').catch(() => ({ integrations: {} }))
+      let folderQuery = '/folders?';
+      let fileQuery = '/files?';
+
+      if (activeTab === 'My Cloud Storage') {
+        folderQuery += 'scope=PERSONAL';
+        fileQuery += 'scope=PERSONAL';
+      } else if (activeTab === 'Team Cloud Storage') {
+        if (!selectedTeamId) {
+          setFolders([]);
+          setFiles([]);
+          setLoading(false);
+          return;
+        }
+        folderQuery += `teamId=${encodeURIComponent(selectedTeamId)}`;
+        fileQuery += `teamId=${encodeURIComponent(selectedTeamId)}`;
+      } else {
+        // All Files
+        folderQuery += 'scope=ALL';
+        fileQuery += 'scope=ALL';
+      }
+
+      if (currentFolderId) {
+        folderQuery += `&parentId=${encodeURIComponent(currentFolderId)}`;
+        fileQuery += `&folderId=${encodeURIComponent(currentFolderId)}`;
+      } else {
+        folderQuery += '&parentId=null';
+        fileQuery += '&folderId=null';
+      }
+
+      const [foldRes, fileRes, dashRes] = await Promise.all([
+        apiClient(folderQuery).catch(() => ({ folders: [] })),
+        apiClient(fileQuery).catch(() => ({ files: [] })),
+        apiClient('/dashboard').catch(() => ({ dashboard: { recentActivity: [] } }))
       ]);
 
-      const loadedProjects = projRes.projects || [];
-      projectsRef.current = loadedProjects;
-      setProjects(loadedProjects);
       setFolders(foldRes.folders || []);
       setFiles(fileRes.files || []);
-      setIntegrations(intRes.integrations || {
-        google_drive: { connected: false },
-        dropbox: { connected: false },
-        onedrive: { connected: false }
-      });
 
       const allAct = dashRes.dashboard?.recentActivity || [];
       setRecentActivity(allAct.filter(a => a.entityType === 'File' || a.entityType === 'Folder'));
 
-      // Fetch quotas from server
       await fetchQuotas();
     } catch (err) {
-      setError(err.message || 'Unable to load files');
+      console.error('loadContents error:', err);
+      setError(err.message || 'Unable to load storage contents');
     } finally {
       setLoading(false);
     }
-  }, [fetchQuotas]);
+  }, [activeTab, selectedTeamId, currentFolderId, fetchQuotas]);
 
+  // Initial load
   useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  // 2. Fetch cloud provider items when activeTab is a cloud provider
-  const currentCloudFolder = cloudBreadcrumbs[cloudBreadcrumbs.length - 1];
-
-  const loadCloudFiles = useCallback(async (provider, folderId = 'root') => {
-    try {
-      setCloudLoading(true);
-      setCloudError(null);
-      let queryUrl = `/integrations/${provider}/files?folderId=${encodeURIComponent(folderId)}`;
-      if (searchQuery.trim()) {
-        queryUrl += `&search=${encodeURIComponent(searchQuery.trim())}`;
+    (async () => {
+      const teams = await fetchTeams();
+      if (teams.length > 0 && !selectedTeamId) {
+        setSelectedTeamId(teams[0].id);
       }
-      const res = await apiClient(queryUrl);
-      setCloudItems(res.files || []);
-    } catch (err) {
-      setCloudError(err.message || `Failed to load files from ${provider}`);
-      setCloudItems([]);
-    } finally {
-      setCloudLoading(false);
-    }
-  }, [searchQuery]);
+    })();
+  }, [fetchTeams]);
 
   useEffect(() => {
-    if (activeTab === 'Google Drive' && integrations.google_drive?.connected) {
-      loadCloudFiles('google_drive', currentCloudFolder.id);
-    } else if (activeTab === 'Dropbox' && integrations.dropbox?.connected) {
-      loadCloudFiles('dropbox', currentCloudFolder.id === 'root' ? '' : currentCloudFolder.id);
-    } else if (activeTab === 'OneDrive' && integrations.onedrive?.connected) {
-      loadCloudFiles('onedrive', currentCloudFolder.id);
-    }
-  }, [activeTab, integrations, currentCloudFolder.id, loadCloudFiles]);
+    loadContents();
+  }, [loadContents]);
 
-  // DEVHUB Folder navigation
+  // When selectedTeamId changes, re-fetch quotas
+  useEffect(() => {
+    if (selectedTeamId) {
+      fetchQuotas(selectedTeamId);
+    }
+  }, [selectedTeamId, fetchQuotas]);
+
+  // Navigation handlers
   const handleOpenFolder = (folder) => {
-    setFolderHistory([...folderHistory, { id: folder.id, name: folder.name, projectId: folder.projectId }]);
+    setFolderHistory(prev => [...prev, { id: folder.id, name: folder.name }]);
     setCurrentFolderId(folder.id);
-    setActiveTab('All Files');
     setSearchQuery('');
   };
 
@@ -170,81 +199,234 @@ export default function Files() {
     setCurrentFolderId(null);
   };
 
-  const handleGoBack = () => {
-    if (folderHistory.length > 0) {
-      const newHistory = [...folderHistory];
-      newHistory.pop();
-      setFolderHistory(newHistory);
-      setCurrentFolderId(newHistory.length > 0 ? newHistory[newHistory.length - 1].id : null);
+  const handleBreadcrumbClick = (index) => {
+    if (index < 0) {
+      handleGoRoot();
+      return;
+    }
+    const target = folderHistory[index];
+    setFolderHistory(prev => prev.slice(0, index + 1));
+    setCurrentFolderId(target.id);
+  };
+
+  // Upload implementation (Direct to Backend DEVHUB Cloud Storage)
+  const handleUploadFiles = async (fileList) => {
+    if (!fileList || fileList.length === 0) return;
+
+    if (activeTab === 'Team Cloud Storage' && !canManageCurrentTeam) {
+      setStatusBanner({
+        type: 'error',
+        message: 'Permission denied: Only Team Leaders or Admins can upload files to Team Storage.'
+      });
+      return;
+    }
+
+    try {
+      setUploading(true);
+      setUploadProgress(10);
+      setStatusBanner(null);
+
+      const formData = new FormData();
+      if (activeTab === 'Team Cloud Storage') {
+        formData.append('scope', 'TEAM');
+        formData.append('teamId', selectedTeamId);
+      } else {
+        formData.append('scope', 'PERSONAL');
+      }
+
+      if (currentFolderId) {
+        formData.append('folderId', currentFolderId);
+      }
+
+      for (let i = 0; i < fileList.length; i++) {
+        formData.append('files', fileList[i]);
+      }
+
+      setUploadProgress(50);
+      const res = await apiClient('/files/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      setUploadProgress(100);
+      setStatusBanner({
+        type: 'success',
+        message: `${fileList.length} file(s) successfully uploaded to DEVHUB Cloud Storage.`
+      });
+
+      await loadContents();
+      await fetchQuotas();
+    } catch (err) {
+      console.error('Upload Error:', err);
+      let errMsg = err.message || 'Upload failed.';
+      if (errMsg.includes('quota') || errMsg.includes('Quota')) {
+        errMsg = `Storage quota exceeded: ${errMsg}`;
+      } else if (errMsg.includes('capacity') || errMsg.includes('threshold')) {
+        errMsg = `System storage capacity limit reached: ${errMsg}`;
+      }
+      setStatusBanner({
+        type: 'error',
+        message: errMsg
+      });
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
-  // RBAC checks
-  const canModifyProject = (projectId) => {
-    if (!projectId) return false;
-    const proj = projects.find(p => p.id === projectId);
-    if (!proj) return false;
-    if (proj.owner?.id === currentUser?.id || proj.ownerId === currentUser?.id) return true;
-    const member = proj.members?.find(m => m.user?.id === currentUser?.id || m.userId === currentUser?.id);
-    return member?.role === 'Admin' || member?.role === 'Editor';
+  // Save Folder (create or rename)
+  const handleSaveFolder = async (e) => {
+    e.preventDefault();
+    if (!folderForm.name.trim()) return;
+
+    setFolderSubmitting(true);
+    setStatusBanner(null);
+    try {
+      if (editingFolder) {
+        await apiClient(`/folders/${editingFolder.id}`, {
+          method: 'PATCH',
+          body: { name: folderForm.name.trim() }
+        });
+        setStatusBanner({ type: 'success', message: `Folder renamed to "${folderForm.name.trim()}".` });
+      } else {
+        const payload = {
+          name: folderForm.name.trim(),
+          parentId: currentFolderId || null
+        };
+        if (activeTab === 'Team Cloud Storage') {
+          payload.scope = 'TEAM';
+          payload.teamId = selectedTeamId;
+        } else {
+          payload.scope = 'PERSONAL';
+        }
+
+        await apiClient('/folders', {
+          method: 'POST',
+          body: payload
+        });
+        setStatusBanner({ type: 'success', message: `Folder "${folderForm.name.trim()}" created successfully.` });
+      }
+
+      setShowFolderModal(false);
+      setFolderForm({ name: '' });
+      setEditingFolder(null);
+      await loadContents();
+    } catch (err) {
+      setStatusBanner({ type: 'error', message: err.message || 'Failed to save folder.' });
+    } finally {
+      setFolderSubmitting(false);
+    }
   };
 
-  const canDeleteProjectData = (projectId) => {
-    if (!projectId) return false;
-    const proj = projects.find(p => p.id === projectId);
-    if (!proj) return false;
-    if (proj.owner?.id === currentUser?.id || proj.ownerId === currentUser?.id) return true;
-    const member = proj.members?.find(m => m.user?.id === currentUser?.id || m.userId === currentUser?.id);
-    return member?.role === 'Admin';
+  // Save File (Rename)
+  const handleSaveFile = async (e) => {
+    e.preventDefault();
+    if (editingFile) {
+      setFileSubmitting(true);
+      setStatusBanner(null);
+      try {
+        await apiClient(`/files/${editingFile.id}`, {
+          method: 'PATCH',
+          body: { name: fileForm.name.trim() }
+        });
+        setStatusBanner({ type: 'success', message: `File renamed to "${fileForm.name.trim()}".` });
+        setShowFileModal(false);
+        setEditingFile(null);
+        await loadContents();
+      } catch (err) {
+        setStatusBanner({ type: 'error', message: err.message || 'Failed to rename file.' });
+      } finally {
+        setFileSubmitting(false);
+      }
+    } else {
+      if (selectedFiles && selectedFiles.length > 0) {
+        setShowFileModal(false);
+        await handleUploadFiles(selectedFiles);
+        setSelectedFiles(null);
+      }
+    }
   };
 
-  const currentProjectId = currentFolderId ? folderHistory[folderHistory.length - 1]?.projectId : '';
+  // Download File (Direct stream download)
+  const handleDownloadFile = async (e, file) => {
+    e.stopPropagation();
+    try {
+      const res = await apiClient(`/files/${file.id}/download`);
+      if (res.url) {
+        const token = localStorage.getItem('token');
+        const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+        const fullUrl = res.url.startsWith('http')
+          ? res.url
+          : `${apiBase.replace(/\/api$/, '')}${res.url}${token ? `&token=${encodeURIComponent(token)}` : ''}`;
 
-  // Data Filtering for local DEVHUB views
-  let currentViewFolders = [];
-  let currentViewFiles = [];
+        const link = document.createElement('a');
+        link.href = fullUrl;
+        link.setAttribute('download', file.name || 'download');
+        link.setAttribute('target', '_blank');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } catch (err) {
+      setStatusBanner({ type: 'error', message: err.message || 'Download failed' });
+    }
+  };
 
-  if (activeTab === 'All Files') {
-    currentViewFolders = folders.filter(f => f.parentId === currentFolderId);
-    currentViewFiles = files.filter(f => f.folderId === currentFolderId);
-  } else if (activeTab === 'DEVHUB') {
-    // Show all DEVHUB workspace files
-    currentViewFiles = files;
-    currentViewFolders = folders.filter(f => !f.parentId);
-  } else if (activeTab === 'Shared with Me') {
-    currentViewFiles = files.filter(f => f.uploader?.id !== currentUser?.id && f.uploaderId !== currentUser?.id);
-  }
+  // Execute Deletion
+  const handleExecuteDelete = async () => {
+    if (!confirmDelete) return;
+    try {
+      setDeleting(true);
+      setStatusBanner(null);
+      if (confirmDelete.type === 'folder') {
+        await apiClient(`/folders/${confirmDelete.id}`, { method: 'DELETE' });
+        setStatusBanner({ type: 'success', message: `Folder "${confirmDelete.name}" deleted.` });
+      } else {
+        await apiClient(`/files/${confirmDelete.id}`, { method: 'DELETE' });
+        setStatusBanner({ type: 'success', message: `File "${confirmDelete.name}" deleted.` });
+      }
+      setConfirmDelete(null);
+      await loadContents();
+      await fetchQuotas();
+    } catch (err) {
+      setStatusBanner({ type: 'error', message: err.message || 'Failed to delete item.' });
+    } finally {
+      setDeleting(false);
+    }
+  };
 
-  if (searchQuery && (activeTab === 'All Files' || activeTab === 'DEVHUB' || activeTab === 'Shared with Me')) {
+  // Filter and sort items
+  const filteredFolders = useMemo(() => {
+    if (!searchQuery.trim()) return folders;
     const q = searchQuery.toLowerCase();
-    currentViewFiles = currentViewFiles.filter(f => 
-      f.name?.toLowerCase().includes(q) || 
-      f.type?.toLowerCase().includes(q) ||
-      f.project?.name?.toLowerCase().includes(q)
-    );
-    if (activeTab === 'All Files' || activeTab === 'DEVHUB') {
-      currentViewFolders = currentViewFolders.filter(f => 
-        f.name?.toLowerCase().includes(q) ||
-        f.project?.name?.toLowerCase().includes(q)
+    return folders.filter(f => f.name.toLowerCase().includes(q));
+  }, [folders, searchQuery]);
+
+  const filteredFiles = useMemo(() => {
+    let result = [...files];
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(f =>
+        f.name.toLowerCase().includes(q) ||
+        (f.type && f.type.toLowerCase().includes(q))
       );
     }
-  }
 
-  // Sort files
-  currentViewFiles.sort((a, b) => {
-    let aVal = a[sortConfig.key];
-    let bVal = b[sortConfig.key];
-    if (sortConfig.key === 'project') {
-      aVal = a.project?.name || '';
-      bVal = b.project?.name || '';
-    } else if (sortConfig.key === 'updatedAt') {
-      aVal = new Date(a.updatedAt || 0).getTime();
-      bVal = new Date(b.updatedAt || 0).getTime();
-    }
-    if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-    if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
-    return 0;
-  });
+    result.sort((a, b) => {
+      let aVal = a[sortConfig.key];
+      let bVal = b[sortConfig.key];
+      if (sortConfig.key === 'updatedAt') {
+        aVal = new Date(a.updatedAt || 0).getTime();
+        bVal = new Date(b.updatedAt || 0).getTime();
+      }
+      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return result;
+  }, [files, searchQuery, sortConfig]);
 
   const getFileIcon = (type) => {
     const t = (type || '').toLowerCase();
@@ -253,177 +435,48 @@ export default function Files() {
     if (t.includes('xls') || t.includes('csv')) return { icon: 'fa-solid fa-file-excel', color: 'text-emerald-400' };
     if (t.includes('ppt')) return { icon: 'fa-solid fa-file-powerpoint', color: 'text-amber-400' };
     if (t.includes('png') || t.includes('jpg') || t.includes('jpeg') || t.includes('svg') || t.includes('fig')) return { icon: 'fa-solid fa-file-image', color: 'text-purple-400' };
-    if (t.includes('zip') || t.includes('rar')) return { icon: 'fa-solid fa-file-zipper', color: 'text-yellow-400' };
-    if (t.includes('video') || t.includes('mp4')) return { icon: 'fa-solid fa-file-video', color: 'text-sky-400' };
+    if (t.includes('zip') || t.includes('rar') || t.includes('tar') || t.includes('gz')) return { icon: 'fa-solid fa-file-zipper', color: 'text-yellow-400' };
+    if (t.includes('video') || t.includes('mp4') || t.includes('mov')) return { icon: 'fa-solid fa-file-video', color: 'text-sky-400' };
     return { icon: 'fa-solid fa-file', color: 'text-slate-400' };
-  };
-
-  // Save Folder (create or rename)
-  const handleSaveFolder = async (e) => {
-    e.preventDefault();
-    setFolderSubmitting(true);
-    try {
-      if (editingFolder) {
-        await apiClient(`/folders/${editingFolder.id}`, { method: 'PATCH', body: { name: folderForm.name } });
-      } else {
-        await apiClient('/folders', { 
-          method: 'POST', 
-          body: { 
-            name: folderForm.name, 
-            projectId: folderForm.projectId, 
-            parentId: currentFolderId || null 
-          } 
-        });
-      }
-      setShowFolderModal(false);
-      await loadData();
-      await fetchQuotas();
-    } catch (err) {
-      alert(err.message || 'Failed to save folder');
-    } finally {
-      setFolderSubmitting(false);
-    }
-  };
-
-  // Save File (upload or rename)
-  const handleSaveFile = async (e) => {
-    e.preventDefault();
-    setFileSubmitting(true);
-    try {
-      if (editingFile) {
-        await apiClient(`/files/${editingFile.id}`, { method: 'PATCH', body: { name: fileForm.name } });
-      } else {
-        if (!selectedFiles || selectedFiles.length === 0) {
-          throw new Error('Please select at least one file to upload.');
-        }
-        
-        const formData = new FormData();
-        formData.append('projectId', fileForm.projectId);
-        if (currentFolderId) {
-          formData.append('folderId', currentFolderId);
-        }
-        
-        for (let i = 0; i < selectedFiles.length; i++) {
-          formData.append('files', selectedFiles[i]);
-        }
-        
-        await apiClient('/files/upload', { method: 'POST', body: formData });
-      }
-      setShowFileModal(false);
-      setSelectedFiles(null);
-      await loadData();
-      await fetchQuotas();
-    } catch (err) {
-      alert(err.message || 'Failed to upload file');
-    } finally {
-      setFileSubmitting(false);
-    }
-  };
-
-  // Download DEVHUB file
-  const handleDownloadFile = async (e, fileId) => {
-    e.stopPropagation();
-    try {
-      const res = await apiClient(`/files/${fileId}/download`);
-      if (res.url) {
-        window.open(res.url, '_blank');
-      }
-    } catch (err) {
-      alert(err.message || 'Download failed');
-    }
-  };
-
-  // Execute deletion
-  const handleExecuteDelete = async () => {
-    if (!confirmDelete) return;
-    try {
-      setDeleting(true);
-      if (confirmDelete.type === 'folder') {
-        await apiClient(`/folders/${confirmDelete.id}`, { method: 'DELETE' });
-      } else {
-        await apiClient(`/files/${confirmDelete.id}`, { method: 'DELETE' });
-      }
-      setConfirmDelete(null);
-      await loadData();
-      await fetchQuotas();
-    } catch (err) {
-      alert(err.message || 'Failed to delete item');
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  // Cloud item download
-  const handleCloudDownload = (file, provider = 'google_drive') => {
-    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-    const downloadUrl = `${apiBase}/integrations/${provider}/download/${encodeURIComponent(file.id)}`;
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.setAttribute('download', file.name);
-    link.setAttribute('target', '_blank');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  // Cloud item import to DEVHUB
-  const handleCloudImport = async (file, provider = 'google_drive') => {
-    const targetProject = projects[0]?.id;
-    if (!targetProject) {
-      alert('Please create at least one DEVHUB project first to import files.');
-      return;
-    }
-    try {
-      setImportingFileId(file.id);
-      setImportMessage(null);
-      const res = await apiClient(`/integrations/${provider}/import`, {
-        method: 'POST',
-        body: {
-          fileId: file.id,
-          fileName: file.name,
-          mimeType: file.mimeType,
-          size: file.size,
-          projectId: targetProject,
-          folderId: currentFolderId || null
-        }
-      });
-      setImportMessage({ type: 'success', text: res.message || `Imported "${file.name}" to DEVHUB` });
-      await loadData();
-      await fetchQuotas();
-    } catch (err) {
-      setImportMessage({ type: 'error', text: err.message || 'Import failed' });
-    } finally {
-      setImportingFileId(null);
-    }
   };
 
   // Hero tabs config
   const heroTabs = [
-    { id: 'All Files', label: 'All Files', icon: 'fa-solid fa-folder-tree' },
-    { id: 'Google Drive', label: 'Google Drive', icon: 'fa-brands fa-google-drive' },
-    { id: 'DEVHUB', label: 'DEVHUB', icon: 'fa-solid fa-cloud' },
-    { id: 'Shared with Me', label: 'Shared with Me', icon: 'fa-solid fa-users' },
-    ...(integrations.dropbox?.connected ? [{ id: 'Dropbox', label: 'Dropbox', icon: 'fa-brands fa-dropbox' }] : []),
-    ...(integrations.onedrive?.connected ? [{ id: 'OneDrive', label: 'OneDrive', icon: 'fa-brands fa-microsoft' }] : [])
+    { id: 'My Cloud Storage', label: 'My Cloud Storage', icon: 'fa-solid fa-cloud' },
+    { id: 'Team Cloud Storage', label: 'Team Cloud Storage', icon: 'fa-solid fa-users' },
+    { id: 'All Files', label: 'All Files', icon: 'fa-solid fa-folder-tree' }
   ];
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 max-w-[1920px] mx-auto pb-12 min-h-screen">
-      
+      {/* Hidden file input for header upload button */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          if (e.target.files?.length > 0) {
+            handleUploadFiles(e.target.files);
+          }
+        }}
+      />
+
       {/* Main Content Area */}
       <div className="flex-1 min-w-0 flex flex-col gap-5">
         
-        {/* Compact Hero Header (Approved 4th Tab Style Direction) */}
+        {/* Compact Hero Header */}
         <CompactPageHeader
-          title="Files"
-          subtitle="Manage your files across different storage providers."
+          title="DEVHUB Cloud Storage"
+          subtitle="Secure, high-performance cloud file storage backed by DEVHUB."
           tabs={heroTabs}
           activeTab={activeTab}
           onTabChange={(tab) => {
             setActiveTab(tab);
             setCurrentFolderId(null);
             setFolderHistory([]);
-            setCloudBreadcrumbs([{ id: 'root', name: 'My Drive' }]);
+            setSearchQuery('');
+            setStatusBanner(null);
           }}
           actions={
             <>
@@ -432,10 +485,10 @@ export default function Files() {
                 <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
                 <input
                   type="text"
-                  placeholder="Filter files..."
+                  placeholder="Filter files & folders..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl pl-8 pr-7 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition"
+                  className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl pl-8 pr-7 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition"
                 />
                 {searchQuery && (
                   <button
@@ -451,30 +504,58 @@ export default function Files() {
               {/* Upload Button */}
               <button
                 type="button"
+                disabled={!canUploadOrAddFolder || uploading}
                 onClick={() => {
-                  setEditingFile(null);
-                  setFileForm({ name: '', projectId: currentProjectId || (projects[0]?.id || '') });
-                  setSelectedFiles(null);
-                  setShowFileModal(true);
+                  if (fileInputRef.current) {
+                    fileInputRef.current.click();
+                  }
                 }}
-                className="flex items-center gap-1.5 px-3 py-2 bg-[#161d2f] hover:bg-[#1f2a44] text-slate-200 hover:text-white border border-[#1f2a44] rounded-xl text-xs font-bold transition shrink-0"
+                className={`flex items-center gap-1.5 px-3 py-2 border rounded-xl text-xs font-bold transition shrink-0 ${
+                  canUploadOrAddFolder && !uploading
+                    ? 'bg-[#161d2f] hover:bg-[#1f2a44] text-slate-200 hover:text-white border-[#1f2a44]'
+                    : 'bg-[#121624] text-slate-500 border-[#1a2030] cursor-not-allowed opacity-60'
+                }`}
+                title={canUploadOrAddFolder ? 'Upload files' : 'Only Team Leaders or Admins can upload'}
               >
-                <i className="fa-solid fa-arrow-up-from-bracket text-xs text-purple-400"></i>
+                {uploading ? (
+                  <i className="fa-solid fa-spinner fa-spin text-xs text-indigo-400"></i>
+                ) : (
+                  <i className="fa-solid fa-arrow-up-from-bracket text-xs text-indigo-400"></i>
+                )}
                 <span>Upload</span>
               </button>
 
               {/* New Folder Button */}
               <button
                 type="button"
+                disabled={!canUploadOrAddFolder || uploading}
                 onClick={() => {
                   setEditingFolder(null);
-                  setFolderForm({ name: '', projectId: currentProjectId || (projects[0]?.id || '') });
+                  setFolderForm({ name: '' });
                   setShowFolderModal(true);
                 }}
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow-md shadow-purple-900/30 transition shrink-0 active:scale-95"
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold shadow-md transition shrink-0 ${
+                  canUploadOrAddFolder && !uploading
+                    ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-900/30 active:scale-95'
+                    : 'bg-[#1e2538] text-slate-500 cursor-not-allowed opacity-60'
+                }`}
+                title={canUploadOrAddFolder ? 'Create a new folder' : 'Only Team Leaders or Admins can create folders'}
               >
                 <i className="fa-solid fa-folder-plus text-xs"></i>
                 <span>New Folder</span>
+              </button>
+
+              {/* Refresh Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  loadContents();
+                  fetchQuotas();
+                }}
+                className="w-8 h-8 flex items-center justify-center bg-[#161d2f] hover:bg-[#1f2a44] border border-[#1f2a44] text-slate-400 hover:text-white rounded-xl text-xs transition shrink-0"
+                title="Refresh contents"
+              >
+                <i className="fa-solid fa-arrows-rotate text-xs"></i>
               </button>
 
               {/* View / List Toggle */}
@@ -504,242 +585,241 @@ export default function Files() {
           }
         />
 
-        {/* Cloud Storage Integrations Section (Equal Card Heights, Clear Statuses, Real OAuth) */}
-        <CloudIntegrations
-          integrations={integrations}
-          onRefreshIntegrations={async (updatedIntegration) => {
-            if (updatedIntegration?.provider) {
-              setIntegrations(prev => ({
-                ...prev,
-                [updatedIntegration.provider]: {
-                  connected: updatedIntegration.status === 'connected',
-                  accountName: updatedIntegration.accountName,
-                  connectedAt: updatedIntegration.connectedAt || new Date().toISOString(),
-                  metadata: updatedIntegration.metadata,
-                  hasToken: true,
-                  isSystemStorage: Boolean(updatedIntegration.metadata?.isSystemStorage)
-                }
-              }));
-            }
-            await loadData();
-            await fetchQuotas();
-          }}
-          projects={projects}
-          currentProjectId={currentProjectId}
-          currentFolderId={currentFolderId}
-          onFileImported={async () => {
-            await loadData();
-            await fetchQuotas();
-          }}
-        />
+        {/* Upload Progress Indicator Bar */}
+        {uploading && (
+          <div className="bg-[#121624] border border-indigo-500/30 rounded-xl p-3 flex flex-col gap-2 shadow-sm animate-pulse">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold text-indigo-300 flex items-center gap-2">
+                <i className="fa-solid fa-cloud-arrow-up fa-bounce text-indigo-400"></i>
+                <span>Uploading files to DEVHUB Cloud Storage...</span>
+              </span>
+              <span className="text-[11px] font-mono text-slate-400">{uploadProgress}%</span>
+            </div>
+            <div className="w-full bg-[#192238] rounded-full h-1.5 overflow-hidden">
+              <div
+                className="h-full bg-indigo-500 transition-all duration-300 rounded-full"
+                style={{ width: `${Math.max(15, uploadProgress)}%` }}
+              ></div>
+            </div>
+          </div>
+        )}
 
-        {/* Import Notification Message */}
-        {importMessage && (
+        {/* Status / Alert Banner */}
+        {statusBanner && (
           <div
-            className={`px-4 py-3 rounded-xl text-xs flex items-center justify-between border ${
-              importMessage.type === 'success'
+            className={`px-4 py-3 rounded-xl text-xs flex items-center justify-between border transition ${
+              statusBanner.type === 'success'
                 ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-300'
                 : 'bg-rose-500/10 border-rose-500/25 text-rose-300'
             }`}
           >
-            <div className="flex items-center gap-2">
-              <i className={`fa-solid ${importMessage.type === 'success' ? 'fa-circle-check text-emerald-400' : 'fa-circle-exclamation text-rose-400'}`}></i>
-              <span className="font-semibold">{importMessage.text}</span>
+            <div className="flex items-center gap-2.5">
+              <i
+                className={`fa-solid ${
+                  statusBanner.type === 'success'
+                    ? 'fa-circle-check text-emerald-400'
+                    : 'fa-circle-exclamation text-rose-400'
+                }`}
+              ></i>
+              <span className="font-medium">{statusBanner.message}</span>
             </div>
-            <button type="button" onClick={() => setImportMessage(null)} className="hover:opacity-75">
+            <button
+              type="button"
+              onClick={() => setStatusBanner(null)}
+              className="text-slate-400 hover:text-white transition ml-3"
+            >
               <i className="fa-solid fa-xmark"></i>
             </button>
           </div>
         )}
 
-        {/* Breadcrumb Navigation for DEVHUB All Files */}
-        {activeTab === 'All Files' && (
-          <div className="flex items-center gap-2 text-xs text-slate-400 bg-[#0f1422] border border-[#192238] px-4 py-2 rounded-xl font-medium">
-            <button
-              type="button"
-              onClick={handleGoRoot}
-              className={`hover:text-white transition flex items-center gap-1.5 ${
-                folderHistory.length === 0 ? 'text-white font-bold' : ''
-              }`}
-            >
-              <i className="fa-solid fa-home text-purple-400"></i>
-              <span>Root</span>
-            </button>
-            {folderHistory.map((h, i) => (
-              <div key={h.id} className="flex items-center gap-2">
-                <span className="text-slate-600">/</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const newHistory = folderHistory.slice(0, i + 1);
-                    setFolderHistory(newHistory);
-                    setCurrentFolderId(h.id);
-                  }}
-                  className={`transition truncate max-w-[150px] ${
-                    i === folderHistory.length - 1 ? 'text-white font-bold' : 'hover:text-white'
-                  }`}
-                >
-                  {h.name}
-                </button>
+        {/* Team Selector & Role Badge Bar (Only visible when activeTab === 'Team Cloud Storage') */}
+        {activeTab === 'Team Cloud Storage' && (
+          userTeams.length === 0 ? (
+            <div className="bg-[#0f1422] border border-dashed border-[#192238] rounded-2xl p-8 text-center flex flex-col items-center justify-center">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-3 text-amber-400">
+                <i className="fa-solid fa-users-slash text-xl"></i>
               </div>
-            ))}
-          </div>
-        )}
-
-        {/* Breadcrumb Navigation for Google Drive View */}
-        {activeTab === 'Google Drive' && integrations.google_drive?.connected && (
-          <div className="flex items-center gap-2 text-xs text-slate-400 bg-[#0f1422] border border-[#192238] px-4 py-2 rounded-xl font-medium">
-            <i className="fa-brands fa-google-drive text-amber-400 mr-1"></i>
-            {cloudBreadcrumbs.map((bc, idx) => (
-              <div key={bc.id} className="flex items-center gap-2">
-                {idx > 0 && <span className="text-slate-600">/</span>}
-                <button
-                  type="button"
-                  onClick={() => setCloudBreadcrumbs(prev => prev.slice(0, idx + 1))}
-                  className={`hover:text-white transition truncate max-w-[150px] ${
-                    idx === cloudBreadcrumbs.length - 1 ? 'text-white font-bold' : ''
-                  }`}
-                >
-                  {bc.name}
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* MAIN FILE BROWSER AREA */}
-        {error ? (
-          <div className="p-8 text-center text-red-400 bg-red-500/10 border border-red-500/20 rounded-2xl text-xs">
-            {error}
-          </div>
-        ) : loading ? (
-          <div className="flex flex-col items-center justify-center py-24 bg-[#0f1422] border border-[#192238] rounded-2xl">
-            <i className="fa-solid fa-circle-notch fa-spin text-3xl text-purple-500 mb-3"></i>
-            <span className="text-xs font-semibold text-slate-400">Loading files...</span>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4">
-
-            {/* CASE 1: Google Drive Tab */}
-            {activeTab === 'Google Drive' && (
-              !integrations.google_drive?.connected ? (
-                <div className="bg-[#0f1422] border border-dashed border-[#192238] rounded-2xl p-12 text-center flex flex-col items-center justify-center">
-                  <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-3">
-                    <i className="fa-brands fa-google-drive text-2xl text-amber-400"></i>
-                  </div>
-                  <h3 className="text-base font-bold text-white mb-1">Google Drive Not Connected</h3>
-                  <p className="text-xs text-slate-400 max-w-md mb-5 leading-relaxed">
-                    Connect your personal Google Account to browse, download, and import files directly into DEVHUB projects.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const redirectUri = `${window.location.origin}${window.location.pathname}`.replace(/\/$/, '');
-                      const res = await apiClient(`/integrations/google/auth-url?redirectUri=${encodeURIComponent(redirectUri)}`);
-                      if (res.url) window.location.href = res.url;
+              <h3 className="text-sm font-bold text-white mb-1">No Teams Joined</h3>
+              <p className="text-xs text-slate-400 max-w-md leading-relaxed">
+                You are not currently a member of any teams. Team Cloud Storage provides 10 GB shared storage per team. Join or create a team to access shared team storage.
+              </p>
+            </div>
+          ) : (
+            <div className="bg-[#0f1422] border border-[#192238] rounded-xl px-4 py-3 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+                  <i className="fa-solid fa-users text-sm"></i>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Active Team Storage
+                  </span>
+                  <select
+                    value={selectedTeamId || ''}
+                    onChange={(e) => {
+                      setSelectedTeamId(e.target.value);
+                      setCurrentFolderId(null);
+                      setFolderHistory([]);
                     }}
-                    className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-bold transition shadow-lg shadow-amber-500/20 flex items-center gap-2"
+                    className="bg-[#161d2f] border border-[#1f2a44] rounded-lg px-2.5 py-1 text-xs font-semibold text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
                   >
-                    <i className="fa-solid fa-plug text-xs"></i>
-                    <span>Connect Google Drive</span>
-                  </button>
+                    {userTeams.map(t => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              ) : cloudLoading ? (
-                <div className="py-20 text-center bg-[#0f1422] border border-[#192238] rounded-2xl">
-                  <i className="fa-solid fa-circle-notch fa-spin text-2xl text-amber-400 mb-2"></i>
-                  <p className="text-xs text-slate-400">Loading Google Drive files...</p>
-                </div>
-              ) : cloudError ? (
-                <div className="p-6 text-center text-red-400 bg-red-500/10 border border-red-500/20 rounded-2xl text-xs">
-                  {cloudError}
-                </div>
-              ) : (
-                <div className="bg-[#0f1422] border border-[#192238] rounded-2xl overflow-hidden shadow-sm">
-                  <div className="overflow-y-auto max-h-[580px] hide-scrollbar">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead>
-                        <tr className="bg-[#121828] border-b border-[#192238] text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                          <th className="py-3 px-4">Item Name</th>
-                          <th className="py-3 px-4 hidden sm:table-cell">Size</th>
-                          <th className="py-3 px-4 hidden md:table-cell">Modified</th>
-                          <th className="py-3 px-4 text-right">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#192238]/60 text-slate-300">
-                        {cloudItems.length > 0 ? (
-                          cloudItems.map(item => {
-                            if (item.isFolder) {
-                              return (
-                                <DriveFolderRow
-                                  key={item.id}
-                                  folder={item}
-                                  onOpenFolder={(f) => {
-                                    setCloudBreadcrumbs(prev => [...prev, { id: f.id, name: f.name }]);
-                                  }}
-                                />
-                              );
-                            }
-                            return (
-                              <DriveFileRow
-                                key={item.id}
-                                file={item}
-                                onDownload={(f) => handleCloudDownload(f, 'google_drive')}
-                                onImport={(f) => handleCloudImport(f, 'google_drive')}
-                                importing={importingFileId === item.id}
-                              />
-                            );
-                          })
-                        ) : (
-                          <tr>
-                            <td colSpan="4" className="py-12 text-center text-slate-400 text-xs">
-                              No files or folders in this Google Drive folder.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400">Access Level:</span>
+                {canManageCurrentTeam ? (
+                  <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center gap-1.5">
+                    <i className="fa-solid fa-crown text-[10px]"></i>
+                    <span>{currentUser?.role === 'Admin' ? 'Admin' : 'Team Leader'} (Full Management)</span>
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center gap-1.5">
+                    <i className="fa-solid fa-eye text-[10px]"></i>
+                    <span>Team Member (View & Download)</span>
+                  </span>
+                )}
+              </div>
+            </div>
+          )
+        )}
+
+        {/* Breadcrumb Navigation Bar */}
+        <div className="flex items-center gap-2 text-xs text-slate-400 bg-[#0f1422] border border-[#192238] px-4 py-2.5 rounded-xl font-medium">
+          <button
+            type="button"
+            onClick={handleGoRoot}
+            className={`hover:text-white transition flex items-center gap-1.5 ${
+              folderHistory.length === 0 ? 'text-white font-bold' : ''
+            }`}
+          >
+            <i className="fa-solid fa-house text-indigo-400 text-xs"></i>
+            <span>
+              {activeTab === 'Team Cloud Storage'
+                ? (selectedTeam ? `${selectedTeam.name} Root` : 'Team Root')
+                : activeTab === 'My Cloud Storage'
+                ? 'My Storage Root'
+                : 'All Files Root'}
+            </span>
+          </button>
+          {folderHistory.map((h, i) => (
+            <div key={h.id} className="flex items-center gap-2">
+              <span className="text-slate-600">/</span>
+              <button
+                type="button"
+                onClick={() => handleBreadcrumbClick(i)}
+                className={`transition truncate max-w-[150px] ${
+                  i === folderHistory.length - 1 ? 'text-white font-bold' : 'hover:text-white'
+                }`}
+              >
+                {h.name}
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* Drag-and-Drop Dropzone Container & File Browser */}
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (canUploadOrAddFolder && !isDragging) setIsDragging(true);
+          }}
+          onDragEnter={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (canUploadOrAddFolder) setIsDragging(true);
+          }}
+          onDragLeave={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!e.currentTarget.contains(e.relatedTarget)) {
+              setIsDragging(false);
+            }
+          }}
+          onDrop={async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsDragging(false);
+            if (canUploadOrAddFolder && e.dataTransfer?.files?.length > 0) {
+              await handleUploadFiles(e.dataTransfer.files);
+            }
+          }}
+          className="relative flex flex-col gap-4 min-h-[350px]"
+        >
+          {/* Glassmorphic Drag Overlay */}
+          {isDragging && (
+            <div className="absolute inset-0 z-50 bg-[#0f1422]/90 border-2 border-dashed border-indigo-500 rounded-2xl flex flex-col items-center justify-center pointer-events-none backdrop-blur-sm">
+              <i className="fa-solid fa-cloud-arrow-up text-4xl text-indigo-400 mb-2 animate-bounce"></i>
+              <p className="text-sm font-bold text-white">Drop files here to upload</p>
+              <p className="text-xs text-indigo-300 mt-1">
+                Uploading to {activeTab === 'Team Cloud Storage' ? (selectedTeam?.name || 'Team Storage') : 'My Cloud Storage'}
+              </p>
+            </div>
+          )}
+
+          {/* Loading State */}
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-24 bg-[#0f1422] border border-[#192238] rounded-2xl">
+              <i className="fa-solid fa-circle-notch fa-spin text-3xl text-indigo-500 mb-3"></i>
+              <span className="text-xs font-semibold text-slate-400">Loading files...</span>
+            </div>
+          ) : error ? (
+            <div className="p-8 text-center text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-xs">
+              <i className="fa-solid fa-triangle-exclamation text-2xl mb-2 block"></i>
+              <p className="font-semibold">{error}</p>
+              <button
+                type="button"
+                onClick={loadContents}
+                className="mt-3 px-3 py-1.5 bg-[#192238] hover:bg-[#253250] text-white rounded-lg text-xs font-bold transition"
+              >
+                Retry
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Folders Section */}
+              {filteredFolders.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-3 px-1">
+                    <h2 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                      <i className="fa-solid fa-folder text-indigo-400"></i>
+                      <span>Folders ({filteredFolders.length})</span>
+                    </h2>
                   </div>
-                </div>
-              )
-            )}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3.5">
+                    {filteredFolders.map(folder => {
+                      const isMenuOpen = openMenuId === `folder_${folder.id}`;
+                      const isTeamFolder = folder.storageScope === 'TEAM';
+                      const canManageThisFolder = isTeamFolder ? canManageCurrentTeam : true;
 
-            {/* CASE 2: DEVHUB Local Views (All Files, DEVHUB, Shared with Me) */}
-            {(activeTab === 'All Files' || activeTab === 'DEVHUB' || activeTab === 'Shared with Me') && (
-              <>
-                {/* Folders Row (Only for All Files and DEVHUB root) */}
-                {(activeTab === 'All Files' || activeTab === 'DEVHUB') && currentViewFolders.length > 0 && (
-                  <div>
-                    <div className="flex items-center justify-between mb-3 px-1">
-                      <h2 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                        <i className="fa-solid fa-folder text-purple-400"></i>
-                        <span>Folders ({currentViewFolders.length})</span>
-                      </h2>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3.5">
-                      {currentViewFolders.map(folder => {
-                        const canEdit = canModifyProject(folder.projectId);
-                        const canDel = canDeleteProjectData(folder.projectId);
-                        const isMenuOpen = openMenuId === `folder_${folder.id}`;
-
-                        return (
-                          <div
-                            key={folder.id}
-                            onClick={() => handleOpenFolder(folder)}
-                            className="group bg-[#0f1422] border border-[#192238] hover:border-[#283552] rounded-xl p-3.5 cursor-pointer transition shadow-sm relative flex items-center justify-between"
-                          >
-                            <div className="flex items-center gap-3 min-w-0">
-                              <i className="fa-solid fa-folder text-2xl text-purple-500 group-hover:scale-105 transition-transform shrink-0"></i>
-                              <div className="min-w-0">
-                                <span className="text-xs font-bold text-white truncate block group-hover:text-purple-300 transition">
-                                  {folder.name}
-                                </span>
-                                <span className="text-[10px] text-slate-500 truncate block">
-                                  {folder.project?.name || 'Project'}
-                                </span>
-                              </div>
+                      return (
+                        <div
+                          key={folder.id}
+                          onClick={() => handleOpenFolder(folder)}
+                          className="group bg-[#0f1422] border border-[#192238] hover:border-[#283552] rounded-xl p-3.5 cursor-pointer transition shadow-sm relative flex items-center justify-between"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <i className="fa-solid fa-folder text-2xl text-indigo-400 group-hover:scale-105 transition-transform shrink-0"></i>
+                            <div className="min-w-0">
+                              <span className="text-xs font-bold text-white truncate block group-hover:text-indigo-300 transition" title={folder.name}>
+                                {folder.name}
+                              </span>
+                              <span className="text-[10px] text-slate-500 truncate block">
+                                {folder.team?.name ? `${folder.team.name} (Team)` : 'Personal Folder'}
+                              </span>
                             </div>
+                          </div>
 
-                            {/* Dropdown Menu */}
+                          {/* Action Dropdown Menu */}
+                          {canManageThisFolder && (
                             <div className="relative shrink-0" ref={isMenuOpen ? menuRef : null}>
                               <button
                                 type="button"
@@ -764,137 +844,147 @@ export default function Files() {
                                     }}
                                     className="flex items-center gap-2 w-full px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#2a344a] text-left"
                                   >
-                                    <i className="fa-solid fa-folder-open w-3 text-purple-400"></i> Open
+                                    <i className="fa-solid fa-folder-open w-3 text-indigo-400"></i> Open
                                   </button>
-                                  {canEdit && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setOpenMenuId(null);
-                                        setEditingFolder(folder);
-                                        setFolderForm({ name: folder.name, projectId: folder.projectId });
-                                        setShowFolderModal(true);
-                                      }}
-                                      className="flex items-center gap-2 w-full px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-[#2a344a] hover:text-white text-left"
-                                    >
-                                      <i className="fa-solid fa-pen w-3 text-slate-400"></i> Rename
-                                    </button>
-                                  )}
-                                  {canDel && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setOpenMenuId(null);
-                                        setConfirmDelete({ type: 'folder', id: folder.id, name: folder.name });
-                                      }}
-                                      className="flex items-center gap-2 w-full px-3 py-1.5 text-xs font-semibold text-red-400 hover:bg-red-500/10 text-left border-t border-[#2d364f] mt-1 pt-1.5"
-                                    >
-                                      <i className="fa-solid fa-trash w-3"></i> Delete
-                                    </button>
-                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenMenuId(null);
+                                      setEditingFolder(folder);
+                                      setFolderForm({ name: folder.name });
+                                      setShowFolderModal(true);
+                                    }}
+                                    className="flex items-center gap-2 w-full px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-[#2a344a] hover:text-white text-left"
+                                  >
+                                    <i className="fa-solid fa-pen w-3 text-slate-400"></i> Rename
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenMenuId(null);
+                                      setConfirmDelete({ type: 'folder', id: folder.id, name: folder.name });
+                                    }}
+                                    className="flex items-center gap-2 w-full px-3 py-1.5 text-xs font-semibold text-rose-400 hover:bg-rose-500/10 text-left border-t border-[#2d364f] mt-1 pt-1.5"
+                                  >
+                                    <i className="fa-solid fa-trash w-3"></i> Delete
+                                  </button>
                                 </div>
                               )}
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                )}
+                </div>
+              )}
 
-                {/* Files Section */}
-                <div className="bg-[#0f1422] border border-[#192238] rounded-2xl shadow-sm overflow-hidden">
-                  <div className="py-3 px-4 bg-[#121828] border-b border-[#192238] flex items-center justify-between">
-                    <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                      <i className="fa-solid fa-file text-purple-400"></i>
-                      <span>Files ({currentViewFiles.length})</span>
-                    </h3>
-                    <div className="flex items-center gap-2 text-xs text-slate-400">
-                      <span>Sort by:</span>
-                      <select
-                        value={sortConfig.key}
-                        onChange={(e) => setSortConfig(prev => ({ ...prev, key: e.target.value }))}
-                        className="bg-[#161d2f] border border-[#1f2a44] rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
-                      >
-                        <option value="updatedAt">Date Modified</option>
-                        <option value="name">Name</option>
-                        <option value="size">Size</option>
-                        <option value="project">Project</option>
-                      </select>
-                    </div>
+              {/* Files Section */}
+              <div className="bg-[#0f1422] border border-[#192238] rounded-2xl shadow-sm overflow-hidden">
+                <div className="py-3 px-4 bg-[#121828] border-b border-[#192238] flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                    <i className="fa-solid fa-file text-indigo-400"></i>
+                    <span>Files ({filteredFiles.length})</span>
+                  </h3>
+                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                    <span>Sort by:</span>
+                    <select
+                      value={sortConfig.key}
+                      onChange={(e) => setSortConfig(prev => ({ ...prev, key: e.target.value }))}
+                      className="bg-[#161d2f] border border-[#1f2a44] rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
+                    >
+                      <option value="updatedAt">Date Modified</option>
+                      <option value="name">Name</option>
+                      <option value="size">Size</option>
+                    </select>
                   </div>
+                </div>
 
-                  {currentViewFiles.length === 0 ? (
-                    <div className="py-16 text-center text-slate-400 text-xs">
-                      <i className="fa-solid fa-box-open text-3xl text-slate-600 mb-2"></i>
-                      <p className="font-semibold text-slate-300">No files in this view</p>
-                      <p className="text-[11px] text-slate-500 mt-1">Upload a file or import from connected cloud storage.</p>
-                    </div>
-                  ) : viewMode === 'list' ? (
-                    <div className="overflow-y-auto max-h-[520px] hide-scrollbar">
-                      <table className="w-full text-left text-xs border-collapse">
-                        <thead>
-                          <tr className="bg-[#121828]/50 border-b border-[#192238] text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                            <th className="py-2.5 px-4">Name</th>
-                            <th className="py-2.5 px-4 hidden sm:table-cell">Project</th>
-                            <th className="py-2.5 px-4 hidden md:table-cell">Size</th>
-                            <th className="py-2.5 px-4 hidden lg:table-cell">Modified</th>
-                            <th className="py-2.5 px-4 text-right">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[#192238]/60 text-slate-300">
-                          {currentViewFiles.map(file => {
-                            const { icon, color } = getFileIcon(file.type);
-                            const canEdit = canModifyProject(file.projectId);
-                            const canDel = canDeleteProjectData(file.projectId);
-                            const isMenuOpen = openMenuId === `file_${file.id}`;
+                {filteredFiles.length === 0 ? (
+                  <div className="py-16 text-center text-slate-400 text-xs">
+                    <i className="fa-solid fa-box-open text-3xl text-slate-600 mb-2"></i>
+                    <p className="font-semibold text-slate-300">No files in this folder</p>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      {canUploadOrAddFolder
+                        ? 'Drag and drop files here or click Upload to get started.'
+                        : 'No files uploaded to this team folder yet.'}
+                    </p>
+                  </div>
+                ) : viewMode === 'list' ? (
+                  <div className="overflow-y-auto max-h-[520px] hide-scrollbar">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-[#121828]/50 border-b border-[#192238] text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          <th className="py-2.5 px-4">Name</th>
+                          <th className="py-2.5 px-4 hidden sm:table-cell">Scope</th>
+                          <th className="py-2.5 px-4 hidden md:table-cell">Size</th>
+                          <th className="py-2.5 px-4 hidden lg:table-cell">Modified</th>
+                          <th className="py-2.5 px-4 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#192238]/60 text-slate-300">
+                        {filteredFiles.map(file => {
+                          const { icon, color } = getFileIcon(file.type);
+                          const isTeamFile = file.storageScope === 'TEAM';
+                          const canManageThisFile = isTeamFile
+                            ? canManageCurrentTeam
+                            : (file.uploaderId === currentUser?.id || currentUser?.role === 'Admin');
 
-                            return (
-                              <tr
-                                key={file.id}
-                                className="hover:bg-[#161d2f]/70 transition-colors group cursor-pointer"
-                                onClick={(e) => handleDownloadFile(e, file.id)}
-                              >
-                                <td className="py-3 px-4">
-                                  <div className="flex items-center gap-3 min-w-0">
-                                    <div className="w-8 h-8 rounded-lg bg-[#161d2f] border border-[#1f2a44] flex items-center justify-center shrink-0">
-                                      <i className={`${icon} ${color} text-sm`}></i>
-                                    </div>
-                                    <div className="min-w-0">
-                                      <span className="font-semibold text-white truncate block group-hover:text-purple-300 transition" title={file.name}>
-                                        {file.name}
-                                      </span>
-                                      <span className="text-[10px] text-slate-500 uppercase sm:hidden">
-                                        {formatSize(file.size)}
-                                      </span>
-                                    </div>
+                          return (
+                            <tr
+                              key={file.id}
+                              className="hover:bg-[#161d2f]/70 transition-colors group cursor-pointer"
+                              onClick={(e) => handleDownloadFile(e, file)}
+                            >
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="w-8 h-8 rounded-lg bg-[#161d2f] border border-[#1f2a44] flex items-center justify-center shrink-0">
+                                    <i className={`${icon} ${color} text-sm`}></i>
                                   </div>
-                                </td>
-                                <td className="py-3 px-4 hidden sm:table-cell text-slate-400 text-xs truncate max-w-[150px]">
-                                  {file.project?.name || 'Project'}
-                                </td>
-                                <td className="py-3 px-4 hidden md:table-cell font-mono text-slate-300 text-xs">
-                                  {formatSize(file.size)}
-                                </td>
-                                <td className="py-3 px-4 hidden lg:table-cell text-slate-400 text-xs">
-                                  {new Date(file.updatedAt).toLocaleDateString()}
-                                </td>
-                                <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
-                                  <div className="flex items-center justify-end gap-1.5">
-                                    <button
-                                      type="button"
-                                      onClick={(e) => handleDownloadFile(e, file.id)}
-                                      title="Download file"
-                                      className="w-7 h-7 flex items-center justify-center rounded text-slate-400 hover:text-white hover:bg-[#1a2333] transition"
-                                    >
-                                      <i className="fa-solid fa-download text-xs"></i>
-                                    </button>
-                                    {canEdit && (
+                                  <div className="min-w-0">
+                                    <span className="font-semibold text-white truncate block group-hover:text-indigo-300 transition" title={file.name}>
+                                      {file.name}
+                                    </span>
+                                    <span className="text-[10px] text-slate-500 uppercase sm:hidden">
+                                      {formatSize(file.size)}
+                                    </span>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-3 px-4 hidden sm:table-cell text-xs">
+                                {isTeamFile ? (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                                    {file.team?.name || 'Team'}
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 border border-indigo-500/20 text-indigo-300">
+                                    Personal
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-3 px-4 hidden md:table-cell font-mono text-slate-300 text-xs">
+                                {formatSize(file.size)}
+                              </td>
+                              <td className="py-3 px-4 hidden lg:table-cell text-slate-400 text-xs">
+                                {new Date(file.updatedAt).toLocaleDateString()}
+                              </td>
+                              <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleDownloadFile(e, file)}
+                                    title="Download file"
+                                    className="w-7 h-7 flex items-center justify-center rounded text-slate-400 hover:text-white hover:bg-[#1a2333] transition"
+                                  >
+                                    <i className="fa-solid fa-download text-xs"></i>
+                                  </button>
+                                  {canManageThisFile && (
+                                    <>
                                       <button
                                         type="button"
                                         onClick={() => {
                                           setEditingFile(file);
-                                          setFileForm({ name: file.name, projectId: file.projectId });
+                                          setFileForm({ name: file.name });
                                           setShowFileModal(true);
                                         }}
                                         title="Rename file"
@@ -902,8 +992,6 @@ export default function Files() {
                                       >
                                         <i className="fa-solid fa-pen text-xs"></i>
                                       </button>
-                                    )}
-                                    {canDel && (
                                       <button
                                         type="button"
                                         onClick={() => setConfirmDelete({ type: 'file', id: file.id, name: file.name })}
@@ -912,72 +1000,72 @@ export default function Files() {
                                       >
                                         <i className="fa-solid fa-trash text-xs"></i>
                                       </button>
-                                    )}
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3.5 overflow-y-auto max-h-[520px] hide-scrollbar">
-                      {currentViewFiles.map(file => {
-                        const { icon, color } = getFileIcon(file.type);
-                        return (
-                          <div
-                            key={file.id}
-                            onClick={(e) => handleDownloadFile(e, file.id)}
-                            className="group bg-[#161d2f] border border-[#1f2a44] rounded-xl p-3.5 flex flex-col hover:border-[#384366] transition shadow-sm relative cursor-pointer"
-                          >
-                            <div className="flex items-start justify-between mb-2.5">
-                              <i className={`${icon} ${color} text-2xl`}></i>
-                              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 bg-[#0f1422] px-2 py-0.5 rounded">
-                                {file.type || 'file'}
-                              </span>
-                            </div>
-                            <h4 className="text-xs font-bold text-white truncate mb-0.5" title={file.name}>
-                              {file.name}
-                            </h4>
-                            <p className="text-[10px] text-slate-400 truncate mb-3">
-                              {file.project?.name}
-                            </p>
-                            <div className="mt-auto pt-2 border-t border-[#1f2a44]/60 flex items-center justify-between text-[10px] text-slate-400">
-                              <span>{formatSize(file.size)}</span>
-                              <span>{new Date(file.updatedAt).toLocaleDateString()}</span>
-                            </div>
+                                    </>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3.5 overflow-y-auto max-h-[520px] hide-scrollbar">
+                    {filteredFiles.map(file => {
+                      const { icon, color } = getFileIcon(file.type);
+                      const isTeamFile = file.storageScope === 'TEAM';
+                      return (
+                        <div
+                          key={file.id}
+                          onClick={(e) => handleDownloadFile(e, file)}
+                          className="group bg-[#161d2f] border border-[#1f2a44] rounded-xl p-3.5 flex flex-col hover:border-[#384366] transition shadow-sm relative cursor-pointer"
+                        >
+                          <div className="flex items-start justify-between mb-2.5">
+                            <i className={`${icon} ${color} text-2xl`}></i>
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 bg-[#0f1422] px-2 py-0.5 rounded">
+                              {isTeamFile ? 'Team' : 'Personal'}
+                            </span>
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-
-          </div>
-        )}
+                          <h4 className="text-xs font-bold text-white truncate mb-0.5" title={file.name}>
+                            {file.name}
+                          </h4>
+                          <p className="text-[10px] text-slate-400 truncate mb-3">
+                            {formatSize(file.size)} • {new Date(file.updatedAt).toLocaleDateString()}
+                          </p>
+                          <div className="mt-auto pt-2 border-t border-[#1f2a44]/60 flex items-center justify-between text-[10px] text-slate-400">
+                            <span className="text-indigo-400 font-semibold">Click to Download</span>
+                            <i className="fa-solid fa-download text-xs text-slate-400 group-hover:text-white"></i>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* RIGHT SIDEBAR (Compact, Dynamic Storage Usage, Recent Activity, Quick Actions) */}
+      {/* RIGHT SIDEBAR (Authoritative Storage Quota, Recent Activity, Quick Actions) */}
       <div className="w-full lg:w-[280px] xl:w-[320px] shrink-0 flex flex-col gap-4">
         
         {/* Dynamic Context-Aware Storage Usage Component */}
         <StorageUsage
           activeTab={activeTab}
-          viewFiles={currentViewFiles}
+          viewFiles={filteredFiles}
           allDevhubFiles={files}
           quotas={quotas}
           loading={quotasLoading}
-          onRefresh={fetchQuotas}
+          onRefresh={() => fetchQuotas()}
         />
 
         {/* Compact Recent Activity */}
         <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-4 shadow-sm flex flex-col max-h-[280px]">
           <div className="flex items-center justify-between mb-3 shrink-0">
             <h2 className="text-xs font-bold text-white tracking-tight uppercase flex items-center gap-1.5">
-              <i className="fa-regular fa-clock text-purple-400"></i>
+              <i className="fa-regular fa-clock text-indigo-400"></i>
               <span>Recent Activity</span>
             </h2>
           </div>
@@ -989,32 +1077,31 @@ export default function Files() {
         {/* Compact Quick Actions */}
         <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-4 shadow-sm">
           <h2 className="text-xs font-bold text-white tracking-tight uppercase flex items-center gap-1.5 mb-3">
-            <i className="fa-solid fa-bolt text-purple-400"></i>
+            <i className="fa-solid fa-bolt text-indigo-400"></i>
             <span>Quick Actions</span>
           </h2>
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
+              disabled={!canUploadOrAddFolder || uploading}
               onClick={() => {
-                setEditingFile(null);
-                setFileForm({ name: '', projectId: currentProjectId || (projects[0]?.id || '') });
-                setSelectedFiles(null);
-                setShowFileModal(true);
+                if (fileInputRef.current) fileInputRef.current.click();
               }}
-              className="flex items-center gap-2 p-2 rounded-xl bg-[#161d2f] hover:bg-[#1a2333] border border-[#1f2a44] text-slate-300 hover:text-white text-xs font-bold transition text-left"
+              className="flex items-center gap-2 p-2 rounded-xl bg-[#161d2f] hover:bg-[#1a2333] border border-[#1f2a44] text-slate-300 hover:text-white text-xs font-bold transition text-left disabled:opacity-50"
             >
-              <i className="fa-solid fa-upload text-purple-400 w-3"></i>
+              <i className="fa-solid fa-upload text-indigo-400 w-3"></i>
               <span>Upload</span>
             </button>
 
             <button
               type="button"
+              disabled={!canUploadOrAddFolder || uploading}
               onClick={() => {
                 setEditingFolder(null);
-                setFolderForm({ name: '', projectId: currentProjectId || (projects[0]?.id || '') });
+                setFolderForm({ name: '' });
                 setShowFolderModal(true);
               }}
-              className="flex items-center gap-2 p-2 rounded-xl bg-[#161d2f] hover:bg-[#1a2333] border border-[#1f2a44] text-slate-300 hover:text-white text-xs font-bold transition text-left"
+              className="flex items-center gap-2 p-2 rounded-xl bg-[#161d2f] hover:bg-[#1a2333] border border-[#1f2a44] text-slate-300 hover:text-white text-xs font-bold transition text-left disabled:opacity-50"
             >
               <i className="fa-solid fa-folder-plus text-indigo-400 w-3"></i>
               <span>Folder</span>
@@ -1022,22 +1109,22 @@ export default function Files() {
 
             <button
               type="button"
-              onClick={() => setActiveTab('Google Drive')}
+              onClick={() => {
+                loadContents();
+                fetchQuotas();
+              }}
               className="flex items-center gap-2 p-2 rounded-xl bg-[#161d2f] hover:bg-[#1a2333] border border-[#1f2a44] text-slate-300 hover:text-white text-xs font-bold transition text-left"
             >
-              <i className="fa-brands fa-google-drive text-amber-400 w-3"></i>
-              <span>Drive</span>
+              <i className="fa-solid fa-arrows-rotate text-emerald-400 w-3"></i>
+              <span>Refresh</span>
             </button>
 
             <button
               type="button"
-              onClick={() => {
-                setActiveTab('All Files');
-                handleGoRoot();
-              }}
+              onClick={handleGoRoot}
               className="flex items-center gap-2 p-2 rounded-xl bg-[#161d2f] hover:bg-[#1a2333] border border-[#1f2a44] text-slate-300 hover:text-white text-xs font-bold transition text-left"
             >
-              <i className="fa-solid fa-house text-emerald-400 w-3"></i>
+              <i className="fa-solid fa-house text-purple-400 w-3"></i>
               <span>Root</span>
             </button>
           </div>
@@ -1045,7 +1132,7 @@ export default function Files() {
 
       </div>
 
-      {/* Folder Modal */}
+      {/* Create / Rename Folder Modal */}
       {showFolderModal && (
         <Modal open={showFolderModal} onClose={() => setShowFolderModal(false)} className="max-w-sm p-6">
           <h2 className="text-base text-white font-bold mb-4">
@@ -1053,32 +1140,29 @@ export default function Files() {
           </h2>
           <form onSubmit={handleSaveFolder} className="flex flex-col gap-4">
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                Project <span className="text-red-500">*</span>
-              </label>
-              <select
-                required
-                disabled={Boolean(editingFolder)}
-                value={folderForm.projectId}
-                onChange={e => setFolderForm({ ...folderForm, projectId: e.target.value })}
-                className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl px-4 py-2.5 text-xs font-semibold text-white focus:outline-none focus:border-purple-500 transition disabled:opacity-50"
-              >
-                <option value="" disabled>Select a project</option>
-                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                Storage Destination
+              </span>
+              <div className="text-xs font-semibold text-slate-200 bg-[#161d2f] border border-[#1f2a44] rounded-xl px-3.5 py-2">
+                {activeTab === 'Team Cloud Storage' ? (selectedTeam?.name ? `${selectedTeam.name} (Team)` : 'Team Storage') : 'My Cloud Storage'}
+                {currentFolderId && folderHistory.length > 0 && ` / ${folderHistory[folderHistory.length - 1].name}`}
+              </div>
             </div>
+
             <div>
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                Folder Name <span className="text-red-500">*</span>
+                Folder Name <span className="text-rose-400">*</span>
               </label>
               <input
                 required
+                autoFocus
                 value={folderForm.name}
-                onChange={e => setFolderForm({ ...folderForm, name: e.target.value })}
+                onChange={e => setFolderForm({ name: e.target.value })}
                 placeholder="E.g. Documents"
-                className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500 transition shadow-inner"
+                className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition shadow-inner"
               />
             </div>
+
             <div className="flex justify-end gap-3 mt-2 pt-4 border-t border-[#1f2a44]">
               <button
                 type="button"
@@ -1091,7 +1175,7 @@ export default function Files() {
               <button
                 type="submit"
                 disabled={folderSubmitting}
-                className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold shadow-lg shadow-purple-900/30 transition disabled:opacity-50 flex items-center gap-2"
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow-lg shadow-indigo-900/30 transition disabled:opacity-50 flex items-center gap-2"
               >
                 {folderSubmitting && <i className="fa-solid fa-spinner fa-spin"></i>}
                 <span>Save</span>
@@ -1101,55 +1185,26 @@ export default function Files() {
         </Modal>
       )}
 
-      {/* File Upload / Rename Modal */}
+      {/* Rename File Modal */}
       {showFileModal && (
         <Modal open={showFileModal} onClose={() => setShowFileModal(false)} className="max-w-sm p-6">
           <h2 className="text-base text-white font-bold mb-4">
-            {editingFile ? 'Rename File' : 'Upload Files'}
+            Rename File
           </h2>
           <form onSubmit={handleSaveFile} className="flex flex-col gap-4">
             <div>
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                Project <span className="text-red-500">*</span>
+                File Name <span className="text-rose-400">*</span>
               </label>
-              <select
+              <input
                 required
-                disabled={Boolean(editingFile)}
-                value={fileForm.projectId}
-                onChange={e => setFileForm({ ...fileForm, projectId: e.target.value })}
-                className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl px-4 py-2.5 text-xs font-semibold text-white focus:outline-none focus:border-purple-500 transition disabled:opacity-50"
-              >
-                <option value="" disabled>Select a project</option>
-                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+                autoFocus
+                value={fileForm.name}
+                onChange={e => setFileForm({ name: e.target.value })}
+                placeholder="E.g. Roadmap.pdf"
+                className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition shadow-inner"
+              />
             </div>
-            {editingFile ? (
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                  File Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  required
-                  value={fileForm.name}
-                  onChange={e => setFileForm({ ...fileForm, name: e.target.value })}
-                  placeholder="E.g. Roadmap.pdf"
-                  className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500 transition shadow-inner"
-                />
-              </div>
-            ) : (
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                  Select Files <span className="text-red-500">*</span>
-                </label>
-                <input
-                  required
-                  type="file"
-                  multiple
-                  onChange={e => setSelectedFiles(e.target.files)}
-                  className="w-full bg-[#161d2f] border border-[#1f2a44] rounded-xl px-4 py-2.5 text-xs text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-purple-500/20 file:text-purple-400 hover:file:bg-purple-500/30 transition shadow-inner"
-                />
-              </div>
-            )}
             <div className="flex justify-end gap-3 mt-2 pt-4 border-t border-[#1f2a44]">
               <button
                 type="button"
@@ -1162,10 +1217,10 @@ export default function Files() {
               <button
                 type="submit"
                 disabled={fileSubmitting}
-                className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold shadow-lg shadow-purple-900/30 transition disabled:opacity-50 flex items-center gap-2"
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow-lg shadow-indigo-900/30 transition disabled:opacity-50 flex items-center gap-2"
               >
                 {fileSubmitting && <i className="fa-solid fa-spinner fa-spin"></i>}
-                <span>{editingFile ? 'Save Changes' : 'Upload'}</span>
+                <span>Save Changes</span>
               </button>
             </div>
           </form>

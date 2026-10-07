@@ -1133,6 +1133,7 @@ async function fetchSingleProviderQuota(provider, userId) {
 
     const usedBytes = Number(personalQuota.usedBytes);
     const limitBytes = Number(personalQuota.allocatedBytes);
+    const remainingBytes = Number(personalQuota.remainingBytes);
 
     return {
       provider: 'devhub',
@@ -1141,6 +1142,12 @@ async function fetchSingleProviderQuota(provider, userId) {
       used: usedBytes,
       limit: limitBytes,
       percentage: personalQuota.percentage,
+      allocatedGB: personalQuota.allocatedGB,
+      usedGB: personalQuota.usedGB,
+      remainingGB: personalQuota.remainingGB,
+      allocatedBytes: personalQuota.allocatedBytes,
+      usedBytes: personalQuota.usedBytes,
+      remainingBytes: personalQuota.remainingBytes,
       breakdown: { documents, images, videos, others },
       fileCount: files.length,
       available: true
@@ -1320,14 +1327,50 @@ async function fetchSingleProviderQuota(provider, userId) {
 exports.getProviderQuota = async (req, res) => {
   try {
     const { provider } = req.params;
+    const { teamId } = req.query;
     const userId = req.userId;
+
+    let teamQuota = null;
+    if (teamId) {
+      try {
+        const tQuota = await storageQuotaService.getTeamQuota(teamId);
+        const teamFiles = await prisma.file.findMany({
+          where: {
+            teamId,
+            storageScope: STORAGE_SCOPES.TEAM
+          },
+          select: { size: true, type: true }
+        });
+        let tDocs = 0, tImgs = 0, tVids = 0, tOthers = 0;
+        teamFiles.forEach(f => {
+          const s = Number(f.size) || 0;
+          const t = (f.type || '').toLowerCase();
+          if (t.includes('pdf') || t.includes('doc') || t.includes('txt') || t.includes('csv') || t.includes('xls') || t.includes('ppt')) tDocs += s;
+          else if (t.includes('image') || t.includes('png') || t.includes('jpg') || t.includes('jpeg') || t.includes('svg')) tImgs += s;
+          else if (t.includes('video') || t.includes('mp4') || t.includes('mov') || t.includes('avi')) tVids += s;
+          else tOthers += s;
+        });
+
+        teamQuota = {
+          ...tQuota,
+          name: 'Team Cloud Storage',
+          used: Number(tQuota.usedBytes),
+          limit: Number(tQuota.allocatedBytes),
+          breakdown: { documents: tDocs, images: tImgs, videos: tVids, others: tOthers },
+          fileCount: teamFiles.length,
+          available: true
+        };
+      } catch (tErr) {
+        console.warn('Could not fetch team quota:', tErr.message);
+      }
+    }
 
     if (provider) {
       const quota = await fetchSingleProviderQuota(provider, userId);
-      return res.json({ success: true, quota });
+      return res.json({ success: true, quota, teamQuota });
     }
 
-    // Otherwise return all 4 provider quotas simultaneously
+    // Otherwise return all provider quotas simultaneously + teamQuota
     const [devhub, google_drive, dropbox, onedrive] = await Promise.all([
       fetchSingleProviderQuota('devhub', userId).catch(() => ({ provider: 'devhub', name: 'DEVHUB Storage', available: false })),
       fetchSingleProviderQuota('google_drive', userId).catch(() => ({ provider: 'google_drive', name: 'Google Drive', connected: false, available: false })),
@@ -1341,7 +1384,8 @@ exports.getProviderQuota = async (req, res) => {
         devhub,
         google_drive,
         dropbox,
-        onedrive
+        onedrive,
+        teamQuota
       }
     });
   } catch (error) {

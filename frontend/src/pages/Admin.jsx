@@ -848,19 +848,19 @@ export default function Admin() {
       {/* TAB: STORAGE QUOTAS */}
       {activeTab === 'storage' && (
         <div className="space-y-6">
-          {/* Owner Google Drive Storage Pool Header */}
+          {/* Global System Storage Pool Card */}
           <div className="bg-[#121624] border border-[#1e2538] rounded-2xl p-5 shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-                  <i className="fa-brands fa-google-drive text-lg"></i>
+                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                  <i className="fa-solid fa-server text-lg"></i>
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-white tracking-tight">
-                    DEVHUB Owner Google Drive Storage Pool (5 TB)
+                    DEVHUB Global Cloud Storage Pool (5 TB)
                   </h3>
                   <p className="text-xs text-slate-400">
-                    Shared storage pool allocated across projects and teams. Application-enforced quotas.
+                    High-performance physical cloud storage managed by DEVHUB with quota allocations and safety buffers.
                   </p>
                 </div>
               </div>
@@ -871,30 +871,113 @@ export default function Admin() {
                 className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition flex items-center gap-2 shrink-0 shadow-sm"
               >
                 <i className="fa-solid fa-plus text-xs"></i>
-                <span>Configure User Quota</span>
+                <span>Configure Storage Quota</span>
               </button>
             </div>
 
-            {/* Pool Statistics Bar */}
+            {/* 6 Required Physical & Logical Metrics Cards */}
             {storageData.poolStatus && (
-              <div className="space-y-2 pt-2 border-t border-[#1e2538]">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-300 font-medium">
-                    Allocated: <strong className="text-white">{storageData.poolStatus.allocatedGB} GB</strong> of {storageData.poolStatus.capacityTB} TB ({storageData.poolStatus.capacityGB} GB)
-                  </span>
-                  <span className="text-slate-400">
-                    Remaining in Pool: <strong className="text-emerald-400">{storageData.poolStatus.remainingGB} GB</strong>
-                  </span>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+                  {/* 1. Global Physical Capacity */}
+                  <div className="bg-[#0f1422] border border-[#192238] rounded-xl p-3.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                      Physical Capacity
+                    </span>
+                    <div className="text-base font-black text-white">
+                      {storageData.poolStatus.physicalCapacityFormatted || '5 TB'}
+                    </div>
+                    <span className="text-[10px] text-slate-500">
+                      {storageData.poolStatus.physicalCapacityGB || 5120} GB total
+                    </span>
+                  </div>
+
+                  {/* 2. Actual Physical Usage */}
+                  <div className="bg-[#0f1422] border border-[#192238] rounded-xl p-3.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                      Actual Usage
+                    </span>
+                    <div className="text-base font-black text-amber-400">
+                      {storageData.poolStatus.actualUsedGB || '0.00'} GB
+                    </div>
+                    <span className="text-[10px] text-slate-500">
+                      {(storageData.poolStatus.poolPercentage || 0).toFixed(2)}% used
+                    </span>
+                  </div>
+
+                  {/* 3. Remaining Physical Capacity */}
+                  <div className="bg-[#0f1422] border border-[#192238] rounded-xl p-3.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                      Remaining Physical
+                    </span>
+                    <div className="text-base font-black text-emerald-400">
+                      {storageData.poolStatus.actualRemainingGB || '5120.00'} GB
+                    </div>
+                    <span className="text-[10px] text-slate-500">
+                      Available to store
+                    </span>
+                  </div>
+
+                  {/* 4. Safety Buffer */}
+                  <div className="bg-[#0f1422] border border-[#192238] rounded-xl p-3.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                      Safety Buffer
+                    </span>
+                    <div className="text-base font-black text-rose-400">
+                      {storageData.poolStatus.safetyBufferGB || 50} GB
+                    </div>
+                    <span className="text-[10px] text-slate-500">
+                      Protected threshold
+                    </span>
+                  </div>
+
+                  {/* 5. Logical Personal Allocations */}
+                  <div className="bg-[#0f1422] border border-[#192238] rounded-xl p-3.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                      Personal Quotas
+                    </span>
+                    <div className="text-base font-black text-indigo-400">
+                      {storageData.poolStatus.totalLogicalPersonalGB || '0.00'} GB
+                    </div>
+                    <span className="text-[10px] text-slate-500">
+                      {storageData.personalAllocations.length} user allocations
+                    </span>
+                  </div>
+
+                  {/* 6. Logical Team Allocations */}
+                  <div className="bg-[#0f1422] border border-[#192238] rounded-xl p-3.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                      Team Quotas
+                    </span>
+                    <div className="text-base font-black text-purple-400">
+                      {storageData.poolStatus.totalLogicalTeamGB || '0.00'} GB
+                    </div>
+                    <span className="text-[10px] text-slate-500">
+                      {storageData.teamAllocations.length} team allocations
+                    </span>
+                  </div>
                 </div>
-                <div className="w-full bg-[#192238] rounded-full h-2.5 overflow-hidden">
-                  <div
-                    className="h-full bg-amber-500 rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min(100, Math.max(1, storageData.poolStatus.poolPercentage || 0))}%` }}
-                  ></div>
-                </div>
-                <div className="text-[11px] text-slate-500 flex justify-between">
-                  <span>{(storageData.poolStatus.poolPercentage || 0).toFixed(1)}% of 5 TB capacity allocated</span>
-                  <span>{storageData.personalAllocations.length} personal + {storageData.teamAllocations.length} team allocations</span>
+
+                {/* Physical Usage Progress Bar */}
+                <div className="space-y-1.5 pt-2 border-t border-[#1e2538]">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-300 font-medium">
+                      Physical Pool Usage: <strong className="text-white">{storageData.poolStatus.actualUsedGB || '0.00'} GB</strong> / {storageData.poolStatus.physicalCapacityFormatted || '5 TB'}
+                    </span>
+                    <span className="text-slate-400 text-xs">
+                      Safety Limit: {Number(storageData.poolStatus.physicalCapacityGB || 5120) - Number(storageData.poolStatus.safetyBufferGB || 50)} GB
+                    </span>
+                  </div>
+                  <div className="w-full bg-[#192238] rounded-full h-2 overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, Math.max(1, storageData.poolStatus.poolPercentage || 0))}%` }}
+                    ></div>
+                  </div>
+                  <div className="text-[11px] text-slate-500 flex justify-between">
+                    <span>Total Logical Allocated: {storageData.poolStatus.allocatedGB || '0.00'} GB ({storageData.poolStatus.allocatedPercentage || 0}% of physical pool)</span>
+                    <span>System Status: {storageData.poolStatus.isPhysicalPoolExhausted ? 'Exhausted' : 'Healthy'}</span>
+                  </div>
                 </div>
               </div>
             )}

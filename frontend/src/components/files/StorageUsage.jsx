@@ -58,124 +58,78 @@ export default function StorageUsage({
   }, [allDevhubFiles]);
 
   // 2. Resolve context-specific display data based on activeTab
-  let providerTitle = 'Storage Usage';
+  let providerTitle = 'DEVHUB Cloud Storage';
   let providerIcon = 'fa-solid fa-hard-drive';
   let iconColor = 'text-purple-400';
   let usedBytes = 0;
   let limitBytes = null;
+  let remainingBytes = 0;
   let percentage = null;
   let statusBadge = null;
-  let accountName = null;
   let isAvailable = true;
   let unavailableMessage = null;
   let breakdown = null;
 
-  const devhubLimit = quotas.devhub?.limit || null;
+  const devhubQuota = quotas.devhub;
   const teamQuota = quotas.teamQuota;
 
-  if (teamQuota && (activeTab === 'All Files' || activeTab === 'DEVHUB')) {
-    providerTitle = teamQuota.name ? `${teamQuota.name} (Team Storage)` : 'Team Storage';
-    providerIcon = 'fa-solid fa-server';
+  if (activeTab === 'Team Cloud Storage') {
+    providerTitle = teamQuota?.name ? teamQuota.name : 'Team Cloud Storage';
+    providerIcon = 'fa-solid fa-users';
     iconColor = 'text-amber-400';
-    usedBytes = teamQuota.usedBytes ? Number(teamQuota.usedBytes) : (teamQuota.usedNumber || 0);
-    limitBytes = teamQuota.allocatedBytes ? Number(teamQuota.allocatedBytes) : (teamQuota.allocatedNumber || devhubLimit);
-    percentage = teamQuota.percentage !== undefined ? teamQuota.percentage : (limitBytes ? (usedBytes / limitBytes) * 100 : null);
-    statusBadge = percentage !== null ? `${percentage.toFixed(1)}% used` : 'Active';
-    breakdown = null;
-  } else if (activeTab === 'All Files') {
-    providerTitle = 'All Files (DEVHUB)';
-    providerIcon = 'fa-solid fa-box-archive';
-    iconColor = 'text-purple-400';
-    usedBytes = quotas.devhub?.used !== undefined ? quotas.devhub.used : viewMetrics.total;
-    limitBytes = devhubLimit;
-    percentage = quotas.devhub?.percentage !== undefined ? quotas.devhub.percentage : (limitBytes ? (usedBytes / limitBytes) * 100 : null);
-    statusBadge = `${viewMetrics.count} files in view`;
-    breakdown = quotas.devhub?.breakdown || viewMetrics;
-  } else if (activeTab === 'DEVHUB') {
-    providerTitle = 'DEVHUB Cloud Storage';
+    if (!teamQuota) {
+      isAvailable = false;
+      unavailableMessage = 'No team storage selected or available';
+      statusBadge = 'No Team';
+    } else {
+      usedBytes = teamQuota.used !== undefined ? teamQuota.used : Number(teamQuota.usedBytes || 0);
+      limitBytes = teamQuota.limit !== undefined ? teamQuota.limit : Number(teamQuota.allocatedBytes || 0);
+      remainingBytes = teamQuota.remainingBytes !== undefined ? Number(teamQuota.remainingBytes) : Math.max(0, limitBytes - usedBytes);
+      percentage = teamQuota.percentage !== undefined ? teamQuota.percentage : (limitBytes ? (usedBytes / limitBytes) * 100 : 0);
+      statusBadge = percentage !== null ? `${percentage.toFixed(1)}% used` : 'Active';
+      breakdown = teamQuota.breakdown;
+    }
+  } else if (activeTab === 'My Cloud Storage' || activeTab === 'DEVHUB') {
+    providerTitle = 'My Cloud Storage';
     providerIcon = 'fa-solid fa-cloud';
     iconColor = 'text-indigo-400';
-    const serverDevhub = quotas.devhub;
-    usedBytes = serverDevhub?.used !== undefined ? serverDevhub.used : allDevhubMetrics.total;
-    limitBytes = serverDevhub?.limit || devhubLimit;
-    percentage = serverDevhub?.percentage !== undefined ? serverDevhub.percentage : (limitBytes ? (usedBytes / limitBytes) * 100 : null);
-    statusBadge = `${serverDevhub?.fileCount ?? allDevhubMetrics.count} total files`;
-    breakdown = serverDevhub?.breakdown || allDevhubMetrics;
-  } else if (activeTab === 'Google Drive') {
-    providerTitle = 'Google Drive';
-    providerIcon = 'fa-brands fa-google-drive';
-    iconColor = 'text-amber-400';
-    const driveQuota = quotas.google_drive;
-
-    if (!driveQuota || !driveQuota.connected) {
-      isAvailable = false;
-      unavailableMessage = 'Google Drive not connected';
-      statusBadge = 'Disconnected';
-    } else if (!driveQuota.available) {
-      isAvailable = false;
-      unavailableMessage = 'Storage unavailable';
-      statusBadge = 'Connected';
-      accountName = driveQuota.account;
-    } else {
-      usedBytes = driveQuota.used || 0;
-      limitBytes = driveQuota.limit || null;
-      percentage = driveQuota.percentage !== undefined ? driveQuota.percentage : (limitBytes ? (usedBytes / limitBytes) * 100 : null);
-      accountName = driveQuota.account;
-      statusBadge = 'Connected';
-    }
-  } else if (activeTab === 'Dropbox') {
-    providerTitle = 'Dropbox';
-    providerIcon = 'fa-brands fa-dropbox';
-    iconColor = 'text-blue-400';
-    const dbQuota = quotas.dropbox;
-
-    if (!dbQuota || !dbQuota.connected) {
-      isAvailable = false;
-      unavailableMessage = 'Dropbox not connected';
-      statusBadge = 'Disconnected';
-    } else if (!dbQuota.available) {
-      isAvailable = false;
-      unavailableMessage = 'Storage unavailable';
-      statusBadge = 'Connected';
-      accountName = dbQuota.account;
-    } else {
-      usedBytes = dbQuota.used || 0;
-      limitBytes = dbQuota.limit || null;
-      percentage = dbQuota.percentage !== undefined ? dbQuota.percentage : (limitBytes ? (usedBytes / limitBytes) * 100 : null);
-      accountName = dbQuota.account;
-      statusBadge = 'Connected';
-    }
-  } else if (activeTab === 'OneDrive') {
-    providerTitle = 'OneDrive';
-    providerIcon = 'fa-brands fa-microsoft';
-    iconColor = 'text-sky-400';
-    const odQuota = quotas.onedrive;
-
-    if (!odQuota || !odQuota.connected) {
-      isAvailable = false;
-      unavailableMessage = 'OneDrive not connected';
-      statusBadge = 'Disconnected';
-    } else if (!odQuota.available) {
-      isAvailable = false;
-      unavailableMessage = 'Storage unavailable';
-      statusBadge = 'Connected';
-      accountName = odQuota.account;
-    } else {
-      usedBytes = odQuota.used || 0;
-      limitBytes = odQuota.limit || null;
-      percentage = odQuota.percentage !== undefined ? odQuota.percentage : (limitBytes ? (usedBytes / limitBytes) * 100 : null);
-      accountName = odQuota.account;
-      statusBadge = 'Connected';
-    }
+    usedBytes = devhubQuota?.used !== undefined ? devhubQuota.used : allDevhubMetrics.total;
+    limitBytes = devhubQuota?.limit || null;
+    remainingBytes = devhubQuota?.remainingBytes !== undefined ? Number(devhubQuota.remainingBytes) : Math.max(0, (limitBytes || 0) - usedBytes);
+    percentage = devhubQuota?.percentage !== undefined ? devhubQuota.percentage : (limitBytes ? (usedBytes / limitBytes) * 100 : 0);
+    statusBadge = `${devhubQuota?.fileCount ?? allDevhubMetrics.count} files`;
+    breakdown = devhubQuota?.breakdown || allDevhubMetrics;
+  } else if (activeTab === 'All Files' || activeTab === 'Project Files') {
+    providerTitle = 'DEVHUB Cloud Storage';
+    providerIcon = 'fa-solid fa-box-archive';
+    iconColor = 'text-purple-400';
+    usedBytes = devhubQuota?.used !== undefined ? devhubQuota.used : viewMetrics.total;
+    limitBytes = devhubQuota?.limit || null;
+    remainingBytes = devhubQuota?.remainingBytes !== undefined ? Number(devhubQuota.remainingBytes) : Math.max(0, (limitBytes || 0) - usedBytes);
+    percentage = devhubQuota?.percentage !== undefined ? devhubQuota.percentage : (limitBytes ? (usedBytes / limitBytes) * 100 : 0);
+    statusBadge = `${viewMetrics.count} files in view`;
+    breakdown = devhubQuota?.breakdown || viewMetrics;
   } else if (activeTab === 'Shared with Me') {
     providerTitle = 'Shared with Me';
-    providerIcon = 'fa-solid fa-users';
+    providerIcon = 'fa-solid fa-share-nodes';
     iconColor = 'text-emerald-400';
     usedBytes = viewMetrics.total;
-    limitBytes = devhubLimit;
+    limitBytes = devhubQuota?.limit || null;
+    remainingBytes = Math.max(0, (limitBytes || 0) - usedBytes);
     percentage = limitBytes ? (usedBytes / limitBytes) * 100 : null;
     statusBadge = `${viewMetrics.count} shared files`;
     breakdown = viewMetrics;
+  } else {
+    // Default fallback
+    providerTitle = 'DEVHUB Cloud Storage';
+    providerIcon = 'fa-solid fa-hard-drive';
+    iconColor = 'text-purple-400';
+    usedBytes = devhubQuota?.used !== undefined ? devhubQuota.used : viewMetrics.total;
+    limitBytes = devhubQuota?.limit || null;
+    remainingBytes = Math.max(0, (limitBytes || 0) - usedBytes);
+    percentage = devhubQuota?.percentage !== undefined ? devhubQuota.percentage : (limitBytes ? (usedBytes / limitBytes) * 100 : 0);
+    statusBadge = `${viewMetrics.count} files`;
+    breakdown = devhubQuota?.breakdown || viewMetrics;
   }
 
   // Format percentage display
@@ -200,13 +154,6 @@ export default function StorageUsage({
         )}
       </div>
 
-      {accountName && (
-        <div className="text-[11px] font-mono text-slate-400 bg-[#161d2f] border border-[#1f2a44] px-2.5 py-1 rounded-lg mb-3 truncate" title={accountName}>
-          <i className="fa-solid fa-user-circle mr-1.5 text-slate-500"></i>
-          {accountName}
-        </div>
-      )}
-
       {/* Main Metric Section */}
       {loading ? (
         <div className="py-6 flex justify-center items-center">
@@ -221,20 +168,20 @@ export default function StorageUsage({
             {unavailableMessage || 'Storage unavailable'}
           </p>
           <p className="text-[11px] text-slate-500">
-            Switch provider or connect to view quota.
+            Select a team or switch to My Cloud Storage to view usage.
           </p>
         </div>
       ) : (
         <div>
-          {/* Used vs Total */}
+          {/* Used vs Allocated */}
           <div className="flex items-baseline justify-between gap-2 mb-1.5">
             <div className="text-lg font-black text-white tracking-tight">
               {formatSize(usedBytes)}{' '}
               <span className="text-xs font-medium text-slate-400">used</span>
             </div>
             {limitBytes ? (
-              <span className="text-xs font-medium text-slate-400">
-                of {formatSize(limitBytes)}
+              <span className="text-xs font-medium text-slate-300">
+                Allocated: <strong className="text-white">{formatSize(limitBytes)}</strong>
               </span>
             ) : (
               <span className="text-xs font-medium text-slate-400">
@@ -252,23 +199,26 @@ export default function StorageUsage({
                     ? 'bg-rose-500'
                     : percentage > 75
                     ? 'bg-amber-500'
-                    : 'bg-purple-500'
+                    : 'bg-indigo-500'
                 }`}
                 style={{ width: `${Math.min(100, Math.max(2, percentage))}%` }}
               ></div>
             ) : (
-              <div className="h-full bg-purple-500/50 w-full"></div>
+              <div className="h-full bg-indigo-500/50 w-full"></div>
             )}
           </div>
 
-          {displayPercentage && (
-            <div className="flex justify-between items-center text-[11px] text-slate-400 mb-4">
-              <span>{displayPercentage} used</span>
-              {limitBytes && (
-                <span>{formatSize(Math.max(0, limitBytes - usedBytes))} remaining</span>
-              )}
-            </div>
-          )}
+          {/* Quota details (Percentage, Remaining, Allocated) */}
+          <div className="flex justify-between items-center text-[11px] text-slate-400 mb-4">
+            <span className="font-semibold text-indigo-400">
+              {displayPercentage || '0.0%'} used
+            </span>
+            {limitBytes ? (
+              <span>
+                Remaining: <strong className="text-emerald-400 font-semibold">{formatSize(remainingBytes)}</strong>
+              </span>
+            ) : null}
+          </div>
 
           {/* Detailed Breakdown for DEVHUB / All Files */}
           {breakdown && breakdown.total > 0 && (

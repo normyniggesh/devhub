@@ -55,15 +55,35 @@ class StoragePoolService {
       : 0n;
     const isPhysicalPoolExhausted = actualUsedBytes >= usablePhysicalBytes;
 
+    const physicalCapacityGB = Number(physicalCapacityBytes / (1024n * 1024n * 1024n));
+    const safetyBufferGB = Number(safetyBufferBytes / (1024n * 1024n * 1024n));
+    const actualUsedGB = (Number(actualUsedBytes) / (1024 * 1024 * 1024)).toFixed(3);
+    const actualRemainingGB = (Number(actualRemainingBytes) / (1024 * 1024 * 1024)).toFixed(3);
+    const totalLogicalPersonalGB = (Number(totalLogicalPersonalBytes) / (1024 * 1024 * 1024)).toFixed(2);
+    const totalLogicalTeamGB = (Number(totalLogicalTeamBytes) / (1024 * 1024 * 1024)).toFixed(2);
+    const allocatedGB = (Number(totalLogicalAllocatedBytes) / (1024 * 1024 * 1024)).toFixed(2);
+    const poolPercentage = physicalCapacityBytes > 0n ? Number((actualUsedBytes * 10000n) / physicalCapacityBytes) / 100 : 0;
+    const allocatedPercentage = physicalCapacityBytes > 0n ? Number((totalLogicalAllocatedBytes * 10000n) / physicalCapacityBytes) / 100 : 0;
+
     return {
       physicalCapacityBytes: physicalCapacityBytes.toString(),
       physicalCapacityFormatted: `${Number(physicalCapacityBytes / (1024n * 1024n * 1024n * 1024n))} TB`,
+      physicalCapacityGB,
+      physicalCapacityTB: 5,
       actualUsedBytes: actualUsedBytes.toString(),
+      actualUsedGB,
       actualRemainingBytes: actualRemainingBytes.toString(),
+      actualRemainingGB,
       safetyBufferBytes: safetyBufferBytes.toString(),
+      safetyBufferGB,
       totalLogicalPersonalBytes: totalLogicalPersonalBytes.toString(),
+      totalLogicalPersonalGB,
       totalLogicalTeamBytes: totalLogicalTeamBytes.toString(),
+      totalLogicalTeamGB,
       totalLogicalAllocatedBytes: totalLogicalAllocatedBytes.toString(),
+      allocatedGB,
+      poolPercentage,
+      allocatedPercentage,
       isPhysicalPoolExhausted,
       logicalOvercommitRatio: actualUsedBytes > 0n
         ? (Number(totalLogicalAllocatedBytes) / Number(actualUsedBytes)).toFixed(2)

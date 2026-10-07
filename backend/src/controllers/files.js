@@ -18,6 +18,7 @@ function sanitizeFileForClient(file, user) {
 
   const copy = { ...file };
   delete copy.driveFileId;
+  delete copy.storagePath;
   if (copy.storageProvider === 'google_drive') {
     copy.storageProvider = 'devhub_cloud';
   }
