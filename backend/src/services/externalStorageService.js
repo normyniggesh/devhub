@@ -337,9 +337,24 @@ class ExternalStorageService {
       if (!membership) {
         throw new Error('Forbidden: You are not a member of this team');
       }
-      await storageQuotaService.validateUpload(userId, fileSize, { scope: STORAGE_SCOPES.TEAM, teamId });
+      const quotaCheck = await storageQuotaService.validateUpload({
+        scope: STORAGE_SCOPES.TEAM,
+        userId,
+        teamId,
+        incomingBytes: fileSize
+      });
+      if (!quotaCheck.allowed) {
+        throw new Error(quotaCheck.reason || 'Team storage quota exceeded');
+      }
     } else {
-      await storageQuotaService.validateUpload(userId, fileSize, { scope: STORAGE_SCOPES.PERSONAL });
+      const quotaCheck = await storageQuotaService.validateUpload({
+        scope: STORAGE_SCOPES.PERSONAL,
+        userId,
+        incomingBytes: fileSize
+      });
+      if (!quotaCheck.allowed) {
+        throw new Error(quotaCheck.reason || 'Personal storage quota exceeded');
+      }
     }
 
     // 2. Physical Pool Validation (5 TB pool)
