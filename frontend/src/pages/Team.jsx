@@ -6,6 +6,7 @@ import MemberTable from '../components/team/MemberTable';
 import MemberDetailsModal from '../components/team/MemberDetailsModal';
 import AddMemberModal from '../components/team/AddMemberModal';
 import ChangeRoleModal from '../components/team/ChangeRoleModal';
+import CreateTeamModal from '../components/team/CreateTeamModal';
 import ConfirmDialog from '../components/common/ConfirmDialog';
 
 export default function Team() {
@@ -19,6 +20,7 @@ export default function Team() {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [feedback, setFeedback] = useState(null);
 
   // Search & Role Filter
   const [searchQuery, setSearchQuery] = useState('');
@@ -28,6 +30,7 @@ export default function Team() {
   const [selectedMember, setSelectedMember] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [showChangeRoleModal, setShowChangeRoleModal] = useState(false);
   const [memberToChangeRole, setMemberToChangeRole] = useState(null);
 
@@ -133,6 +136,16 @@ export default function Team() {
               <option value="Viewer">Viewers</option>
             </select>
 
+            {/* Create Team Button */}
+            <button
+              type="button"
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-2 px-3.5 py-2 bg-[#161d2f] border border-[#1f2a44] hover:border-purple-500 text-slate-300 hover:text-white rounded-xl text-xs font-bold transition shrink-0 active:scale-95"
+            >
+              <i className="fa-solid fa-users-rectangle text-purple-400 text-xs"></i>
+              <span>Create Team</span>
+            </button>
+
             {/* Add Member Button */}
             <button
               type="button"
@@ -206,6 +219,18 @@ export default function Team() {
           }}
           member={memberToChangeRole}
           onRoleUpdated={fetchTeamData}
+        />
+      )}
+
+      {/* Create Team Modal */}
+      {showCreateModal && (
+        <CreateTeamModal
+          open={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onTeamCreated={() => {
+            setShowCreateModal(false);
+            fetchTeamData();
+          }}
         />
       )}
 
