@@ -94,13 +94,46 @@ async function bootstrapAdminAccount(dbPool) {
     `, [adminId]);
 
     // 3. Ensure Admin has 5 GB personal storage allocation
-
     await client.query(`
       INSERT INTO "PersonalStorageAllocation" ("id", "userId", "allocatedBytes", "usedBytes", "createdAt", "updatedAt")
       VALUES (gen_random_uuid(), $1, $2, 0, NOW(), NOW())
       ON CONFLICT ("userId") DO UPDATE
       SET "updatedAt" = NOW();
     `, [adminId, DEFAULT_PERSONAL_STORAGE_BYTES.toString()]);
+
+    // 4. Ensure FileShare table and indexes exist (Pass 8 Personal File Sharing)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "FileShare" (
+        "id" TEXT NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+        "fileId" TEXT NOT NULL REFERENCES "File"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+        "ownerId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+        "sharedWithId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+        "permission" TEXT NOT NULL DEFAULT 'VIEW',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS "FileShare_fileId_sharedWithId_key" ON "FileShare"("fileId", "sharedWithId");
+      CREATE INDEX IF NOT EXISTS "FileShare_fileId_idx" ON "FileShare"("fileId");
+      CREATE INDEX IF NOT EXISTS "FileShare_ownerId_idx" ON "FileShare"("ownerId");
+      CREATE INDEX IF NOT EXISTS "FileShare_sharedWithId_idx" ON "FileShare"("sharedWithId");
+    `);
+
+    // 5. Ensure FolderShare table and indexes exist (Pass 8 Personal Folder Sharing)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "FolderShare" (
+        "id" TEXT NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+        "folderId" TEXT NOT NULL REFERENCES "Folder"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+        "ownerId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+        "sharedWithId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+        "permission" TEXT NOT NULL DEFAULT 'VIEW',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS "FolderShare_folderId_sharedWithId_key" ON "FolderShare"("folderId", "sharedWithId");
+      CREATE INDEX IF NOT EXISTS "FolderShare_folderId_idx" ON "FolderShare"("folderId");
+      CREATE INDEX IF NOT EXISTS "FolderShare_ownerId_idx" ON "FolderShare"("ownerId");
+      CREATE INDEX IF NOT EXISTS "FolderShare_sharedWithId_idx" ON "FolderShare"("sharedWithId");
+    `);
 
     await client.query('COMMIT');
     console.log('[DB] Bootstrap complete: admin@devhub.test is sole Admin with 5 GB personal storage.');
