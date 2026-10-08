@@ -249,6 +249,14 @@ exports.getUserRepositories = async (req, res) => {
       });
     }
 
+    // Lazy migration of legacy plaintext token
+    if (integration.accessToken && !integration.accessToken.startsWith('enc:')) {
+      await prisma.userIntegration.update({
+        where: { id: integration.id },
+        data: { accessToken: encryptToken(integration.accessToken) }
+      });
+    }
+
     const reposData = await response.json();
 
     const repos = reposData.map(r => ({
@@ -425,6 +433,14 @@ exports.syncRepository = async (req, res) => {
       return res.status(response.status).json({
         success: false,
         message: 'Failed to sync with GitHub API. The repository may be private or deleted.'
+      });
+    }
+
+    // Lazy migration of legacy plaintext token
+    if (integration && integration.accessToken && !integration.accessToken.startsWith('enc:')) {
+      await prisma.userIntegration.update({
+        where: { id: integration.id },
+        data: { accessToken: encryptToken(integration.accessToken) }
       });
     }
 

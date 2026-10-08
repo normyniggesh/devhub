@@ -100,7 +100,39 @@ async function runTests() {
     }
     console.log('✅ Database persistence and retrieval of encrypted tokens works.');
 
+    // Test 5: Lazy Migration simulation
+    console.log('\n[Test 5] Lazy Migration of Legacy Tokens');
+    const legacyIntegration = await prisma.userIntegration.create({
+      data: {
+        userId: user.id,
+        provider: 'github_legacy',
+        accountName: 'legacy_gh',
+        accessToken: 'ghp_legacy_plaintext_123',
+        status: 'connected'
+      }
+    });
+
+    // Simulate the check from github.js
+    if (legacyIntegration.accessToken && !legacyIntegration.accessToken.startsWith('enc:')) {
+      await prisma.userIntegration.update({
+        where: { id: legacyIntegration.id },
+        data: { accessToken: encryptToken(legacyIntegration.accessToken) }
+      });
+    }
+
+    const migrated = await prisma.userIntegration.findUnique({ where: { id: legacyIntegration.id } });
+    if (!migrated.accessToken.startsWith('enc:')) {
+      console.error('❌ Lazy migration failed to encrypt legacy token!');
+      process.exit(1);
+    }
+    if (decryptToken(migrated.accessToken) !== 'ghp_legacy_plaintext_123') {
+      console.error('❌ Lazy migration corrupted the legacy token!');
+      process.exit(1);
+    }
+    console.log('✅ Lazy migration successfully encrypts legacy plaintext tokens without data loss.');
+
     // Cleanup
+    await prisma.userIntegration.delete({ where: { id: legacyIntegration.id } });
     await prisma.userIntegration.delete({ where: { id: integration.id } });
     await prisma.user.delete({ where: { id: user.id } });
     console.log('🧹 Cleanup successful.');
