@@ -113,7 +113,18 @@ export default function GlobalSearch() {
       icon: 'fa-regular fa-file',
       iconColor: 'text-amber-400',
       iconBg: 'bg-amber-500/10 border-amber-500/20',
-      action: () => navigate(`/files?projectId=${f.projectId}`)
+      action: () => navigate(`/files${f.projectId ? `?projectId=${f.projectId}` : ''}`)
+    }));
+
+    (results.folders || []).forEach(f => items.push({
+      category: 'Folders',
+      id: `folder-${f.id}`,
+      title: f.name,
+      subtitle: f.project?.name || 'Folder',
+      icon: 'fa-solid fa-folder',
+      iconColor: 'text-amber-400',
+      iconBg: 'bg-amber-500/10 border-amber-500/20',
+      action: () => navigate(`/files${f.projectId ? `?projectId=${f.projectId}&folderId=${f.id}` : `?folderId=${f.id}`}`)
     }));
 
     (results.users || []).forEach(u => items.push({
@@ -281,7 +292,7 @@ export default function GlobalSearch() {
             ) : (
               (() => {
                 // Group items by category for clear presentation
-                const categories = ['Projects', 'Tasks', 'Files', 'Team', 'QA Tests', 'GitHub', 'Calendar'];
+                const categories = ['Projects', 'Tasks', 'Files', 'Folders', 'Team', 'QA Tests', 'GitHub', 'Calendar'];
                 let globalIdx = 0;
 
                 return categories.map(cat => {

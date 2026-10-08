@@ -1,4 +1,5 @@
 const prisma = require('../db');
+const storageScopeService = require('../services/storageScopeService');
 
 exports.globalSearch = async (req, res) => {
   try {
@@ -41,7 +42,7 @@ exports.globalSearch = async (req, res) => {
     const itemProjectFilter = isAdmin ? {} : { projectId: { in: accessibleProjectIds } };
 
     // Run parallel queries across DEVHUB entities
-    const [projects, tasks, files, users, testCases, repositories, calendarEvents] = await Promise.all([
+    const [projects, tasks, rawFiles, rawFolders, users, testCases, repositories, calendarEvents] = await Promise.all([
       // Projects
       prisma.project.findMany({
         where: {
@@ -84,23 +85,36 @@ exports.globalSearch = async (req, res) => {
         take: 6
       }),
 
-      // Files
+      // Files (Overfetch to allow post-filtering by storage scope)
       prisma.file.findMany({
-        where: {
-          AND: [
-            itemProjectFilter,
-            { name: { contains: query, mode: 'insensitive' } }
-          ]
-        },
+        where: { name: { contains: query, mode: 'insensitive' } },
         select: {
           id: true,
           name: true,
           type: true,
           size: true,
           projectId: true,
+          teamId: true,
+          uploaderId: true,
+          storageScope: true,
           project: { select: { id: true, name: true } }
         },
-        take: 6
+        take: isAdmin ? 6 : 100
+      }),
+
+      // Folders
+      prisma.folder.findMany({
+        where: { name: { contains: query, mode: 'insensitive' } },
+        select: {
+          id: true,
+          name: true,
+          projectId: true,
+          teamId: true,
+          creatorId: true,
+          storageScope: true,
+          project: { select: { id: true, name: true } }
+        },
+        take: isAdmin ? 6 : 100
       }),
 
       // Team Members
@@ -183,6 +197,56 @@ exports.globalSearch = async (req, res) => {
       })
     ]);
 
+    let files = rawFiles;
+    let folders = rawFolders;
+
+    if (!isAdmin) {
+      files = [];
+      for (const f of rawFiles) {
+        const access = await storageScopeService.canAccess({
+          user: { id: userId, role: userRole },
+          scope: f.storageScope,
+          ownerId: f.uploaderId,
+          teamId: f.teamId,
+          fileId: f.id
+        });
+        if (access.allowed) {
+          files.push({
+             id: f.id,
+             name: f.name,
+             type: f.type,
+             size: f.size !== null && f.size !== undefined ? f.size.toString() : '0',
+             projectId: f.projectId,
+             project: f.project
+          });
+          if (files.length >= 6) break;
+        }
+      }
+
+      folders = [];
+      for (const f of rawFolders) {
+        const access = await storageScopeService.canAccess({
+          user: { id: userId, role: userRole },
+          scope: f.storageScope,
+          ownerId: f.creatorId,
+          teamId: f.teamId,
+          folderId: f.id
+        });
+        if (access.allowed) {
+          folders.push({
+             id: f.id,
+             name: f.name,
+             projectId: f.projectId,
+             project: f.project
+          });
+          if (folders.length >= 6) break;
+        }
+      }
+    } else {
+      files = rawFiles.map(f => ({ id: f.id, name: f.name, type: f.type, size: f.size !== null && f.size !== undefined ? f.size.toString() : '0', projectId: f.projectId, project: f.project })).slice(0, 6);
+      folders = rawFolders.map(f => ({ id: f.id, name: f.name, projectId: f.projectId, project: f.project })).slice(0, 6);
+    }
+
     res.json({
       success: true,
       query,
@@ -190,6 +254,7 @@ exports.globalSearch = async (req, res) => {
         projects,
         tasks,
         files,
+        folders,
         users,
         testCases,
         repositories,
