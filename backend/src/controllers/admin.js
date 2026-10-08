@@ -637,24 +637,64 @@ exports.createUser = async (req, res) => {
 };
 
 /**
- * Admin: Verify user email directly
+ * Admin: Verify user email directly (one-click manual verification)
+ * - Safe for already-verified users (idempotent)
+ * - Returns 404 for non-existent users
+ * - Writes an audit log
  */
 exports.verifyUser = async (req, res) => {
   try {
     const { id } = req.params;
+
+    // Pre-check: user must exist
+    const existing = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true, name: true, email: true, emailVerified: true }
+    });
+
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Idempotency: already verified — return success without touching anything
+    if (existing.emailVerified) {
+      return res.json({
+        success: true,
+        message: `${existing.name} is already verified`,
+        alreadyVerified: true,
+        user: { id: existing.id, name: existing.name, email: existing.email, emailVerified: true }
+      });
+    }
+
     const user = await prisma.user.update({
       where: { id },
       data: {
         emailVerified: true,
         verificationCodeHash: null,
-        verificationCodeExpiresAt: null,
-        status: 'Active'
+        verificationCodeExpiresAt: null
       },
       select: { id: true, name: true, email: true, emailVerified: true, role: true, status: true }
     });
+
+    // Ensure personal storage allocation exists
     const userService = require('../services/userService');
     await userService.initializeUserStorage(user.id);
-    res.json({ success: true, message: 'User verified successfully', user });
+
+    // Audit log
+    createAuditLog({
+      userId: req.userId,
+      action: 'Updated',
+      entityType: 'UserVerification',
+      entityId: user.id,
+      metadata: {
+        targetUser: existing.email,
+        previouslyVerified: false,
+        verifiedBy: req.userId,
+        method: 'admin_manual'
+      }
+    });
+
+    res.json({ success: true, message: `${user.name} has been verified successfully`, user });
   } catch (err) {
     console.error('Error verifying user:', err);
     res.status(500).json({ success: false, message: err.message });

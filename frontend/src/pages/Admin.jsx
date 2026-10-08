@@ -129,6 +129,20 @@ export default function Admin() {
     return res;
   };
 
+  const handleVerifyUser = async (userId) => {
+    const res = await apiClient(`/admin/users/${userId}/verify`, { method: 'PATCH' });
+    if (!res.success) throw new Error(res.message || 'Verification failed');
+    // Update user row in-place — emailVerified: true, status: Active
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === userId ? { ...u, emailVerified: true } : u
+      )
+    );
+    // Reload activity feed
+    apiClient('/admin/activity').then((r) => r.activity && setActivity(r.activity));
+    return res;
+  };
+
   const handleOpenSetQuota = (target = null, type = 'user') => {
     setQuotaError('');
     if (target) {
@@ -488,6 +502,7 @@ export default function Admin() {
                 loading={false}
                 onUpdateRole={handleUpdateRole}
                 onUpdateStatus={handleUpdateStatus}
+                onVerifyUser={handleVerifyUser}
                 onViewProjects={() => setActiveTab('projects')}
                 onViewActivity={() => setActiveTab('activity')}
                 onEditStorage={(u) => handleOpenSetQuota(u, 'user')}
@@ -536,6 +551,7 @@ export default function Admin() {
             loading={false}
             onUpdateRole={handleUpdateRole}
             onUpdateStatus={handleUpdateStatus}
+            onVerifyUser={handleVerifyUser}
             onViewProjects={() => setActiveTab('projects')}
             onViewActivity={() => setActiveTab('activity')}
             onEditStorage={(u) => handleOpenSetQuota(u, 'user')}
@@ -1530,3 +1546,4 @@ export default function Admin() {
     </div>
   );
 }
+
