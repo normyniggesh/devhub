@@ -8,7 +8,7 @@ import Project from './pages/Project';
 import ProjectDetail from './pages/ProjectDetail';
 import Tasks from './pages/Tasks';
 import QAtesting from './pages/QAtesting';
-import Calender from './pages/Calender';
+import Calendar from './pages/Calendar';
 import Files from './pages/Files';
 import Github from './pages/Github';
 import Team from './pages/Team';
@@ -86,7 +86,7 @@ function App() {
             <Route path="projects/:id" element={<ProjectDetail />} />
             <Route path="tasks" element={<Tasks />} />
             <Route path="qa" element={<QAtesting />} />
-            <Route path="calendar" element={<Calender />} />
+            <Route path="calendar" element={<Calendar />} />
             <Route path="files" element={<Files />} />
             <Route path="integrations/google/callback" element={<GoogleCallbackRedirect />} />
             <Route path="github" element={<Github />} />

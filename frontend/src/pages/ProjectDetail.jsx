@@ -4,6 +4,7 @@ import { apiClient } from '../api/client';
 import Avatar from '../components/common/Avatar';
 import Modal from '../components/common/Modal';
 import LoadingState from '../components/common/LoadingState';
+import ErrorState from '../components/common/ErrorState';
 import Tasks from './Tasks';
 import Files from './Files';
 import QAtesting from './QAtesting';
@@ -156,15 +157,7 @@ export default function ProjectDetail() {
   }
 
   if (error || !project) {
-    return (
-      <div className="flex flex-col items-center justify-center p-12">
-        <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-6 py-4 rounded-xl max-w-md text-center">
-          <h2 className="font-bold mb-2">Error Loading Project</h2>
-          <p className="text-sm">{error || 'Project not found'}</p>
-          <Link to="/projects" className="mt-4 inline-block text-indigo-400 hover:text-indigo-300 text-sm underline">Back to Projects</Link>
-        </div>
-      </div>
-    );
+    return <ErrorState message={error || 'Project not found'} onRetry={() => window.location.href = '/projects'} />;
   }
 
   return (

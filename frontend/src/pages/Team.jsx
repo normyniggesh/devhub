@@ -7,6 +7,8 @@ import MemberDetailsModal from '../components/team/MemberDetailsModal';
 import AddMemberModal from '../components/team/AddMemberModal';
 import ChangeRoleModal from '../components/team/ChangeRoleModal';
 import CreateTeamModal from '../components/team/CreateTeamModal';
+import LoadingState from '../components/common/LoadingState';
+import ErrorState from '../components/common/ErrorState';
 import ConfirmDialog from '../components/common/ConfirmDialog';
 
 export default function Team() {
@@ -164,14 +166,9 @@ export default function Team() {
 
       {/* Main Member Table Area */}
       {error ? (
-        <div className="p-6 text-center text-red-400 bg-red-500/10 border border-red-500/20 rounded-2xl text-xs">
-          {error}
-        </div>
+        <ErrorState message={error} onRetry={fetchTeamData} />
       ) : loading ? (
-        <div className="bg-[#0f1422] border border-[#192238] rounded-2xl p-16 flex flex-col items-center justify-center">
-          <i className="fa-solid fa-circle-notch fa-spin text-3xl text-purple-500 mb-3"></i>
-          <span className="text-xs font-semibold text-slate-400">Loading team members...</span>
-        </div>
+        <LoadingState message="Loading team members..." minHeight="256px" />
       ) : (
         <MemberTable
           members={members}

@@ -4,6 +4,8 @@ import { apiClient } from '../api/client';
 import { useStore } from '../store';
 import Modal from '../components/common/Modal';
 import { useClickOutside } from '../hooks/useClickOutside';
+import LoadingState from '../components/common/LoadingState';
+import ErrorState from '../components/common/ErrorState';
 
 export default function Project() {
   const { currentUser } = useStore();
@@ -347,18 +349,9 @@ export default function Project() {
       </div>
 
       {error ? (
-        <div className="flex flex-col items-center justify-center p-12 bg-[#0f1422] border border-[#192238] rounded-2xl">
-          <i className="fa-solid fa-triangle-exclamation text-4xl text-red-500/80 mb-4"></i>
-          <h2 className="text-lg font-bold text-white mb-2">Unable to load projects</h2>
-          <p className="text-sm text-slate-400 mb-6 text-center max-w-md">{error}</p>
-          <button onClick={fetchProjects} className="px-5 py-2.5 bg-[#5922cf] hover:bg-[#682ae6] text-white rounded-lg text-sm font-semibold transition flex items-center gap-2">
-            <i className="fa-solid fa-rotate-right"></i> Please try again
-          </button>
-        </div>
+        <ErrorState message={error} onRetry={fetchProjects} />
       ) : loading ? (
-        <div className="flex justify-center items-center h-64 text-slate-400">
-          <i className="fa-solid fa-circle-notch fa-spin text-3xl text-purple-500"></i>
-        </div>
+        <LoadingState message="Loading projects..." minHeight="256px" />
       ) : (
         <div className="flex flex-col xl:flex-row gap-6">
           {/* Main Grid */}

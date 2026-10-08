@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useStore } from '../store';
 import Modal from '../components/common/Modal';
+import LoadingState from '../components/common/LoadingState';
+import ErrorState from '../components/common/ErrorState';
 
-export default function Calender() {
+export default function Calendar() {
   const navigate = useNavigate();
   const { currentUser } = useStore();
   
@@ -320,16 +322,9 @@ export default function Calender() {
           
           <div className="grid grid-cols-7 divide-x divide-y divide-[#1f2a44] bg-[#0f1422] flex-1 overflow-x-auto min-w-[700px]">
             {loading ? (
-               <div className="col-span-7 flex flex-col items-center justify-center p-20 min-h-[500px]">
-                 <i className="fa-solid fa-circle-notch fa-spin text-3xl text-purple-500 mb-4"></i>
-                 <span className="text-sm font-bold text-slate-400">Loading calendar events...</span>
-               </div>
+               <div className="col-span-7"><LoadingState message="Loading calendar events..." minHeight="500px" /></div>
             ) : error ? (
-               <div className="col-span-7 flex flex-col items-center justify-center p-20 min-h-[500px]">
-                 <i className="fa-solid fa-circle-exclamation text-4xl text-rose-500 mb-4"></i>
-                 <h3 className="text-base font-bold text-white mb-2">Unable to load calendar events.</h3>
-                 <button onClick={fetchEvents} className="px-4 py-2 bg-[#161d2f] hover:bg-[#1a2333] border border-[#1f2a44] rounded-lg text-xs font-bold text-white transition">Retry</button>
-               </div>
+               <div className="col-span-7"><ErrorState message="Failed to load calendar events" onRetry={fetchEvents} /></div>
             ) : days.map((dateObj, i) => {
               if (!dateObj) {
                 return <div key={i} className="min-h-[120px] p-2 bg-[#0a0d16]"></div>;

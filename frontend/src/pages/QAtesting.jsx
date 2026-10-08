@@ -10,6 +10,7 @@ import ActivityFeed from '../components/activity/ActivityFeed';
 import TestCard from '../components/qa/TestCard';
 import TestCaseModal from '../components/qa/TestCaseModal';
 import TestResultModal from '../components/qa/TestResultModal';
+import LoadingState from '../components/common/LoadingState';
 import BugModal from '../components/qa/BugModal';
 import QASummary from '../components/qa/QASummary';
 import QAReports from '../components/qa/QAReports';
@@ -512,9 +513,7 @@ export default function QAtesting({ projectId: forcedProjectId }) {
 
                 {/* Tests List */}
                 {loadingTests ? (
-                  <div className="p-20 text-center flex items-center justify-center">
-                    <i className="fa-solid fa-circle-notch fa-spin text-3xl text-purple-500"></i>
-                  </div>
+                  <LoadingState message="Loading test cases..." minHeight="300px" />
                 ) : filteredTests.length === 0 ? (
                   <div className="flex flex-col items-center justify-center p-20 bg-[#0f1422] border border-dashed border-[#1f2a44] rounded-2xl text-center">
                     <i className="fa-solid fa-vial-circle-check text-4xl text-slate-600 mb-4 opacity-50"></i>
@@ -628,9 +627,7 @@ export default function QAtesting({ projectId: forcedProjectId }) {
 
                 {/* Bugs List */}
                 {loadingBugs ? (
-                  <div className="p-20 text-center flex items-center justify-center">
-                    <i className="fa-solid fa-circle-notch fa-spin text-3xl text-rose-500"></i>
-                  </div>
+                  <LoadingState message="Loading bugs..." minHeight="300px" />
                 ) : filteredBugs.length === 0 ? (
                   <div className="flex flex-col items-center justify-center p-20 bg-[#0f1422] border border-dashed border-[#1f2a44] rounded-2xl text-center">
                     <i className="fa-solid fa-bug-slash text-4xl text-slate-600 mb-4 opacity-50"></i>

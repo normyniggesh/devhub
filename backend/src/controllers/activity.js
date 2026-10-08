@@ -60,8 +60,10 @@ async function checkEntityAccess(entityType, entityId, userId) {
       projectId = dep?.projectId;
       break;
     case 'CollegeActivity':
-      const ca = await prisma.collegeActivity.findUnique({ where: { id: entityId }, select: { userId: true } });
-      if (ca && ca.userId === userId) return true;
+      const involvement = await prisma.activityInvolvement.findFirst({
+        where: { activityId: entityId, userId: userId }
+      });
+      if (involvement) return true;
       break;
   }
 

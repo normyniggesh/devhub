@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { apiClient } from '../api/client';
 import Modal from '../components/common/Modal';
 import { getStatusBadgeColor } from '../utils/colors';
+import { useStore } from '../store';
 
 export default function Deployments() {
+  const { projects, getRole } = useStore();
   const [deployments, setDeployments] = useState([]);
   const [repositories, setRepositories] = useState([]);
   const [loading, setLoading] = useState(true);
