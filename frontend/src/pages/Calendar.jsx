@@ -51,10 +51,9 @@ export default function Calendar() {
     try {
       const year = currentDate.getFullYear();
       const month = currentDate.getMonth();
-      const start = new Date(year, month, 1).toISOString();
-      // fetch up to next week to ensure upcoming events are somewhat populated 
-      // but the prompt says: "Calendar should request events based on the currently visible month/date range"
-      const end = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
+      // Fetch +/- 7 days to cover weeks that span month boundaries
+      const start = new Date(year, month, -7, 0, 0, 0).toISOString();
+      const end = new Date(year, month + 1, 7, 23, 59, 59).toISOString();
       
       const data = await apiClient(`/calendar/events?start=${start}&end=${end}`);
       setEvents(data.events || []);
@@ -89,27 +88,51 @@ export default function Calendar() {
   const month = currentDate.getMonth();
   const monthName = currentDate.toLocaleString('default', { month: 'long' });
 
-  const getDaysArray = () => {
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const firstDayOfMonth = new Date(year, month, 1).getDay();
-    
-    const days = [];
-    for (let i = 0; i < firstDayOfMonth; i++) {
-      days.push(null);
+  const getVisibleDays = () => {
+    if (activeTab === 'Month') {
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const firstDayOfMonth = new Date(year, month, 1).getDay();
+      
+      const days = [];
+      for (let i = 0; i < firstDayOfMonth; i++) {
+        days.push(null);
+      }
+      for (let i = 1; i <= daysInMonth; i++) {
+        days.push(new Date(year, month, i));
+      }
+      while (days.length % 7 !== 0) {
+        days.push(null);
+      }
+      return days;
+    } else if (activeTab === 'Week') {
+      const currentDay = currentDate.getDay();
+      const startDate = new Date(currentDate);
+      startDate.setDate(currentDate.getDate() - currentDay);
+      
+      const days = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(startDate);
+        d.setDate(startDate.getDate() + i);
+        days.push(d);
+      }
+      return days;
+    } else if (activeTab === 'Day') {
+      return [new Date(currentDate)];
     }
-    for (let i = 1; i <= daysInMonth; i++) {
-      days.push(new Date(year, month, i));
-    }
-    while (days.length % 7 !== 0) {
-      days.push(null);
-    }
-    return days;
   };
 
-  const days = getDaysArray();
+  const days = getVisibleDays();
 
-  const handlePrevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
-  const handleNextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
+  const handlePrev = () => {
+    if (activeTab === 'Month') setCurrentDate(new Date(year, month - 1, 1));
+    if (activeTab === 'Week') setCurrentDate(new Date(year, month, currentDate.getDate() - 7));
+    if (activeTab === 'Day') setCurrentDate(new Date(year, month, currentDate.getDate() - 1));
+  };
+  const handleNext = () => {
+    if (activeTab === 'Month') setCurrentDate(new Date(year, month + 1, 1));
+    if (activeTab === 'Week') setCurrentDate(new Date(year, month, currentDate.getDate() + 7));
+    if (activeTab === 'Day') setCurrentDate(new Date(year, month, currentDate.getDate() + 1));
+  };
   const handleToday = () => setCurrentDate(new Date());
 
   const getRole = (projectId) => {
@@ -276,21 +299,32 @@ export default function Calendar() {
              <div className="flex items-center gap-2 text-[10px] font-bold tracking-wider text-slate-400 mb-1 uppercase">
                <span>Calendar</span>
                <span className="text-slate-600">›</span>
-               <span className="text-purple-400">{monthName} {year}</span>
+               <span className="text-purple-400">
+                 {activeTab === 'Month' && `${monthName} ${year}`}
+                 {activeTab === 'Week' && `Week of ${days[0]?.toLocaleDateString('default', { month: 'short', day: 'numeric' })}`}
+                 {activeTab === 'Day' && currentDate.toLocaleDateString('default', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}
+               </span>
              </div>
              <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-purple-800 flex items-center justify-center shadow-lg shadow-purple-900/50 shrink-0">
                  <i className="fa-regular fa-calendar text-white text-base"></i>
                </div>
-               {monthName} {year}
+               {activeTab === 'Month' && `${monthName} ${year}`}
+               {activeTab === 'Week' && `Week of ${days[0]?.toLocaleDateString('default', { month: 'short', day: 'numeric' })}`}
+               {activeTab === 'Day' && currentDate.toLocaleDateString('default', { month: 'long', day: 'numeric', year: 'numeric' })}
              </h1>
            </div>
            
            <div className="z-10 flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
               <div className="flex bg-[#161d2f] border border-[#1f2a44] rounded-xl p-1 shadow-inner">
-                 <button onClick={handlePrevMonth} className="px-3 py-1.5 text-slate-400 hover:text-white hover:bg-[#1a2333] rounded-lg transition" title="Previous Month"><i className="fa-solid fa-chevron-left text-xs"></i></button>
+                <button onClick={() => setActiveTab('Month')} className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${activeTab === 'Month' ? 'bg-[#1a2333] text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>Month</button>
+                <button onClick={() => setActiveTab('Week')} className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${activeTab === 'Week' ? 'bg-[#1a2333] text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>Week</button>
+                <button onClick={() => setActiveTab('Day')} className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${activeTab === 'Day' ? 'bg-[#1a2333] text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>Day</button>
+              </div>
+              <div className="flex bg-[#161d2f] border border-[#1f2a44] rounded-xl p-1 shadow-inner">
+                 <button onClick={handlePrev} className="px-3 py-1.5 text-slate-400 hover:text-white hover:bg-[#1a2333] rounded-lg transition" title="Previous"><i className="fa-solid fa-chevron-left text-xs"></i></button>
                  <button onClick={handleToday} className="px-3.5 py-1.5 text-xs font-bold text-white hover:bg-[#1a2333] rounded-lg transition">Today</button>
-                 <button onClick={handleNextMonth} className="px-3 py-1.5 text-slate-400 hover:text-white hover:bg-[#1a2333] rounded-lg transition" title="Next Month"><i className="fa-solid fa-chevron-right text-xs"></i></button>
+                 <button onClick={handleNext} className="px-3 py-1.5 text-slate-400 hover:text-white hover:bg-[#1a2333] rounded-lg transition" title="Next"><i className="fa-solid fa-chevron-right text-xs"></i></button>
               </div>
               <button onClick={() => openAdd(null)} className="w-full sm:w-auto px-4 py-2 bg-[#5922cf] hover:bg-[#682ae6] text-white rounded-xl text-xs md:text-sm font-bold shadow-lg shadow-purple-900/30 transition flex items-center justify-center gap-2">
                 <i className="fa-solid fa-plus text-xs"></i> Add Event
@@ -316,11 +350,15 @@ export default function Calendar() {
 
         {/* Main Calendar Grid */}
         <div className="bg-[#0f1422] border border-[#192238] rounded-2xl overflow-hidden shadow-sm flex flex-col flex-1">
-          <div className="grid grid-cols-7 border-b border-[#192238] bg-[#161d2f]/50 text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider py-3">
-            <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+          <div className={`grid ${activeTab === 'Day' ? 'grid-cols-1' : 'grid-cols-7'} border-b border-[#192238] bg-[#161d2f]/50 text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider py-3`}>
+            {activeTab === 'Day' ? (
+              <div>{currentDate.toLocaleDateString('default', { weekday: 'long' })}</div>
+            ) : (
+              <><div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div></>
+            )}
           </div>
           
-          <div className="grid grid-cols-7 divide-x divide-y divide-[#1f2a44] bg-[#0f1422] flex-1 overflow-x-auto min-w-[700px]">
+          <div className={`grid ${activeTab === 'Day' ? 'grid-cols-1' : 'grid-cols-7'} divide-x divide-y divide-[#1f2a44] bg-[#0f1422] flex-1 overflow-x-auto ${activeTab === 'Day' ? 'min-w-0' : 'min-w-[700px]'}`}>
             {loading ? (
                <div className="col-span-7"><LoadingState message="Loading calendar events..." minHeight="500px" /></div>
             ) : error ? (
@@ -337,7 +375,7 @@ export default function Calendar() {
               });
 
               return (
-                <div key={i} onClick={() => openAdd(dateObj)} className={`min-h-[120px] p-1.5 sm:p-2 group hover:bg-[#161d2f] transition cursor-pointer relative flex flex-col ${isToday ? 'bg-[#1a1c2e] ring-1 ring-inset ring-purple-600/30' : ''}`}>
+                <div key={i} onClick={() => openAdd(dateObj)} className={`min-h-[120px] ${activeTab !== 'Month' ? 'lg:min-h-[400px]' : ''} p-1.5 sm:p-2 group hover:bg-[#161d2f] transition cursor-pointer relative flex flex-col ${isToday ? 'bg-[#1a1c2e] ring-1 ring-inset ring-purple-600/30' : ''}`}>
                   <div className="flex items-center justify-between mb-1">
                     {isToday ? (
                       <span className="w-6 h-6 rounded bg-purple-600 text-white flex items-center justify-center text-xs font-bold shadow-md">{dateObj.getDate()}</span>
