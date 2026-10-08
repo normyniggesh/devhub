@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useStore } from '../store';
 import Tabs from '../components/common/Tabs';
@@ -9,7 +10,9 @@ import ActivityFeed from '../components/activity/ActivityFeed';
 import Modal from '../components/common/Modal';
 import { getStatusDotColor, getPriorityColor } from '../utils/colors';
 
-export default function Tasks() {
+export default function Tasks({ projectId: forcedProjectId }) {
+  const [searchParams] = useSearchParams();
+  const initialProjectId = forcedProjectId || searchParams.get('projectId') || '';
   const { currentUser } = useStore();
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -21,7 +24,7 @@ export default function Tasks() {
   const [activeMyTasksTab, setActiveMyTasksTab] = useState('Assigned to Me');
 
   // Filters
-  const [filterProjectId, setFilterProjectId] = useState('');
+  const [filterProjectId, setFilterProjectId] = useState(initialProjectId);
   const [filterAssigneeId, setFilterAssigneeId] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -34,7 +37,7 @@ export default function Tasks() {
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modalError, setModalError] = useState(null);
-  const [selectedProjectId, setSelectedProjectId] = useState('');
+  const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId);
   const [projectMembers, setProjectMembers] = useState([]);
 
   const defaultTask = { 

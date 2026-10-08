@@ -1,13 +1,24 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import Avatar from '../components/common/Avatar';
 import Modal from '../components/common/Modal';
 import LoadingState from '../components/common/LoadingState';
+import Tasks from './Tasks';
+import Files from './Files';
+import QAtesting from './QAtesting';
 
 export default function ProjectDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'Overview');
+  
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
   
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -196,76 +207,118 @@ export default function ProjectDetail() {
         </div>
       </div>
 
-      {/* Info Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <div className="bg-[#101524] border border-[#192238] rounded-xl p-4">
-          <div className="text-xs text-slate-500 mb-1">Status</div>
-          <div className="text-sm font-semibold text-white">{project.status}</div>
-        </div>
-        <div className="bg-[#101524] border border-[#192238] rounded-xl p-4">
-          <div className="text-xs text-slate-500 mb-1">Priority</div>
-          <div className="text-sm font-semibold text-white">{project.priority || 'None'}</div>
-        </div>
-        <div className="bg-[#101524] border border-[#192238] rounded-xl p-4">
-          <div className="text-xs text-slate-500 mb-1">Start Date</div>
-          <div className="text-sm font-semibold text-white">{project.startDate ? new Date(project.startDate).toLocaleDateString() : 'None'}</div>
-        </div>
-        <div className="bg-[#101524] border border-[#192238] rounded-xl p-4">
-          <div className="text-xs text-slate-500 mb-1">Due Date</div>
-          <div className="text-sm font-semibold text-white">{project.dueDate ? new Date(project.dueDate).toLocaleDateString() : 'None'}</div>
-        </div>
-        <div className="bg-[#101524] border border-[#192238] rounded-xl p-4">
-          <div className="text-xs text-slate-500 mb-1">Owner</div>
-          <div className="flex items-center gap-2 mt-1">
-            <Avatar user={project.owner} size="sm" className="w-5 h-5 text-[10px]" />
-            <div className="text-sm font-semibold text-white truncate">{project.owner.name}</div>
-          </div>
-        </div>
-        <div className="bg-[#101524] border border-[#192238] rounded-xl p-4">
-          <div className="text-xs text-slate-500 mb-1">Your Role</div>
-          <div className="text-sm font-semibold text-white">{project.currentUserRole}</div>
-        </div>
+      {/* Workspace Tabs */}
+      <div className="flex gap-6 border-b border-[#192238] mt-2 overflow-x-auto">
+        <button onClick={() => handleTabChange('Overview')} className={`pb-3 text-sm font-medium transition whitespace-nowrap ${activeTab === 'Overview' ? 'text-indigo-400 border-b-2 border-indigo-500' : 'text-slate-400 hover:text-white'}`}>Overview</button>
+        <button onClick={() => handleTabChange('Tasks')} className={`pb-3 text-sm font-medium transition whitespace-nowrap ${activeTab === 'Tasks' ? 'text-indigo-400 border-b-2 border-indigo-500' : 'text-slate-400 hover:text-white'}`}>Tasks</button>
+        <button onClick={() => handleTabChange('Files')} className={`pb-3 text-sm font-medium transition whitespace-nowrap ${activeTab === 'Files' ? 'text-indigo-400 border-b-2 border-indigo-500' : 'text-slate-400 hover:text-white'}`}>Files</button>
+        <button onClick={() => handleTabChange('QA')} className={`pb-3 text-sm font-medium transition whitespace-nowrap ${activeTab === 'QA' ? 'text-indigo-400 border-b-2 border-indigo-500' : 'text-slate-400 hover:text-white'}`}>QA & Testing</button>
+        <button onClick={() => handleTabChange('Milestones')} className={`pb-3 text-sm font-medium transition whitespace-nowrap ${activeTab === 'Milestones' ? 'text-indigo-400 border-b-2 border-indigo-500' : 'text-slate-400 hover:text-white'}`}>Milestones</button>
       </div>
 
-      {/* Team / Members */}
-      <div className="mt-4">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-white">Team</h2>
-          {canEdit && (
-            <button onClick={() => setShowMemberModal(true)} className="px-3 py-1.5 bg-[#1e293b] hover:bg-[#273549] text-white rounded-lg text-xs font-medium transition flex items-center gap-2">
-              <i className="fa-solid fa-user-plus text-[10px]"></i> Add Member
-            </button>
-          )}
-        </div>
-        <div className="bg-[#101524] border border-[#192238] rounded-xl overflow-hidden">
-          {project.members && project.members.length > 0 ? (
-            <div className="divide-y divide-[#192238]">
-              {project.members.map((member) => (
-                <div key={member.user.id} className="p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Avatar user={member.user} size="md" />
-                    <div>
-                      <div className="text-sm font-semibold text-white">{member.user.name}</div>
-                      <div className="text-xs text-slate-400">{member.user.email}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-xs px-2.5 py-1 rounded bg-[#1e293b] text-slate-300 font-medium">
-                      {project.ownerId === member.user.id ? 'Owner' : member.role}
-                    </div>
-                    {canEdit && project.ownerId !== member.user.id && (
-                      <button onClick={() => handleRemoveMember(member.user.id)} className="text-slate-500 hover:text-red-400 transition" title="Remove Member">
-                        <i className="fa-solid fa-user-minus"></i>
-                      </button>
-                    )}
-                  </div>
+      {/* Tab Content */}
+      <div className="mt-2">
+        {activeTab === 'Overview' && (
+          <div className="flex flex-col gap-6">
+            {/* Info Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div className="bg-[#101524] border border-[#192238] rounded-xl p-4">
+                <div className="text-xs text-slate-500 mb-1">Status</div>
+                <div className="text-sm font-semibold text-white">{project.status}</div>
+              </div>
+              <div className="bg-[#101524] border border-[#192238] rounded-xl p-4">
+                <div className="text-xs text-slate-500 mb-1">Priority</div>
+                <div className="text-sm font-semibold text-white">{project.priority || 'None'}</div>
+              </div>
+              <div className="bg-[#101524] border border-[#192238] rounded-xl p-4">
+                <div className="text-xs text-slate-500 mb-1">Start Date</div>
+                <div className="text-sm font-semibold text-white">{project.startDate ? new Date(project.startDate).toLocaleDateString() : 'None'}</div>
+              </div>
+              <div className="bg-[#101524] border border-[#192238] rounded-xl p-4">
+                <div className="text-xs text-slate-500 mb-1">Due Date</div>
+                <div className="text-sm font-semibold text-white">{project.dueDate ? new Date(project.dueDate).toLocaleDateString() : 'None'}</div>
+              </div>
+              <div className="bg-[#101524] border border-[#192238] rounded-xl p-4">
+                <div className="text-xs text-slate-500 mb-1">Owner</div>
+                <div className="flex items-center gap-2 mt-1">
+                  <Avatar user={project.owner} size="sm" className="w-5 h-5 text-[10px]" />
+                  <div className="text-sm font-semibold text-white truncate">{project.owner.name}</div>
                 </div>
-              ))}
+              </div>
+              <div className="bg-[#101524] border border-[#192238] rounded-xl p-4">
+                <div className="text-xs text-slate-500 mb-1">Your Role</div>
+                <div className="text-sm font-semibold text-white">{project.currentUserRole}</div>
+              </div>
             </div>
-          ) : (
-            <div className="p-6 text-center text-sm text-slate-400">No members found.</div>
-          )}
-        </div>
+
+            {/* Team / Members */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-white">Team</h2>
+                {canEdit && (
+                  <button onClick={() => setShowMemberModal(true)} className="px-3 py-1.5 bg-[#1e293b] hover:bg-[#273549] text-white rounded-lg text-xs font-medium transition flex items-center gap-2">
+                    <i className="fa-solid fa-user-plus text-[10px]"></i> Add Member
+                  </button>
+                )}
+              </div>
+              <div className="bg-[#101524] border border-[#192238] rounded-xl overflow-hidden">
+                {project.members && project.members.length > 0 ? (
+                  <div className="divide-y divide-[#192238]">
+                    {project.members.map((member) => (
+                      <div key={member.user.id} className="p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Avatar user={member.user} size="md" />
+                          <div>
+                            <div className="text-sm font-semibold text-white">{member.user.name}</div>
+                            <div className="text-xs text-slate-400">{member.user.email}</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-xs px-2.5 py-1 rounded bg-[#1e293b] text-slate-300 font-medium">
+                            {project.ownerId === member.user.id ? 'Owner' : member.role}
+                          </div>
+                          {canEdit && project.ownerId !== member.user.id && (
+                            <button onClick={() => handleRemoveMember(member.user.id)} className="text-slate-500 hover:text-red-400 transition" title="Remove Member">
+                              <i className="fa-solid fa-user-minus"></i>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-6 text-center text-sm text-slate-400">No members found.</div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'Tasks' && (
+          <div className="-mx-6 -my-2 px-6">
+            <Tasks projectId={id} />
+          </div>
+        )}
+
+        {activeTab === 'Files' && (
+          <div className="-mx-6 -my-2 px-6">
+            <Files projectId={id} />
+          </div>
+        )}
+
+        {activeTab === 'QA' && (
+          <div className="-mx-6 -my-2 px-6">
+            <QAtesting projectId={id} />
+          </div>
+        )}
+
+        {activeTab === 'Milestones' && (
+          <div className="py-24 text-center border border-[#192238] rounded-2xl bg-[#101524] flex flex-col items-center justify-center">
+            <i className="fa-solid fa-flag-checkered text-4xl mb-4 text-slate-600"></i>
+            <h3 className="text-lg font-bold text-white mb-2">Project Milestones</h3>
+            <p className="text-sm text-slate-400 max-w-md mx-auto">Milestones are not yet fully implemented in the current DEVHUB architecture. Check back later.</p>
+          </div>
+        )}
       </div>
 
       {/* Edit Modal */}

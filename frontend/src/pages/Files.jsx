@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useStore } from '../store';
 import { formatSize } from '../utils/formatting';
@@ -10,7 +10,10 @@ import Modal from '../components/common/Modal';
 import ConfirmDialog from '../components/common/ConfirmDialog';
 import { useClickOutside } from '../hooks/useClickOutside';
 
-export default function Files() {
+export default function Files({ projectId: forcedProjectId }) {
+  const [searchParams] = useSearchParams();
+  const initialProjectId = forcedProjectId || searchParams.get('projectId') || null;
+
   const { currentUser } = useStore();
   const navigate = useNavigate();
   const [folders, setFolders] = useState([]);
@@ -24,7 +27,7 @@ export default function Files() {
 
   // Active navigation tab
   // 'My Cloud Storage' (PERSONAL) | 'Team Cloud Storage' (TEAM) | 'All Files'
-  const [activeTab, setActiveTab] = useState('My Cloud Storage');
+  const [activeTab, setActiveTab] = useState(initialProjectId ? 'All Files' : 'My Cloud Storage');
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'grid'
   const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: 'updatedAt', direction: 'desc' });
@@ -167,8 +170,16 @@ export default function Files() {
         apiClient('/dashboard').catch(() => ({ dashboard: { recentActivity: [] } }))
       ]);
 
-      setFolders(foldRes.folders || []);
-      setFiles(fileRes.files || []);
+      let finalFolders = foldRes.folders || [];
+      let finalFiles = fileRes.files || [];
+      
+      if (initialProjectId) {
+        finalFolders = finalFolders.filter(f => f.projectId === initialProjectId);
+        finalFiles = finalFiles.filter(f => f.projectId === initialProjectId);
+      }
+      
+      setFolders(finalFolders);
+      setFiles(finalFiles);
 
       const allAct = dashRes.dashboard?.recentActivity || [];
       setRecentActivity(allAct.filter(a => a.entityType === 'File' || a.entityType === 'Folder'));

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useStore } from '../store';
 import Tabs from '../components/common/Tabs';
@@ -14,10 +15,12 @@ import QASummary from '../components/qa/QASummary';
 import QAReports from '../components/qa/QAReports';
 import TestStatusBadge from '../components/qa/TestStatusBadge';
 
-export default function QAtesting() {
+export default function QAtesting({ projectId: forcedProjectId }) {
+  const [searchParams] = useSearchParams();
+  const initialProjectId = forcedProjectId || searchParams.get('projectId') || '';
   const { currentUser } = useStore();
   const [projects, setProjects] = useState([]);
-  const [selectedProjectId, setSelectedProjectId] = useState('');
+  const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId);
   const [activeTab, setActiveTab] = useState('Overview');
   const [recentActivity, setRecentActivity] = useState([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
