@@ -1,5 +1,6 @@
 const prisma = require('../db');
 const { createAuditLog } = require('../utils/audit');
+const { encryptToken, decryptToken } = require('../utils/crypto');
 
 const GITHUB_API_BASE = 'https://api.github.com';
 
@@ -98,6 +99,7 @@ exports.connect = async (req, res) => {
 
     let integration;
     try {
+      const encryptedToken = encryptToken(cleanToken);
       integration = await prisma.userIntegration.upsert({
         where: {
           userId_provider: {
@@ -108,7 +110,7 @@ exports.connect = async (req, res) => {
         update: {
           status: 'connected',
           accountName: ghUser.login,
-          accessToken: cleanToken,
+          accessToken: encryptedToken,
           metadata,
           updatedAt: new Date()
         },
@@ -117,7 +119,7 @@ exports.connect = async (req, res) => {
           provider: 'github',
           status: 'connected',
           accountName: ghUser.login,
-          accessToken: cleanToken,
+          accessToken: encryptedToken,
           metadata
         }
       });
@@ -136,7 +138,7 @@ exports.connect = async (req, res) => {
           data: {
             status: 'connected',
             accountName: ghUser.login,
-            accessToken: cleanToken,
+            accessToken: encryptToken(cleanToken),
             metadata,
             updatedAt: new Date()
           }
@@ -148,7 +150,7 @@ exports.connect = async (req, res) => {
             provider: 'github',
             status: 'connected',
             accountName: ghUser.login,
-            accessToken: cleanToken,
+            accessToken: encryptToken(cleanToken),
             metadata
           }
         });
@@ -229,7 +231,7 @@ exports.getUserRepositories = async (req, res) => {
     }
 
     let url;
-    let headers = getGitHubHeaders(integration.accessToken);
+    let headers = getGitHubHeaders(decryptToken(integration.accessToken));
 
     if (integration.accessToken) {
       url = `${GITHUB_API_BASE}/user/repos?per_page=100&sort=updated&affiliation=owner,collaborator,organization_member`;
@@ -415,7 +417,7 @@ exports.syncRepository = async (req, res) => {
       }
     });
 
-    const headers = getGitHubHeaders(integration?.accessToken);
+    const headers = getGitHubHeaders(decryptToken(integration?.accessToken));
     const apiUrl = `${GITHUB_API_BASE}/repos/${encodeURIComponent(repository.owner)}/${encodeURIComponent(repository.name)}`;
     const response = await fetch(apiUrl, { headers });
 
