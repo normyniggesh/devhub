@@ -19,7 +19,6 @@ export default function UsersTable({
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
-  const [verificationFilter, setVerificationFilter] = useState('All');
 
   // Modal / ConfirmDialog state
   const [selectedUser, setSelectedUser] = useState(null);
@@ -29,9 +28,6 @@ export default function UsersTable({
   const [statusDialog, setStatusDialog] = useState(false);
   const [pendingStatus, setPendingStatus] = useState('Active');
   const [actionLoading, setActionLoading] = useState(false);
-
-  // Per-row verify state: { [userId]: 'loading' | 'success' | 'error' | errorMsg }
-  const [verifyState, setVerifyState] = useState({});
 
   // Filtered users
   const filteredUsers = useMemo(() => {
@@ -43,13 +39,10 @@ export default function UsersTable({
 
       const matchesRole = roleFilter === 'All' || u.role === roleFilter;
       const matchesStatus = statusFilter === 'All' || (u.status || 'Active') === statusFilter;
-      const matchesVerification =
-        verificationFilter === 'All' ||
-        (verificationFilter === 'Verified' ? Boolean(u.emailVerified) : !u.emailVerified);
 
-      return matchesSearch && matchesRole && matchesStatus && matchesVerification;
+      return matchesSearch && matchesRole && matchesStatus;
     });
-  }, [users, search, roleFilter, statusFilter, verificationFilter]);
+  }, [users, search, roleFilter, statusFilter]);
 
   const handleOpenRoleModal = (u) => {
     setSelectedUser(u);
@@ -95,21 +88,6 @@ export default function UsersTable({
     setViewUserModal(true);
   };
 
-  const handleVerifyUser = async (u) => {
-    if (!onVerifyUser) return;
-    setVerifyState((s) => ({ ...s, [u.id]: 'loading' }));
-    try {
-      await onVerifyUser(u.id);
-      setVerifyState((s) => ({ ...s, [u.id]: 'success' }));
-      // Auto-clear success state after 3 seconds
-      setTimeout(() => setVerifyState((s) => { const n = { ...s }; delete n[u.id]; return n; }), 3000);
-    } catch (err) {
-      const msg = err.message || 'Verification failed';
-      setVerifyState((s) => ({ ...s, [u.id]: msg }));
-      setTimeout(() => setVerifyState((s) => { const n = { ...s }; delete n[u.id]; return n; }), 4000);
-    }
-  };
-
   return (
     <div className="bg-[#121624] border border-[#1e2538] rounded-2xl overflow-hidden shadow-sm">
       {/* Table Header Controls */}
@@ -138,17 +116,6 @@ export default function UsersTable({
             <option value="Admin">Admin</option>
             <option value="Member">Member</option>
             <option value="Viewer">Viewer</option>
-          </select>
-
-          {/* Verification Filter */}
-          <select
-            value={verificationFilter}
-            onChange={(e) => setVerificationFilter(e.target.value)}
-            className="bg-[#090c14] border border-[#232d47] rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-indigo-500"
-          >
-            <option value="All">All Verification</option>
-            <option value="Verified">Verified Only</option>
-            <option value="Unverified">Unverified Only</option>
           </select>
 
           {/* Status Filter */}
@@ -213,16 +180,6 @@ export default function UsersTable({
                           <p className="text-[11px] text-slate-400 truncate max-w-[140px] sm:max-w-[180px]">
                             {u.email}
                           </p>
-                          {/* Inline verification status */}
-                          {u.emailVerified ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400">
-                              <i className="fa-solid fa-circle-check text-[9px]"></i> Verified
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-400">
-                              <i className="fa-solid fa-circle-exclamation text-[9px]"></i> Unverified
-                            </span>
-                          )}
                         </div>
                       </div>
                     </td>
@@ -284,41 +241,6 @@ export default function UsersTable({
                     {/* Actions */}
                     <td className="py-3 px-4 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1.5">
-                        {/* Verify User — only for unverified users */}
-                        {onVerifyUser && !u.emailVerified && (() => {
-                          const vs = verifyState[u.id];
-                          const isLoading = vs === 'loading';
-                          const isSuccess = vs === 'success';
-                          const isError = vs && vs !== 'loading' && vs !== 'success';
-                          return (
-                            <button
-                              type="button"
-                              disabled={isLoading}
-                              title={isError ? vs : 'Manually verify this user\'s email'}
-                              onClick={() => handleVerifyUser(u)}
-                              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold transition ${
-                                isSuccess
-                                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                                  : isError
-                                  ? 'bg-red-500/15 text-red-400 border border-red-500/30'
-                                  : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20'
-                              } disabled:opacity-60`}
-                            >
-                              {isLoading ? (
-                                <i className="fa-solid fa-circle-notch fa-spin text-[10px]"></i>
-                              ) : isSuccess ? (
-                                <i className="fa-solid fa-circle-check text-[10px]"></i>
-                              ) : isError ? (
-                                <i className="fa-solid fa-triangle-exclamation text-[10px]"></i>
-                              ) : (
-                                <i className="fa-solid fa-shield-check text-[10px]"></i>
-                              )}
-                              <span>
-                                {isLoading ? 'Verifying...' : isSuccess ? 'Verified!' : isError ? 'Failed' : 'Verify'}
-                              </span>
-                            </button>
-                          );
-                        })()}
 
                         {onEditStorage && (
                           <button
@@ -474,8 +396,8 @@ export default function UsersTable({
                 <UserStatusBadge type="status" value={selectedUser.status} />
               </div>
               <div>
-                <span className="text-[10px] text-slate-500 uppercase tracking-wider block mb-0.5">Email Verification</span>
-                <UserStatusBadge type="verification" verified={selectedUser.emailVerified} />
+                <span className="text-[10px] text-slate-500 uppercase tracking-wider block mb-0.5">Registration</span>
+                <span className="font-semibold text-white">{selectedUser.registrationCode?.name || 'Legacy'}</span>
               </div>
               <div>
                 <span className="text-[10px] text-slate-500 uppercase tracking-wider block mb-0.5">Last Active</span>

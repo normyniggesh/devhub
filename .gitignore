@@ -35,3 +35,4 @@ data-export/
 firebase-debug*.log
 .firebase/
 
+.vercel

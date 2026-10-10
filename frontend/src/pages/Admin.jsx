@@ -3,6 +3,7 @@ import { useStore } from '../store';
 import { apiClient } from '../api/client';
 import AdminStatCard from '../components/common/AdminStatCard';
 import UsersTable from '../components/admin/UsersTable';
+import RegistrationCodesTab from '../components/admin/RegistrationCodesTab';
 import ProviderStatus from '../components/common/ProviderStatus';
 import ActivityFeed from '../components/activity/ActivityFeed';
 import LoadingState from '../components/common/LoadingState';
@@ -21,8 +22,8 @@ export default function Admin() {
   // Admin Data states
   const [stats, setStats] = useState({
     totalUsers: 0,
-    verifiedUsers: 0,
-    unverifiedUsers: 0,
+    activeCodes: 0,
+    inactiveCodes: 0,
     activeRecently: 0,
     currentlyActive: 0,
     totalProjects: 0,
@@ -129,19 +130,7 @@ export default function Admin() {
     return res;
   };
 
-  const handleVerifyUser = async (userId) => {
-    const res = await apiClient(`/admin/users/${userId}/verify`, { method: 'PATCH' });
-    if (!res.success) throw new Error(res.message || 'Verification failed');
-    // Update user row in-place — emailVerified: true, status: Active
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === userId ? { ...u, emailVerified: true } : u
-      )
-    );
-    // Reload activity feed
-    apiClient('/admin/activity').then((r) => r.activity && setActivity(r.activity));
-    return res;
-  };
+  // handleVerifyUser removed in Pass 15
 
   const handleOpenSetQuota = (target = null, type = 'user') => {
     setQuotaError('');
@@ -390,6 +379,7 @@ export default function Admin() {
         {[
           { id: 'overview', label: 'Admin Overview', icon: 'fa-chart-pie' },
           { id: 'users', label: `Users (${users.length})`, icon: 'fa-users' },
+          { id: 'codes', label: 'Access Codes', icon: 'fa-key' },
           { id: 'teams', label: `Teams (${teams.length})`, icon: 'fa-people-group' },
           { id: 'projects', label: `Projects (${projects.length})`, icon: 'fa-folder-tree' },
           { id: 'storage', label: 'Storage Quotas', icon: 'fa-hard-drive' },
@@ -425,18 +415,18 @@ export default function Admin() {
               bgClass="bg-indigo-500/10 border-indigo-500/20"
             />
             <AdminStatCard
-              icon="fa-user-check"
-              label="Verified Users"
-              value={stats.verifiedUsers}
-              subtext="Passed email verification"
+              icon="fa-key"
+              label="Active Reg Codes"
+              value={stats.activeCodes}
+              subtext="Open access channels"
               colorClass="text-emerald-400"
               bgClass="bg-emerald-500/10 border-emerald-500/20"
             />
             <AdminStatCard
-              icon="fa-user-clock"
-              label="Unverified Users"
-              value={stats.unverifiedUsers}
-              subtext="Pending email code"
+              icon="fa-lock"
+              label="Inactive Reg Codes"
+              value={stats.inactiveCodes}
+              subtext="Closed access channels"
               colorClass="text-amber-400"
               bgClass="bg-amber-500/10 border-amber-500/20"
             />
@@ -551,12 +541,16 @@ export default function Admin() {
             loading={false}
             onUpdateRole={handleUpdateRole}
             onUpdateStatus={handleUpdateStatus}
-            onVerifyUser={handleVerifyUser}
             onViewProjects={() => setActiveTab('projects')}
             onViewActivity={() => setActiveTab('activity')}
             onEditStorage={(u) => handleOpenSetQuota(u, 'user')}
           />
         </div>
+      )}
+
+      {/* TAB: CODES */}
+      {activeTab === 'codes' && (
+        <RegistrationCodesTab />
       )}
 
       {/* TAB: TEAMS */}

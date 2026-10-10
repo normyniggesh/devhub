@@ -19,30 +19,9 @@ export const useStore = create(
         }
       },
       
-      register: async (name, email, password) => {
+      register: async (name, email, password, registrationCode) => {
         try {
-          const res = await apiClient('/auth/register', { method: 'POST', body: { name, email, password } });
-          return res;
-        } catch (error) {
-          throw error;
-        }
-      },
-
-      verifyEmail: async (email, code) => {
-        try {
-          const res = await apiClient('/auth/verify-email', { method: 'POST', body: { email, code } });
-          if (res.user) {
-            set({ currentUser: res.user, isAuthenticated: true, authLoading: false });
-          }
-          return res;
-        } catch (error) {
-          throw error;
-        }
-      },
-
-      resendCode: async (email) => {
-        try {
-          const res = await apiClient('/auth/resend-code', { method: 'POST', body: { email } });
+          const res = await apiClient('/auth/register', { method: 'POST', body: { name, email, password, registrationCode } });
           return res;
         } catch (error) {
           throw error;

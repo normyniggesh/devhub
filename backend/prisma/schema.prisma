@@ -20,9 +20,11 @@ model User {
   verificationLastSentAt     DateTime?
   status                     String    @default("Active")
   lastSeen                   DateTime?
+  registrationCodeId         String?
   createdAt                  DateTime  @default(now())
   updatedAt                  DateTime  @updatedAt
 
+  registrationCode     RegistrationCode? @relation("UserRegistrationCode", fields: [registrationCodeId], references: [id])
   personalStorage      PersonalStorageAllocation?
   teamMemberships      TeamMember[]
   createdTeams         Team[]                @relation("TeamCreator")
@@ -543,4 +545,16 @@ model FolderShare {
   @@index([folderId])
   @@index([ownerId])
   @@index([sharedWithId])
+}
+
+model RegistrationCode {
+  id        String   @id @default(uuid())
+  name      String
+  codeHash  String
+  hint      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]   @relation("UserRegistrationCode")
 }

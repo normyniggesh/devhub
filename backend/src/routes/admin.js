@@ -14,10 +14,15 @@ router.get('/overview', adminController.getOverview);
 // User Management
 router.get('/users', adminController.getUsers);
 router.post('/users', adminController.createUser);
-router.patch('/users/:id/verify', adminController.verifyUser);
 router.patch('/users/:id/role', adminController.updateUserRole);
 router.patch('/users/:id/status', adminController.updateUserStatus);
 router.delete('/users/:id', adminController.deleteUser);
+
+// Registration Codes
+const adminCodesController = require('../controllers/adminCodes');
+router.get('/codes', adminCodesController.getCodes);
+router.post('/codes', adminCodesController.createCode);
+router.patch('/codes/:id', adminCodesController.toggleCodeStatus);
 
 // Project & Team Management
 router.get('/projects', adminController.getProjects);

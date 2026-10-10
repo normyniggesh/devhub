@@ -1,14 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useStore } from '../store';
-import EmailVerificationBox from '../components/auth/EmailVerificationBox';
-
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [unverifiedEmail, setUnverifiedEmail] = useState(null);
-  const [showVerification, setShowVerification] = useState(false);
   const [loading, setLoading] = useState(false);
   
   const login = useStore((state) => state.login);
@@ -17,20 +13,11 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setUnverifiedEmail(null);
-    setLoading(true);
-    
     try {
       await login(email, password);
       navigate('/');
     } catch (err) {
-      const isUnverified = err.data?.requiresVerification || err.message?.toLowerCase().includes('verify your email');
-      if (isUnverified) {
-        setUnverifiedEmail(err.data?.email || email.toLowerCase().trim());
-        setError('Please verify your email before signing in.');
-      } else {
-        setError(err.message || 'Login failed');
-      }
+      setError(err.message || 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -40,14 +27,6 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center bg-gray-900 px-4 py-12">
       <div className="max-w-md w-full bg-[#121624] border border-[#1e2538] rounded-2xl shadow-2xl overflow-hidden">
         <div className="px-8 py-10">
-          {showVerification ? (
-            <EmailVerificationBox
-              email={unverifiedEmail || email.toLowerCase().trim()}
-              onVerified={() => navigate('/')}
-              onBack={() => setShowVerification(false)}
-            />
-          ) : (
-            <>
               <div className="text-center mb-8">
                 <div className="w-12 h-12 rounded-xl devhub-logo-box bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30 mx-auto mb-3">
                   <i className="fa-solid fa-bolt text-lg"></i>
@@ -62,18 +41,6 @@ const Login = () => {
                     <i className="fa-solid fa-circle-exclamation mt-0.5 shrink-0 text-red-400"></i>
                     <span>{error}</span>
                   </div>
-                  {unverifiedEmail && (
-                    <div className="pt-2 border-t border-red-500/20 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => setShowVerification(true)}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-3 py-1.5 rounded-lg transition shadow flex items-center space-x-1.5"
-                      >
-                        <i className="fa-solid fa-envelope-circle-check text-[11px]"></i>
-                        <span>Enter Verification Code</span>
-                      </button>
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -128,8 +95,6 @@ const Login = () => {
                   Create one now
                 </Link>
               </p>
-            </>
-          )}
         </div>
       </div>
     </div>
