@@ -103,7 +103,7 @@ exports.register = async (req, res) => {
     await userService.initializeUserStorage(user.id);
 
     // Send the real 6-digit verification code via email
-    await sendVerificationEmail(normalizedEmail, rawCode, user.name);
+    const emailResult = await sendVerificationEmail(normalizedEmail, rawCode, user.name);
 
     createAuditLog({
       userId: user.id,
@@ -112,6 +112,12 @@ exports.register = async (req, res) => {
       entityId: user.id,
       metadata: { email: normalizedEmail, event: 'User registered (Pending Email Verification)' }
     });
+
+    if (!emailResult.success) {
+      return res.status(503).json({
+        error: 'Account created, but we could not send the verification email due to a configuration or delivery error. Please try "Resend Code" later or contact support.'
+      });
+    }
 
     // DO NOT set auth cookie until email is verified
     res.status(201).json({
@@ -287,7 +293,13 @@ exports.resendVerificationCode = async (req, res) => {
     });
 
     // Send new email
-    await sendVerificationEmail(normalizedEmail, rawCode, user.name);
+    const emailResult = await sendVerificationEmail(normalizedEmail, rawCode, user.name);
+
+    if (!emailResult.success) {
+      return res.status(503).json({
+        error: 'Failed to send verification email due to a configuration or delivery error. Please try again later or contact support.'
+      });
+    }
 
     res.json({
       success: true,

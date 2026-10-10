@@ -23,7 +23,10 @@ async function getTransporter() {
       },
       tls: {
         rejectUnauthorized: false
-      }
+      },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000
     });
     console.log(`[EmailService] Configured SMTP transporter with host: ${process.env.SMTP_HOST}`);
     return cachedTransporter;
@@ -36,10 +39,18 @@ async function getTransporter() {
       auth: {
         user: process.env.GMAIL_USER,
         pass: process.env.GMAIL_APP_PASSWORD
-      }
+      },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000
     });
     console.log('[EmailService] Configured Gmail transporter');
     return cachedTransporter;
+  }
+
+  // 3. Prevent Ethereal fallback in production
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Production email credentials (SMTP_HOST or GMAIL_USER or RESEND_API_KEY) are missing. Cannot fallback to Ethereal in production.');
   }
 
   // 3. Fallback: Ethereal test account or development logger
@@ -216,6 +227,9 @@ async function sendVerificationEmail(toEmail, code, userName = 'Developer') {
   // Direct Resend API support if configured
   if (process.env.RESEND_API_KEY) {
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -228,8 +242,10 @@ async function sendVerificationEmail(toEmail, code, userName = 'Developer') {
           subject: `${code} is your DEVHUB verification code`,
           html,
           text
-        })
+        }),
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
 
       if (res.ok) {
         const data = await res.json();
